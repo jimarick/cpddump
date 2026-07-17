@@ -1,9 +1,13 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AiAssistController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InboxItemController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\TimelineController;
 use App\Http\Middleware\EnsureOnboarded;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +31,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('activities', [ActivityController::class, 'index'])->name('activities.index');
         Route::put('activities/{activity}', [ActivityController::class, 'update'])->name('activities.update');
         Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->name('activities.destroy');
+
+        Route::get('timeline', [TimelineController::class, 'index'])->name('timeline');
+        Route::post('timeline/reset', [TimelineController::class, 'reset'])->name('timeline.reset');
+
+        Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
+        Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
+        Route::put('projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
+        Route::delete('projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+
+        Route::get('search', SearchController::class)->name('search');
+        Route::post('ai/text-assist', [AiAssistController::class, 'textAssist'])
+            ->middleware('throttle:30,1')
+            ->name('ai.text-assist');
     });
 });
 

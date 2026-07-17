@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\InboxItemStatus;
 use App\Models\ActivityType;
 use App\Models\Attachment;
+use App\Services\StatsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class InboxController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, StatsService $stats): Response
     {
         $user = $request->user();
         $profession = $user->profession;
@@ -39,17 +39,9 @@ class InboxController extends Controller
                 ])->all(),
             ]);
 
-        $periodActivities = $period
-            ? $user->activities()->where('appraisal_period_id', $period->id)
-            : null;
-
         return Inertia::render('inbox', [
             'items' => $items,
-            'stats' => [
-                'activities' => $periodActivities?->clone()->count() ?? 0,
-                'points' => (float) ($periodActivities?->clone()->sum('cpd_points') ?? 0),
-                'awaiting' => $items->whereIn('status', [InboxItemStatus::Ready->value, InboxItemStatus::Failed->value])->count(),
-            ],
+            'stats' => $stats->forPeriod($user, $period),
             'period' => $period?->only(['id', 'label', 'starts_on', 'ends_on']),
             'reference' => [
                 'activityTypes' => ActivityType::availableTo($profession)->get(['id', 'slug', 'name', 'color', 'icon']),

@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     ChevronLeft,
@@ -112,6 +112,7 @@ export default function Inbox({
                     <strong className="text-brand">{stats.awaiting}</strong>{' '}
                     awaiting approval
                 </span>
+                <ThinDomainHint stats={stats} />
                 {dumpAddress && (
                     <span className="ml-auto hidden text-stone-500 lg:inline">
                         forward anything to{' '}
@@ -160,6 +161,27 @@ export default function Inbox({
                 />
             )}
         </>
+    );
+}
+
+function ThinDomainHint({ stats }: { stats: InboxStats }) {
+    if (stats.activities === 0) {
+        return null;
+    }
+
+    const thin = stats.gaps.domains.find((d) => d.count === 0);
+
+    if (!thin) {
+        return null;
+    }
+
+    return (
+        <span className="hidden text-stone-500 md:inline">
+            {(thin.code ?? '').replace('D', 'Domain ')} looking thin —{' '}
+            <Link href="/timeline" className="font-semibold text-brand">
+                see gaps
+            </Link>
+        </span>
     );
 }
 

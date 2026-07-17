@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { LogOut, Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { StampLogo } from '@/components/brand/stamp-logo';
+import { SearchCommand } from '@/components/cpd/search-command';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -52,36 +53,39 @@ export default function AppShell({ children }: { children: ReactNode }) {
                         ))}
                     </nav>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger className="flex size-9 cursor-pointer items-center justify-center rounded-full border-2 border-ink bg-brand-tint text-[12px] font-bold text-brand-dark">
-                            {getInitials(auth.user.name)}
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <div className="px-2 py-1.5 text-sm">
-                                <div className="font-semibold">
-                                    {auth.user.name}
+                    <div className="flex items-center gap-2.5">
+                        <SearchCommand />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger className="flex size-9 cursor-pointer items-center justify-center rounded-full border-2 border-ink bg-brand-tint text-[12px] font-bold text-brand-dark">
+                                {getInitials(auth.user.name)}
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <div className="px-2 py-1.5 text-sm">
+                                    <div className="font-semibold">
+                                        {auth.user.name}
+                                    </div>
+                                    <div className="truncate text-xs text-muted-foreground">
+                                        {auth.user.email}
+                                    </div>
                                 </div>
-                                <div className="truncate text-xs text-muted-foreground">
-                                    {auth.user.email}
-                                </div>
-                            </div>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem asChild>
-                                <Link
-                                    href="/settings/profile"
-                                    className="flex w-full items-center gap-2"
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href="/settings/profile"
+                                        className="flex w-full items-center gap-2"
+                                    >
+                                        <Settings className="size-4" /> Settings
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => router.post(logout().url)}
+                                    className="flex items-center gap-2"
                                 >
-                                    <Settings className="size-4" /> Settings
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => router.post(logout().url)}
-                                className="flex items-center gap-2"
-                            >
-                                <LogOut className="size-4" /> Sign out
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                                    <LogOut className="size-4" /> Sign out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
 
                 <nav className="flex items-center gap-1 overflow-x-auto px-4 pb-2 md:hidden">

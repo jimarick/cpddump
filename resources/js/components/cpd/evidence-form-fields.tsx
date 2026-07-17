@@ -1,3 +1,4 @@
+import { AiTextarea } from '@/components/cpd/ai-textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -36,6 +37,19 @@ interface StepProps {
     onChange: (patch: Partial<EvidenceFormValues>) => void;
     reference: ReferenceData;
     errors?: Record<string, string>;
+}
+
+/** A short grounding blurb about the activity, passed to the AI assist. */
+function aiContext(values: EvidenceFormValues): string {
+    return [
+        values.title && `Activity: ${values.title}`,
+        values.activity_type_slug && `Type: ${values.activity_type_slug}`,
+        values.starts_on && `Date: ${values.starts_on}`,
+        values.organisation && `Organisation: ${values.organisation}`,
+        values.summary && `Details: ${values.summary}`,
+    ]
+        .filter(Boolean)
+        .join('\n');
 }
 
 export function DetailsStepFields({
@@ -137,11 +151,13 @@ export function DetailsStepFields({
 
             <div className="grid gap-1.5">
                 <Label htmlFor="summary">Details</Label>
-                <Textarea
+                <AiTextarea
                     id="summary"
                     value={values.summary}
                     rows={4}
                     onChange={(v) => onChange({ summary: v })}
+                    field="Details — a factual summary of what this activity was"
+                    context={aiContext({ ...values, summary: '' })}
                 />
             </div>
         </div>
@@ -163,7 +179,7 @@ export function ReflectionStepFields({
                     <p className="text-xs text-pretty text-stone-500">
                         {prompt.question}
                     </p>
-                    <Textarea
+                    <AiTextarea
                         id={`reflection-${prompt.key}`}
                         value={values.reflection[prompt.key] ?? ''}
                         rows={5}
@@ -175,6 +191,8 @@ export function ReflectionStepFields({
                                 },
                             })
                         }
+                        field={`Appraisal reflection — ${prompt.label}: ${prompt.question}`}
+                        context={aiContext(values)}
                     />
                 </div>
             ))}
@@ -320,28 +338,6 @@ export function EvidenceFormFields(props: StepProps) {
                 <CategorisationStepFields {...props} />
             </div>
         </div>
-    );
-}
-
-function Textarea({
-    id,
-    value,
-    rows,
-    onChange,
-}: {
-    id: string;
-    value: string;
-    rows: number;
-    onChange: (value: string) => void;
-}) {
-    return (
-        <textarea
-            id={id}
-            value={value}
-            rows={rows}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm leading-relaxed shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-        />
     );
 }
 

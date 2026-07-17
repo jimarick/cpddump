@@ -101,10 +101,21 @@ export interface InboxItemData {
     attachments: AttachmentRef[];
 }
 
+export interface GapEntry {
+    slug?: string;
+    code?: string;
+    name: string;
+    count: number;
+}
+
 export interface InboxStats {
     activities: number;
     points: number;
     awaiting: number;
+    gaps: {
+        categories: GapEntry[];
+        domains: GapEntry[];
+    };
 }
 
 export interface PeriodData {
