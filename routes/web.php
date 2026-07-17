@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AiAssistController;
+use App\Http\Controllers\GeneratedReportController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InboxItemController;
 use App\Http\Controllers\OnboardingController;
@@ -39,6 +40,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
         Route::put('projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
         Route::delete('projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+
+        Route::get('reports', [GeneratedReportController::class, 'index'])->name('reports.index');
+        Route::post('reports', [GeneratedReportController::class, 'store'])->name('reports.store');
+        Route::delete('reports/{report}', [GeneratedReportController::class, 'destroy'])->name('reports.destroy');
 
         Route::get('search', SearchController::class)->name('search');
         Route::post('ai/text-assist', [AiAssistController::class, 'textAssist'])
