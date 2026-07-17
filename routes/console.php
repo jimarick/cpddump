@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('cpd:send-weekly-reviews')->weeklyOn(1, '07:00')->timezone('Europe/London');
+Schedule::command('cpd:sync-calendars')->weeklyOn(0, '18:00')->timezone('Europe/London');

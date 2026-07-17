@@ -11,3 +11,11 @@ parameters:
         - routes/
 
     level: 7
+
+    ignoreErrors:
+        # sabre/vobject components are iterable but ship no generic
+        # annotations; typehinting VEvent is correct, the library just
+        # can't express its value type.
+        -
+            identifier: missingType.iterableValue
+            path: app/Services/CalendarFeedSync.php
