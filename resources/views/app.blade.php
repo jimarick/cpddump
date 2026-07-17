@@ -34,7 +34,9 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-        @fonts
+        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link href="https://fonts.bunny.net/css?family=caveat:400,500,600,700|cormorant-garamond:400,500,600,700,400i,500i,600i|instrument-sans:400,500,600,700,400i|instrument-serif:400,400i&display=swap" rel="stylesheet">
+
 
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])

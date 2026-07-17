@@ -12,6 +12,22 @@
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-hand: 'Caveat', cursive;
+    --font-quote: 'Instrument Serif', Georgia, serif;
+
+    /* CPD Dump brand (design handoff) */
+    --color-paper: #faf9f6;
+    --color-paper-alt: #f5f3ee;
+    --color-ink: #1c1917;
+    --color-brand: #f4590c;
+    --color-brand-tint: #fde8dc;
+    --color-brand-dark: #c2410c;
+    --color-brand-pale: #fff7f2;
+    --color-cat-course: #f4590c;
+    --color-cat-meeting: #3f8fd2;
+    --color-cat-teaching: #2f9e64;
+    --color-cat-qi: #9a6fd0;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
