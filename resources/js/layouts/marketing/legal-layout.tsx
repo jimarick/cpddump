@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { StampLogo } from '@/components/brand/stamp-logo';
+import { useForceLight } from '@/hooks/use-force-light';
 import { home } from '@/routes';
 
 interface LegalLayoutProps {
@@ -15,6 +16,8 @@ export default function LegalLayout({
     updated,
     children,
 }: LegalLayoutProps) {
+    useForceLight();
+
     return (
         <>
             <Head title={title} />

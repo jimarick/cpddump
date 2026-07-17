@@ -5,6 +5,7 @@ import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
 import { Sparkle } from '@/components/brand/sparkle';
 import { StampLogo } from '@/components/brand/stamp-logo';
+import { useForceLight } from '@/hooks/use-force-light';
 import { login, register } from '@/routes';
 
 const gridBg = {
@@ -14,6 +15,8 @@ const gridBg = {
 };
 
 export default function Home() {
+    useForceLight();
+
     return (
         <>
             <Head title="CPD Dump — Dump it. We'll sort it (with AI).">
