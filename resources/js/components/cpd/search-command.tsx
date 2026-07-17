@@ -86,13 +86,11 @@ export function SearchCommand() {
             <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="flex cursor-pointer items-center gap-2 rounded-[9px] border-[1.5px] border-ink/20 bg-white px-3 py-1.5 text-[12.5px] text-stone-400 transition-colors hover:border-ink/40 md:w-52"
+                className="flex h-9 cursor-pointer items-center gap-2 rounded-[9px] border-[1.5px] border-ink/20 bg-white px-3 text-[12.5px] whitespace-nowrap text-stone-400 transition-colors hover:border-ink/40 md:w-44"
                 title="Search (⌘K)"
             >
-                <Search className="size-3.5" />
-                <span className="hidden md:inline">
-                    Search your activities…
-                </span>
+                <Search className="size-3.5 shrink-0" />
+                <span className="hidden md:inline">Search…</span>
                 <kbd className="ml-auto hidden rounded border border-stone-200 bg-paper px-1 text-[10px] text-stone-400 md:inline">
                     ⌘K
                 </kbd>
