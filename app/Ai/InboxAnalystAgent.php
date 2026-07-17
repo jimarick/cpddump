@@ -151,7 +151,7 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
             ->all();
 
         return [
-            'title' => $schema->string()->max(160)->required(),
+            'title' => $schema->string()->description('Short, professional title, under 160 characters')->required(),
             'activity_type_slug' => $schema->string()->enum($this->activityTypeSlugs)->required(),
             'starts_on' => $schema->string()->description('ISO date YYYY-MM-DD')->nullable(),
             'ends_on' => $schema->string()->description('ISO date YYYY-MM-DD')->nullable(),
@@ -165,7 +165,7 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
             'attribute_codes' => $schema->array()->items($schema->string()->enum(array_keys($this->attributes)))->required(),
             'suggested_project_ids' => $schema->array()->items($schema->integer())->required(),
             'possible_duplicate_activity_ids' => $schema->array()->items($schema->integer())->required(),
-            'confidence' => $schema->number()->min(0)->max(1)->required(),
+            'confidence' => $schema->number()->description('Between 0 and 1: overall confidence in this extraction')->required(),
             'pii_flags' => $schema->array()->items($schema->object([
                 'type' => $schema->string()->description('e.g. patient_name, nhs_number, dob, address, case_details')->required(),
                 'excerpt' => $schema->string()->description('Short excerpt showing the identifier context')->required(),
