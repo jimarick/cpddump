@@ -28,6 +28,7 @@ class EvidenceIngestor
         array $rawPayload,
         array $files = [],
         ?string $externalId = null,
+        bool $dispatch = true,
     ): ?InboxItem {
         if ($this->shouldIgnore($user, $source, $rawPayload)) {
             return null;
@@ -56,7 +57,9 @@ class EvidenceIngestor
             $this->storeAttachment($item, $file);
         }
 
-        $this->dispatchPipeline($item);
+        if ($dispatch) {
+            $this->dispatchPipeline($item);
+        }
 
         return $item;
     }

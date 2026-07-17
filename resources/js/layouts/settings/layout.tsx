@@ -17,6 +17,16 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
+        title: 'Evidence & email',
+        href: '/settings/evidence',
+        icon: null,
+    },
+    {
+        title: 'AI',
+        href: '/settings/ai',
+        icon: null,
+    },
+    {
         title: 'Security',
         href: editSecurity(),
         icon: null,
