@@ -10,6 +10,9 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
+            // The repo folder is "CPD-Dump", but the site runs lowercase —
+            // pin the dev server + TLS detection to the real hostname.
+            detectTls: 'cpd-dump',
         }),
         inertia(),
         react({
