@@ -1,6 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { LogOut, Settings } from 'lucide-react';
-import type {ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { StampLogo } from '@/components/brand/stamp-logo';
 import {
     DropdownMenu,

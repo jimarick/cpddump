@@ -1,21 +1,24 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
+    ChevronLeft,
+    ChevronRight,
     Loader2,
     Paperclip,
     Plus,
     RefreshCw,
 } from 'lucide-react';
-import type { FormEvent} from 'react';
+import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
 import { Sparkle } from '@/components/brand/sparkle';
 import {
-    EvidenceFormFields
-    
+    CategorisationStepFields,
+    DetailsStepFields,
+    ReflectionStepFields,
 } from '@/components/cpd/evidence-form-fields';
-import type {EvidenceFormValues} from '@/components/cpd/evidence-form-fields';
+import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -27,7 +30,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type {InboxItemData, InboxStats, PeriodData, ReferenceData} from '@/types/cpd';
+import type {
+    InboxItemData,
+    InboxStats,
+    PeriodData,
+    ReferenceData,
+} from '@/types/cpd';
 
 interface Props {
     items: InboxItemData[];
@@ -383,6 +391,32 @@ function AddEvidenceDialog({
     );
 }
 
+const REVIEW_STEPS = ['Details', 'Reflection', 'Categorise'] as const;
+
+/** Which review step each server-side validation error belongs to. */
+function stepForErrors(errors: Record<string, string>): number {
+    const keys = Object.keys(errors);
+    const detailFields = [
+        'title',
+        'activity_type_slug',
+        'starts_on',
+        'ends_on',
+        'organisation',
+        'cpd_points',
+        'summary',
+    ];
+
+    if (keys.some((k) => detailFields.includes(k))) {
+        return 0;
+    }
+
+    if (keys.some((k) => k.startsWith('reflection'))) {
+        return 1;
+    }
+
+    return 2;
+}
+
 function ReviewDialog({
     item,
     reference,
@@ -393,6 +427,8 @@ function ReviewDialog({
     onClose: () => void;
 }) {
     const analysis = item.ai_analysis;
+
+    const [step, setStep] = useState(0);
 
     const [values, setValues] = useState<EvidenceFormValues>({
         title: analysis?.title ?? '',
@@ -434,7 +470,10 @@ function ReviewDialog({
             },
             {
                 onSuccess: onClose,
-                onError: (errs) => setErrors(errs as Record<string, string>),
+                onError: (errs) => {
+                    setErrors(errs as Record<string, string>);
+                    setStep(stepForErrors(errs as Record<string, string>));
+                },
                 onFinish: () => setProcessing(false),
             },
         );
@@ -466,9 +505,11 @@ function ReviewDialog({
         );
     };
 
+    const lastStep = step === REVIEW_STEPS.length - 1;
+
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
-            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+            <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 font-display text-2xl font-semibold">
                         {item.status === 'failed'
@@ -479,6 +520,34 @@ function ReviewDialog({
                         )}
                     </DialogTitle>
                 </DialogHeader>
+
+                {item.status !== 'failed' && (
+                    <div className="flex items-center gap-1.5">
+                        {REVIEW_STEPS.map((label, i) => (
+                            <button
+                                key={label}
+                                type="button"
+                                onClick={() => setStep(i)}
+                                className={`flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                                    i === step
+                                        ? 'rotate-[-0.5deg] border-[1.5px] border-ink bg-brand-tint text-brand-dark'
+                                        : 'border-[1.5px] border-dashed border-stone-300 text-stone-500 hover:border-ink hover:text-ink'
+                                }`}
+                            >
+                                <span
+                                    className={`flex size-4 items-center justify-center rounded-full text-[10px] font-bold ${
+                                        i === step
+                                            ? 'bg-brand text-white'
+                                            : 'bg-stone-200 text-stone-600'
+                                    }`}
+                                >
+                                    {i + 1}
+                                </span>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {piiFlags.length > 0 && (
                     <div className="rounded-[10px] border-2 border-brand bg-brand-pale px-4 py-3 text-sm">
@@ -503,7 +572,7 @@ function ReviewDialog({
                     </div>
                 )}
 
-                {missingEvidence.length > 0 && (
+                {missingEvidence.length > 0 && step === 0 && (
                     <div className="rounded-[10px] border border-dashed border-stone-400 px-4 py-2.5 text-[13px] text-stone-600">
                         <span className="font-semibold">Might be missing:</span>{' '}
                         {missingEvidence.join(' · ')}
@@ -530,17 +599,39 @@ function ReviewDialog({
                     </div>
                 ) : (
                     <>
-                        <EvidenceFormFields
-                            values={values}
-                            onChange={(patch) =>
-                                setValues((v) => ({ ...v, ...patch }))
-                            }
-                            reference={reference}
-                            errors={errors}
-                        />
+                        {step === 0 && (
+                            <DetailsStepFields
+                                values={values}
+                                onChange={(patch) =>
+                                    setValues((v) => ({ ...v, ...patch }))
+                                }
+                                reference={reference}
+                                errors={errors}
+                            />
+                        )}
+                        {step === 1 && (
+                            <ReflectionStepFields
+                                values={values}
+                                onChange={(patch) =>
+                                    setValues((v) => ({ ...v, ...patch }))
+                                }
+                                reference={reference}
+                                errors={errors}
+                            />
+                        )}
+                        {step === 2 && (
+                            <CategorisationStepFields
+                                values={values}
+                                onChange={(patch) =>
+                                    setValues((v) => ({ ...v, ...patch }))
+                                }
+                                reference={reference}
+                                errors={errors}
+                            />
+                        )}
 
                         <div className="mt-2 grid gap-3 border-t border-dashed border-stone-300 pt-4">
-                            {canIgnore && (
+                            {canIgnore && lastStep && (
                                 <label className="flex items-start gap-2 text-[13px] text-stone-600">
                                     <Checkbox
                                         checked={neverAgain}
@@ -559,21 +650,41 @@ function ReviewDialog({
                                 </label>
                             )}
                             <div className="flex flex-wrap items-center gap-2">
+                                {step > 0 && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setStep(step - 1)}
+                                        disabled={processing}
+                                        className="border-2 border-ink"
+                                    >
+                                        <ChevronLeft className="size-4" /> Back
+                                    </Button>
+                                )}
+                                {!lastStep ? (
+                                    <Button
+                                        onClick={() => setStep(step + 1)}
+                                        disabled={processing}
+                                        className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+                                    >
+                                        Next <ChevronRight className="size-4" />
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        onClick={approve}
+                                        disabled={processing}
+                                        className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+                                    >
+                                        {processing && (
+                                            <Loader2 className="size-4 animate-spin" />
+                                        )}{' '}
+                                        Approve
+                                    </Button>
+                                )}
                                 <Button
-                                    onClick={approve}
-                                    disabled={processing}
-                                    className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
-                                >
-                                    {processing && (
-                                        <Loader2 className="size-4 animate-spin" />
-                                    )}{' '}
-                                    Approve
-                                </Button>
-                                <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     onClick={dismiss}
                                     disabled={processing}
-                                    className="border-2 border-ink"
+                                    className="text-stone-500"
                                 >
                                     Bin it
                                 </Button>

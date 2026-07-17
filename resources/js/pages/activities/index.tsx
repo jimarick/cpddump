@@ -2,11 +2,8 @@ import { Head, router } from '@inertiajs/react';
 import { Loader2, Paperclip, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
-import {
-    EvidenceFormFields
-    
-} from '@/components/cpd/evidence-form-fields';
-import type {EvidenceFormValues} from '@/components/cpd/evidence-form-fields';
+import { EvidenceFormFields } from '@/components/cpd/evidence-form-fields';
+import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -14,7 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import type {ActivityData, PeriodData, ReferenceData} from '@/types/cpd';
+import type { ActivityData, PeriodData, ReferenceData } from '@/types/cpd';
 
 interface Props {
     activities: ActivityData[];
@@ -181,7 +178,7 @@ function EditActivityDialog({
 
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
-            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+            <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="font-display text-2xl font-semibold">
                         Edit activity

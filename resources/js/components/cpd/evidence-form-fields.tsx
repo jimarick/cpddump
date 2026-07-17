@@ -1,4 +1,3 @@
-import { Chip } from '@/components/brand/chip';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -9,11 +8,13 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import type {ReferenceData, ReflectionPrompt} from '@/types/cpd';
+import type { ReferenceData, ReflectionPrompt } from '@/types/cpd';
 
 /**
  * The editable draft-activity fields shared by the inbox review modal and
  * the activity edit dialog. Purely controlled: parent owns the values.
+ * Exposed as three step sections (details / reflection / categorisation)
+ * so the review modal can paginate; EvidenceFormFields stacks all three.
  */
 export interface EvidenceFormValues {
     title: string;
@@ -30,29 +31,19 @@ export interface EvidenceFormValues {
     project_ids: number[];
 }
 
-interface Props {
+interface StepProps {
     values: EvidenceFormValues;
     onChange: (patch: Partial<EvidenceFormValues>) => void;
     reference: ReferenceData;
     errors?: Record<string, string>;
 }
 
-export function EvidenceFormFields({
+export function DetailsStepFields({
     values,
     onChange,
     reference,
     errors = {},
-}: Props) {
-    const toggle = (list: string[], value: string) =>
-        list.includes(value)
-            ? list.filter((v) => v !== value)
-            : [...list, value];
-
-    const toggleNumber = (list: number[], value: number) =>
-        list.includes(value)
-            ? list.filter((v) => v !== value)
-            : [...list, value];
-
+}: StepProps) {
     return (
         <div className="grid gap-5">
             <div className="grid gap-1.5">
@@ -65,8 +56,8 @@ export function EvidenceFormFields({
                 <FieldError message={errors.title} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="col-span-2 grid gap-1.5">
+            <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
                     <Label>Type</Label>
                     <Select
                         value={values.activity_type_slug}
@@ -74,7 +65,7 @@ export function EvidenceFormFields({
                             onChange({ activity_type_slug: v })
                         }
                     >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                             <SelectValue placeholder="Type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -93,7 +84,7 @@ export function EvidenceFormFields({
                     </Select>
                     <FieldError message={errors.activity_type_slug} />
                 </div>
-                <div className="col-span-2 grid gap-1.5">
+                <div className="grid gap-1.5">
                     <Label htmlFor="cpd_points">CPD points</Label>
                     <Input
                         id="cpd_points"
@@ -109,7 +100,7 @@ export function EvidenceFormFields({
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-1.5">
                     <Label htmlFor="starts_on">Start date</Label>
                     <Input
@@ -146,48 +137,73 @@ export function EvidenceFormFields({
 
             <div className="grid gap-1.5">
                 <Label htmlFor="summary">Details</Label>
-                <textarea
+                <Textarea
                     id="summary"
                     value={values.summary}
-                    onChange={(e) => onChange({ summary: e.target.value })}
-                    rows={3}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                    rows={4}
+                    onChange={(v) => onChange({ summary: v })}
                 />
             </div>
+        </div>
+    );
+}
 
-            {reference.reflectionPrompts.length > 0 && (
-                <div className="grid gap-3">
-                    <div className="text-sm font-bold">Reflection</div>
-                    {reference.reflectionPrompts.map(
-                        (prompt: ReflectionPrompt) => (
-                            <div key={prompt.key} className="grid gap-1.5">
-                                <Label
-                                    htmlFor={`reflection-${prompt.key}`}
-                                    className="font-medium text-stone-600"
-                                >
-                                    {prompt.label}
-                                </Label>
-                                <textarea
-                                    id={`reflection-${prompt.key}`}
-                                    value={values.reflection[prompt.key] ?? ''}
-                                    onChange={(e) =>
-                                        onChange({
-                                            reflection: {
-                                                ...values.reflection,
-                                                [prompt.key]: e.target.value,
-                                            },
-                                        })
-                                    }
-                                    rows={3}
-                                    title={prompt.question}
-                                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                                />
-                            </div>
-                        ),
-                    )}
+export function ReflectionStepFields({
+    values,
+    onChange,
+    reference,
+}: StepProps) {
+    return (
+        <div className="grid gap-5">
+            {reference.reflectionPrompts.map((prompt: ReflectionPrompt) => (
+                <div key={prompt.key} className="grid gap-1.5">
+                    <Label htmlFor={`reflection-${prompt.key}`}>
+                        {prompt.label}
+                    </Label>
+                    <p className="text-xs text-pretty text-stone-500">
+                        {prompt.question}
+                    </p>
+                    <Textarea
+                        id={`reflection-${prompt.key}`}
+                        value={values.reflection[prompt.key] ?? ''}
+                        rows={5}
+                        onChange={(v) =>
+                            onChange({
+                                reflection: {
+                                    ...values.reflection,
+                                    [prompt.key]: v,
+                                },
+                            })
+                        }
+                    />
                 </div>
+            ))}
+            {reference.reflectionPrompts.length === 0 && (
+                <p className="text-sm text-stone-500">
+                    No reflection prompts for your profession.
+                </p>
             )}
+        </div>
+    );
+}
 
+export function CategorisationStepFields({
+    values,
+    onChange,
+    reference,
+}: StepProps) {
+    const toggle = (list: string[], value: string) =>
+        list.includes(value)
+            ? list.filter((v) => v !== value)
+            : [...list, value];
+
+    const toggleNumber = (list: number[], value: number) =>
+        list.includes(value)
+            ? list.filter((v) => v !== value)
+            : [...list, value];
+
+    return (
+        <div className="grid gap-5">
             <div className="grid gap-2">
                 <Label>Categories</Label>
                 <div className="flex flex-wrap gap-1.5">
@@ -291,6 +307,44 @@ export function EvidenceFormFields({
     );
 }
 
+/** All three step sections stacked — used by the activity edit dialog. */
+export function EvidenceFormFields(props: StepProps) {
+    return (
+        <div className="grid gap-6">
+            <DetailsStepFields {...props} />
+            <div className="border-t border-dashed border-stone-300 pt-5">
+                <div className="mb-3 text-sm font-bold">Reflection</div>
+                <ReflectionStepFields {...props} />
+            </div>
+            <div className="border-t border-dashed border-stone-300 pt-5">
+                <CategorisationStepFields {...props} />
+            </div>
+        </div>
+    );
+}
+
+function Textarea({
+    id,
+    value,
+    rows,
+    onChange,
+}: {
+    id: string;
+    value: string;
+    rows: number;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <textarea
+            id={id}
+            value={value}
+            rows={rows}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm leading-relaxed shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+        />
+    );
+}
+
 function TogglePill({
     label,
     active,
@@ -317,14 +371,4 @@ function TogglePill({
             {label}
         </button>
     );
-}
-
-export function chipForType(reference: ReferenceData, slug: string) {
-    const type = reference.activityTypes.find((t) => t.slug === slug);
-
-    return type ? <Chip>{type.name}</Chip> : null;
-}
-
-function FieldError({ message }: { message?: string }) {
-    return message ? <p className="text-xs text-red-600">{message}</p> : null;
 }
