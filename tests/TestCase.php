@@ -7,6 +7,8 @@ use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected $seed = true;
+
     protected function setUp(): void
     {
         parent::setUp();
