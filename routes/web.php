@@ -1,5 +1,10 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\InboxController;
+use App\Http\Controllers\InboxItemController;
+use App\Http\Controllers\OnboardingController;
+use App\Http\Middleware\EnsureOnboarded;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'marketing/home')->name('home');
@@ -7,7 +12,22 @@ Route::inertia('privacy', 'marketing/privacy')->name('privacy');
 Route::inertia('terms', 'marketing/terms')->name('terms');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
+    Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+
+    Route::middleware(EnsureOnboarded::class)->group(function () {
+        Route::redirect('dashboard', '/inbox')->name('dashboard');
+
+        Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
+        Route::post('inbox', [InboxItemController::class, 'store'])->name('inbox.store');
+        Route::post('inbox/{item}/approve', [InboxItemController::class, 'approve'])->name('inbox.approve');
+        Route::post('inbox/{item}/retry', [InboxItemController::class, 'retry'])->name('inbox.retry');
+        Route::delete('inbox/{item}', [InboxItemController::class, 'dismiss'])->name('inbox.dismiss');
+
+        Route::get('activities', [ActivityController::class, 'index'])->name('activities.index');
+        Route::put('activities/{activity}', [ActivityController::class, 'update'])->name('activities.update');
+        Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->name('activities.destroy');
+    });
 });
 
 require __DIR__.'/settings.php';
