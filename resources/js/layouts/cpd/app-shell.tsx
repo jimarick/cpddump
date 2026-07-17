@@ -29,10 +29,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
     useForceLight();
     useFlashToast();
 
-    const { auth } = usePage().props;
+    const page = usePage();
+    const { auth } = page.props;
     const getInitials = useInitials();
-    const currentPath =
-        typeof window !== 'undefined' ? window.location.pathname : '';
+    const currentPath = page.url;
 
     return (
         <div className="min-h-svh bg-paper font-sans text-ink">
