@@ -14,7 +14,7 @@ class AiAssistController extends Controller
     public function textAssist(Request $request, AiGateway $ai): JsonResponse
     {
         $validated = $request->validate([
-            'field' => ['required', 'string', 'max:120'],
+            'field' => ['required', 'string', 'max:600'],
             'text' => ['nullable', 'string', 'max:20000'],
             'context' => ['nullable', 'string', 'max:4000'],
         ]);
