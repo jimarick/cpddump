@@ -51,6 +51,10 @@ return [
 
         'ses' => [
             'transport' => 'ses',
+            // TLS-required delivery + bounce/complaint events → SNS.
+            'options' => [
+                'ConfigurationSetName' => 'cpddump',
+            ],
         ],
 
         'postmark' => [
