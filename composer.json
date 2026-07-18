@@ -114,6 +114,7 @@
             "SesV2",
             "S3",
             "Sns",
+            "Sqs",
             "Sts"
         ],
         "laravel": {
