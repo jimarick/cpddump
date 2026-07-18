@@ -29,6 +29,13 @@ Everything code-side is built; these are the account/DNS/env steps to go live.
 - [ ] Create a webhook for `email.received` → `https://cpddump.com/webhooks/resend-inbound`; copy the signing secret into `RESEND_INBOUND_WEBHOOK_SECRET`.
 - [ ] Send a test email to your own dump address end-to-end.
 
+## DMARC (deliverability — matters most for nhs.net recipients)
+
+- [ ] Add a DMARC TXT record at DigitalOcean DNS: `_dmarc.cpddump.com` → `v=DMARC1; p=none; rua=mailto:james.ricketts@gmail.com` (monitor mode; aggregate reports arrive by email).
+- [ ] Confirm SPF and DKIM both pass and align for Resend-sent mail (check any received weekly email's headers, or a tool like learndmarc.com).
+- [ ] After 2–4 weeks of clean reports, tighten to `p=quarantine`.
+- [ ] At registration/UI level: nudge users toward a personal (non-nhs.net) account email — nhs.net inbound filtering is aggressive, and evidence-forwarding TO us is unaffected either way.
+
 ## First-run
 
 - [ ] Deploy; migrations + `db:seed` (reference data seeder is idempotent) run via the deploy commands.
