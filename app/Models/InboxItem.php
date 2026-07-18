@@ -163,6 +163,8 @@ class InboxItem extends Model
                 'last_matched_on' => $activity->starts_on?->toDateString() ?? now()->toDateString(),
             ]);
 
+            $this->redactPayload();
+
             return $activity;
         });
     }
@@ -176,6 +178,33 @@ class InboxItem extends Model
         $this->update([
             'status' => InboxItemStatus::Dismissed,
             'resolved_at' => now(),
+        ]);
+
+        $this->redactPayload();
+    }
+
+    /** Payload keys that carry third-party content (email bodies etc.). */
+    private const REDACTABLE_PAYLOAD_KEYS = ['body', 'transcript', 'page_text', 'html'];
+
+    /**
+     * Strip third-party content from the raw payload once the item is
+     * resolved — the extracted analysis is what we keep, not the email
+     * itself. Metadata (subject, sender, url) survives for ignore rules
+     * and audit.
+     */
+    public function redactPayload(): void
+    {
+        $payload = $this->raw_payload ?? [];
+
+        if (empty(array_intersect(self::REDACTABLE_PAYLOAD_KEYS, array_keys($payload)))) {
+            return;
+        }
+
+        $this->update([
+            'raw_payload' => collect($payload)
+                ->except(self::REDACTABLE_PAYLOAD_KEYS)
+                ->put('redacted_at', now()->toIso8601String())
+                ->all(),
         ]);
     }
 }
