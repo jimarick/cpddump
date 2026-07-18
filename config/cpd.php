@@ -15,20 +15,20 @@ return [
     | AI Models Per Purpose
     |--------------------------------------------------------------------------
     |
-    | Model used for each AI purpose when the provider is the platform
-    | default (Anthropic). BYO-key users get the same model names for
-    | Anthropic, or the OpenAI equivalents below.
+    | Each provider has a heavy model (inbox analysis, Q&A, reports) and a
+    | fast one (sparkle assists, weekly digest). Whichever provider is
+    | active — the platform default or a user's own key — uses its pair.
     |
     */
 
     'ai' => [
         'models' => [
             'anthropic' => [
-                'inbox_analysis' => env('AI_MODEL_ANALYSIS', 'claude-sonnet-5'),
-                'text_assist' => env('AI_MODEL_TEXT', 'claude-haiku-4-5-20251001'),
-                'question_answer' => env('AI_MODEL_QA', 'claude-sonnet-5'),
-                'report' => env('AI_MODEL_REPORT', 'claude-sonnet-5'),
-                'weekly_digest' => env('AI_MODEL_DIGEST', 'claude-haiku-4-5-20251001'),
+                'inbox_analysis' => env('AI_ANTHROPIC_MODEL', 'claude-sonnet-5'),
+                'text_assist' => env('AI_ANTHROPIC_MODEL_FAST', 'claude-haiku-4-5-20251001'),
+                'question_answer' => env('AI_ANTHROPIC_MODEL', 'claude-sonnet-5'),
+                'report' => env('AI_ANTHROPIC_MODEL', 'claude-sonnet-5'),
+                'weekly_digest' => env('AI_ANTHROPIC_MODEL_FAST', 'claude-haiku-4-5-20251001'),
             ],
             'openai' => [
                 'inbox_analysis' => env('AI_OPENAI_MODEL', 'gpt-5.4'),
