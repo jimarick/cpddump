@@ -23,6 +23,7 @@ class SendWeeklyReviews extends Command
         User::query()
             ->whereNotNull('onboarded_at')
             ->where('weekly_email_enabled', true)
+            ->whereNull('email_suppressed_at')
             ->eachById(function (User $user) use ($stats, &$sent) {
                 $period = $user->currentAppraisalPeriod();
                 $periodStats = $stats->forPeriod($user, $period);

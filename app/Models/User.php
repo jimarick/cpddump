@@ -25,6 +25,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
+ * @property Carbon|null $email_suppressed_at
+ * @property string|null $email_suppression_reason
  * @property string $password
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -53,10 +55,23 @@ class User extends Authenticatable implements PasskeyUser
      *
      * @return array<string, string>
      */
+    protected static function booted(): void
+    {
+        // A changed address is a fresh start — suppression belongs to
+        // the old, bouncing one.
+        static::updating(function (User $user): void {
+            if ($user->isDirty('email')) {
+                $user->email_suppressed_at = null;
+                $user->email_suppression_reason = null;
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_suppressed_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'is_admin' => 'boolean',

@@ -37,6 +37,18 @@ export default function Profile({
                     description="Update your name and email address"
                 />
 
+                {Boolean(auth.user.email_suppressed_at) && (
+                    <div className="rounded-[10px] border-2 border-brand bg-brand-pale px-4 py-3 text-sm">
+                        <strong>Your emails are paused.</strong> A message to{' '}
+                        {auth.user.email} recently{' '}
+                        {auth.user.email_suppression_reason === 'complaint'
+                            ? 'was marked as spam'
+                            : 'bounced'}
+                        , so weekly summaries and reminders are on hold.
+                        Updating your email address below resumes them.
+                    </div>
+                )}
+
                 <Form
                     {...ProfileController.update.form()}
                     options={{

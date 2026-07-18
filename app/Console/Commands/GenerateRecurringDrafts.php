@@ -110,7 +110,7 @@ class GenerateRecurringDrafts extends Command
 
     private function maybeRemind(Recurrence $recurrence, InboxItem $item): void
     {
-        if ($recurrence->reminder === 'same_day') {
+        if ($recurrence->reminder === 'same_day' && $recurrence->user->email_suppressed_at === null) {
             Mail::to($recurrence->user)->queue(new RecurrenceReminder($recurrence, $item));
         }
     }

@@ -6,6 +6,8 @@ export type User = {
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
     is_admin?: boolean;
+    email_suppressed_at?: string | null;
+    email_suppression_reason?: 'bounce' | 'complaint' | null;
     created_at: string;
     updated_at: string;
     [key: string]: unknown;

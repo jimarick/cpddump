@@ -3,15 +3,12 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Webhooks\Concerns\HandlesSnsMessages;
 use App\Jobs\ProcessSesInboundEmail;
 use App\Services\SesObjectStore;
-use Aws\Sns\Message;
-use Aws\Sns\MessageValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 
 /**
  * SNS webhook for SES email receiving: confirms the subscription
@@ -19,30 +16,13 @@ use Throwable;
  */
 class SesInboundController extends Controller
 {
+    use HandlesSnsMessages;
+
     public function __invoke(Request $request, SesObjectStore $store): JsonResponse
     {
-        $payload = json_decode($request->getContent(), true);
+        $message = $this->snsMessage($request);
 
-        if (! is_array($payload) || ! isset($payload['Type'])) {
-            abort(400);
-        }
-
-        $this->verifySignature($payload);
-
-        if ($payload['Type'] === 'SubscriptionConfirmation') {
-            Http::get((string) $payload['SubscribeURL']);
-            Log::info('SES inbound SNS subscription confirmed.');
-
-            return response()->json(['status' => 'confirmed']);
-        }
-
-        if ($payload['Type'] !== 'Notification') {
-            return response()->json(['status' => 'ignored']);
-        }
-
-        $message = json_decode((string) ($payload['Message'] ?? ''), true);
-
-        if (! is_array($message) || ($message['notificationType'] ?? null) !== 'Received') {
+        if ($message === null || ($message['notificationType'] ?? null) !== 'Received') {
             return response()->json(['status' => 'ignored']);
         }
 
@@ -73,20 +53,5 @@ class SesInboundController extends Controller
         );
 
         return response()->json(['status' => 'queued']);
-    }
-
-    /** @param array<string, mixed> $payload */
-    private function verifySignature(array $payload): void
-    {
-        if (! config('services.ses_inbound.verify_signature')) {
-            return;
-        }
-
-        try {
-            (new MessageValidator)->validate(new Message($payload));
-        } catch (Throwable $e) {
-            report($e);
-            abort(403, 'Invalid SNS signature.');
-        }
     }
 }
