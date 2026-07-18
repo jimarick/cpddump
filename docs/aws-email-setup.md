@@ -58,7 +58,9 @@ Paste the records Claude hands you:
 - 3× DKIM CNAMEs (SES verification)
 - 2× MAIL FROM records (MX + TXT on `mail.cpddump.com`)
 - DMARC TXT: `_dmarc.cpddump.com` →
-  `v=DMARC1; p=none; rua=mailto:james.ricketts@gmail.com`
+  `v=DMARC1; p=none; rua=mailto:dmarc@cpddump.com`
+  (dmarc@ is an app inbound alias — reports relay to the contact email
+  once SES inbound is live, keeping the personal address out of public DNS)
 - Trial MX: `in-test.cpddump.com` → `10 inbound-smtp.eu-west-2.amazonaws.com`
 
 These coexist with all existing Resend records. Nothing about production email

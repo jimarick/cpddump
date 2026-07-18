@@ -26,7 +26,7 @@ return [
      | Local parts on the receiving domain that are humans, not dump
      | tokens — inbound mail to these is relayed to contact_email.
      */
-    'inbound_aliases' => ['hello', 'support', 'contact'],
+    'inbound_aliases' => ['hello', 'support', 'contact', 'dmarc'],
 
     'contact_email' => env('CPD_CONTACT_EMAIL', 'james.ricketts@gmail.com'),
 
