@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\InboxItem;
+use App\Services\EvidenceIngestor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Laravel\Ai\Files\Audio;
@@ -35,6 +36,10 @@ class TranscribeVoiceNote implements ShouldQueue
             $item->update([
                 'raw_payload' => array_merge($item->raw_payload, ['transcript' => trim($response->text)]),
             ]);
+
+            // The transcript IS the content — the hash must reflect it, or
+            // the analysis cache will treat all voice notes as identical.
+            app(EvidenceIngestor::class)->refreshContentHash($item);
         }
 
         AnalyzeInboxItem::dispatch($item);

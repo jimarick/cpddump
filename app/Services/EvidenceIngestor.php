@@ -56,7 +56,7 @@ class EvidenceIngestor
             'source' => $source,
             'status' => InboxItemStatus::Pending,
             'raw_payload' => $rawPayload,
-            'content_hash' => $this->hash($rawPayload),
+            'content_hash' => $this->contentHash($rawPayload),
             'external_id' => $externalId,
             'failure_reason' => $overDailyCap
                 ? 'Daily dump limit reached — this is safely stored, and analysis resumes tomorrow.'
@@ -65,6 +65,10 @@ class EvidenceIngestor
 
         foreach ($files as $file) {
             $this->storeAttachment($item, $file);
+        }
+
+        if ($files !== []) {
+            $this->refreshContentHash($item);
         }
 
         if ($dispatch) {
@@ -144,8 +148,30 @@ class EvidenceIngestor
         ]);
     }
 
-    /** @param array<string, mixed> $rawPayload */
-    private function hash(array $rawPayload): string
+    /**
+     * Recompute an item's content hash from its payload AND attachment
+     * fingerprints. Must be called whenever content arrives after
+     * creation (stored files, a transcript, fetched link text) —
+     * otherwise items with empty initial payloads all share one hash and
+     * the analysis cache cross-contaminates them.
+     */
+    public function refreshContentHash(InboxItem $item): void
+    {
+        $fingerprints = $item->attachments()
+            ->get()
+            ->map(fn ($a) => "{$a->original_filename}:{$a->size}")
+            ->sort()
+            ->values()
+            ->all();
+
+        $item->update(['content_hash' => $this->contentHash($item->raw_payload, $fingerprints)]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rawPayload
+     * @param  array<int, string>  $fingerprints
+     */
+    private function contentHash(array $rawPayload, array $fingerprints = []): string
     {
         $normalised = collect($rawPayload)
             ->except(['received_at', 'message_id'])
@@ -153,6 +179,6 @@ class EvidenceIngestor
             ->sortKeys()
             ->toJson();
 
-        return hash('sha256', $normalised);
+        return hash('sha256', $normalised.'|'.implode('|', $fingerprints));
     }
 }

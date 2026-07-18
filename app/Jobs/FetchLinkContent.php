@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\InboxItem;
+use App\Services\EvidenceIngestor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -49,6 +50,8 @@ class FetchLinkContent implements ShouldQueue
                 'fetched_at' => now()->toIso8601String(),
             ]),
         ]);
+
+        app(EvidenceIngestor::class)->refreshContentHash($item);
 
         AnalyzeInboxItem::dispatch($item);
     }

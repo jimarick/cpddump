@@ -67,6 +67,8 @@ class ProcessInboundEmail implements ShouldQueue
             foreach ($resend->attachments($this->emailId) as $attachment) {
                 $this->storeAttachment($item, $resend, $attachment);
             }
+
+            $ingestor->refreshContentHash($item);
         }
 
         $ingestor->dispatchPipeline($item);
