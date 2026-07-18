@@ -216,14 +216,14 @@ export default function Inbox({
             {items.length === 0 ? (
                 <EmptyState onAdd={() => setAdding(true)} />
             ) : (
-                <div className="relative mt-4 flex min-h-[55vh] flex-col rounded-[18px] border-2 border-dashed border-stone-400 bg-white p-4 pt-7 shadow-[inset_3px_4px_10px_rgba(28,25,23,.10)]">
-                    <span className="pointer-events-none absolute -top-4 left-7 rotate-[-3deg] font-hand text-[26px] font-semibold text-ink">
+                <div className="relative mt-9 flex min-h-[55vh] flex-col rounded-[18px] border-2 border-dashed border-stone-400 bg-white p-4 pt-6 shadow-[inset_3px_4px_10px_rgba(28,25,23,.10)]">
+                    <span className="pointer-events-none absolute -top-7 left-7 rotate-[-3deg] font-hand text-[26px] font-semibold text-ink">
                         waiting for your review ↓
                     </span>
                     <span className="pointer-events-none absolute right-8 bottom-6 rotate-[8deg] rounded-[10px] border-[3px] border-double border-brand-dark/35 px-3.5 py-1 text-[13px] font-bold tracking-[0.22em] text-brand-dark/35">
                         INBOX
                     </span>
-                    <div className="grid gap-2.5 px-1 pt-1">
+                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5 px-1 pt-1">
                         {items.map((item, i) => (
                             <InboxRow
                                 key={item.id}
@@ -387,7 +387,7 @@ function InboxRow({
         <div
             onClick={busy ? undefined : onOpen}
             style={{ rotate: ROW_TILTS[index % ROW_TILTS.length] }}
-            className={`flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-white px-4 py-3 text-left shadow-[3px_3px_0_rgba(28,25,23,.12)] transition-transform md:px-5 ${
+            className={`flex w-full min-w-0 items-center gap-3 rounded-[12px] border-2 border-ink bg-white px-4 py-3 text-left shadow-[3px_3px_0_rgba(28,25,23,.12)] transition-transform md:px-5 ${
                 busy
                     ? 'cursor-default opacity-70'
                     : 'cursor-pointer hover:-translate-y-0.5 hover:bg-[#fffbf8]'
