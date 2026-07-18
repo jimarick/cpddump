@@ -24,7 +24,7 @@ class ActivityApiController extends Controller
         ]);
 
         $period = filled($validated['period'] ?? null)
-            ? $user->appraisalPeriods()->find($validated['period'])
+            ? $user->appraisalPeriods()->find((int) $validated['period'])
             : $user->currentAppraisalPeriod();
 
         $activities = $user->activities()
