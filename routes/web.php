@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\AiAssistController;
 use App\Http\Controllers\GeneratedReportController;
 use App\Http\Controllers\InboxController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\Webhooks\ResendInboundController;
+use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureOnboarded;
 use Illuminate\Support\Facades\Route;
 
@@ -28,7 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::redirect('dashboard', '/inbox')->name('dashboard');
 
         Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
-        Route::post('inbox', [InboxItemController::class, 'store'])->name('inbox.store');
+        Route::post('inbox', [InboxItemController::class, 'store'])->middleware('throttle:30,1')->name('inbox.store');
         Route::post('inbox/{item}/approve', [InboxItemController::class, 'approve'])->name('inbox.approve');
         Route::post('inbox/{item}/retry', [InboxItemController::class, 'retry'])->name('inbox.retry');
         Route::delete('inbox/{item}', [InboxItemController::class, 'dismiss'])->name('inbox.dismiss');
@@ -53,6 +55,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('ai/text-assist', [AiAssistController::class, 'textAssist'])
             ->middleware('throttle:30,1')
             ->name('ai.text-assist');
+        Route::post('ai/transcribe', [AiAssistController::class, 'transcribe'])
+            ->middleware('throttle:20,1')
+            ->name('ai.transcribe');
+    });
+
+    Route::middleware(EnsureAdmin::class)->prefix('admin')->group(function () {
+        Route::get('users', [AdminController::class, 'users'])->name('admin.users');
+        Route::get('usage', [AdminController::class, 'usage'])->name('admin.usage');
     });
 });
 

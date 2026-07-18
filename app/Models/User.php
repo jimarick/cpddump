@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Paddle\Billable;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
@@ -44,7 +46,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use Billable, HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -127,6 +129,15 @@ class User extends Authenticatable implements PasskeyUser
     public function hasOnboarded(): bool
     {
         return $this->onboarded_at !== null;
+    }
+
+    /**
+     * Premium gate for future Paddle plans. Everyone is premium during
+     * the free beta; once billing starts this checks the subscription.
+     */
+    public function isPremium(): bool
+    {
+        return true;
     }
 
     /** The user's personal dump address, e.g. u_ab12cd34ef@in.cpddump.com. */

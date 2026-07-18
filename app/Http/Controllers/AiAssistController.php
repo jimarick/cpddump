@@ -7,6 +7,7 @@ use App\Enums\AiPurpose;
 use App\Services\AiGateway;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Laravel\Ai\Transcription;
 use Throwable;
 
 class AiAssistController extends Controller
@@ -51,5 +52,23 @@ class AiAssistController extends Controller
         }
 
         return response()->json(['text' => $response->toArray()['text'] ?? '']);
+    }
+
+    /** Mic-button dictation: audio blob in, transcript out. */
+    public function transcribe(Request $request): JsonResponse
+    {
+        $request->validate([
+            'audio' => ['required', 'file', 'max:15360', 'mimetypes:audio/webm,audio/ogg,audio/mpeg,audio/mp4,audio/wav,audio/x-m4a,video/webm'],
+        ]);
+
+        try {
+            $response = Transcription::of($request->file('audio'))->generate();
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'Could not transcribe that — try again.'], 422);
+        }
+
+        return response()->json(['text' => trim($response->text)]);
     }
 }

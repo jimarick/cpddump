@@ -1,7 +1,8 @@
-import { Loader2, Undo2 } from 'lucide-react';
+import { Loader2, Mic, Square, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Sparkle } from '@/components/brand/sparkle';
+import { useDictation } from '@/hooks/use-dictation';
 import { postJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,10 @@ export function AiTextarea({
 }: AiTextareaProps) {
     const [busy, setBusy] = useState(false);
     const [previous, setPrevious] = useState<string | null>(null);
+
+    const dictation = useDictation((text) =>
+        onChange(value.trim() ? `${value.trim()} ${text}` : text),
+    );
 
     const sparkle = async () => {
         setBusy(true);
@@ -92,6 +97,28 @@ export function AiTextarea({
                         <Loader2 className="size-3.5 animate-spin" />
                     ) : (
                         <Sparkle size={13} />
+                    )}
+                </button>
+                <button
+                    type="button"
+                    onClick={dictation.toggle}
+                    disabled={dictation.transcribing}
+                    title={
+                        dictation.recording ? 'Stop and transcribe' : 'Dictate'
+                    }
+                    className={cn(
+                        'flex size-7 cursor-pointer items-center justify-center rounded-full border-[1.5px] bg-white transition-colors disabled:opacity-60',
+                        dictation.recording
+                            ? 'animate-pulse border-red-500 text-red-500'
+                            : 'border-stone-300 text-stone-500 hover:border-ink hover:text-ink',
+                    )}
+                >
+                    {dictation.transcribing ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                    ) : dictation.recording ? (
+                        <Square className="size-3" />
+                    ) : (
+                        <Mic className="size-3.5" />
                     )}
                 </button>
                 {previous !== null && !busy && (

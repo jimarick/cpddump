@@ -7,6 +7,7 @@ use App\Enums\InboxItemStatus;
 use App\Jobs\AnalyzeInboxItem;
 use App\Jobs\ExtractAttachmentText;
 use App\Jobs\FetchLinkContent;
+use App\Jobs\TranscribeVoiceNote;
 use App\Models\InboxItem;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -71,6 +72,12 @@ class EvidenceIngestor
 
         if ($item->source === EvidenceSource::Link || $item->source === EvidenceSource::Article) {
             FetchLinkContent::dispatch($item);
+
+            return;
+        }
+
+        if ($item->source === EvidenceSource::VoiceNote && blank($item->raw_payload['transcript'] ?? null)) {
+            TranscribeVoiceNote::dispatch($item);
 
             return;
         }
