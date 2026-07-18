@@ -30,6 +30,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('settings/evidence', [EvidenceController::class, 'edit'])->name('evidence.edit');
     Route::patch('settings/evidence', [EvidenceController::class, 'update'])->name('evidence.update');
+    Route::post('settings/evidence/regenerate-address', [EvidenceController::class, 'regenerateAddress'])
+        ->middleware('throttle:3,60')
+        ->name('evidence.regenerate-address');
     Route::patch('settings/evidence/rules/{rule}', [EvidenceController::class, 'toggleRule'])->name('evidence.rules.toggle');
     Route::delete('settings/evidence/rules/{rule}', [EvidenceController::class, 'destroyRule'])->name('evidence.rules.destroy');
 

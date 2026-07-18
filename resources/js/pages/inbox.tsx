@@ -373,12 +373,17 @@ function InboxRow({
                         {item.failure_reason}
                     </span>
                 )}
-                {busy && (
-                    <span className="flex items-center gap-1.5 text-xs text-stone-500">
-                        <Loader2 className="size-3 animate-spin" /> AI is
-                        reading this…
-                    </span>
-                )}
+                {busy &&
+                    (item.failure_reason ? (
+                        <span className="block truncate text-xs text-amber-700">
+                            {item.failure_reason}
+                        </span>
+                    ) : (
+                        <span className="flex items-center gap-1.5 text-xs text-stone-500">
+                            <Loader2 className="size-3 animate-spin" /> AI is
+                            reading this…
+                        </span>
+                    ))}
             </span>
 
             {item.attachments.length > 0 && (

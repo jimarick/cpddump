@@ -41,6 +41,16 @@ class EvidenceController extends Controller
         return back()->with('success', 'Saved.');
     }
 
+    public function regenerateAddress(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $user->forceFill(['inbound_email_token' => null])->save();
+        $user->ensureInboundEmailToken();
+
+        return back()->with('success', 'New dump address created — the old one no longer works.');
+    }
+
     public function toggleRule(Request $request, IgnoreRule $rule): RedirectResponse
     {
         abort_unless($rule->user_id === $request->user()->id, 403);

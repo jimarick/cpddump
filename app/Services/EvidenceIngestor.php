@@ -10,6 +10,7 @@ use App\Jobs\FetchLinkContent;
 use App\Jobs\TranscribeVoiceNote;
 use App\Models\InboxItem;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
 
 /**
@@ -46,12 +47,19 @@ class EvidenceIngestor
             }
         }
 
+        $overDailyCap = $user->inboxItems()
+            ->where('created_at', '>=', now()->startOfDay())
+            ->count() >= (int) config('cpd.ingest.daily_item_cap');
+
         $item = $user->inboxItems()->create([
             'source' => $source,
             'status' => InboxItemStatus::Pending,
             'raw_payload' => $rawPayload,
             'content_hash' => $this->hash($rawPayload),
             'external_id' => $externalId,
+            'failure_reason' => $overDailyCap
+                ? 'Daily dump limit reached — this is safely stored, and analysis resumes tomorrow.'
+                : null,
         ]);
 
         foreach ($files as $file) {
@@ -59,36 +67,36 @@ class EvidenceIngestor
         }
 
         if ($dispatch) {
-            $this->dispatchPipeline($item);
+            $this->dispatchPipeline($item, $overDailyCap ? now()->startOfDay()->addDay()->addMinutes(10) : null);
         }
 
         return $item;
     }
 
     /** Queue the right preparation job, ending in AI analysis. */
-    public function dispatchPipeline(InboxItem $item): void
+    public function dispatchPipeline(InboxItem $item, ?DateTimeInterface $delay = null): void
     {
         $needsText = $item->attachments()->where('mime_type', 'application/pdf')->whereNull('extracted_text')->exists();
 
         if ($item->source === EvidenceSource::Link || $item->source === EvidenceSource::Article) {
-            FetchLinkContent::dispatch($item);
+            FetchLinkContent::dispatch($item)->delay($delay);
 
             return;
         }
 
         if ($item->source === EvidenceSource::VoiceNote && blank($item->raw_payload['transcript'] ?? null)) {
-            TranscribeVoiceNote::dispatch($item);
+            TranscribeVoiceNote::dispatch($item)->delay($delay);
 
             return;
         }
 
         if ($needsText) {
-            ExtractAttachmentText::dispatch($item);
+            ExtractAttachmentText::dispatch($item)->delay($delay);
 
             return;
         }
 
-        AnalyzeInboxItem::dispatch($item);
+        AnalyzeInboxItem::dispatch($item)->delay($delay);
     }
 
     /** @param array<string, mixed> $rawPayload */

@@ -12,6 +12,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Ingestion Limits
+    |--------------------------------------------------------------------------
+    |
+    | New inbox items beyond the daily cap are still stored, but their AI
+    | analysis is deferred until the next day. Limits what a leaked dump
+    | address (or a runaway calendar) can burn.
+    |
+    */
+
+    'ingest' => [
+        'daily_item_cap' => (int) env('CPD_DAILY_ITEM_CAP', 40),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | AI Models Per Purpose
     |--------------------------------------------------------------------------
     |

@@ -78,6 +78,28 @@ export default function EvidenceSettings({
                         is two taps. Never forward anything containing
                         patient-identifiable information.
                     </p>
+                    {dumpAddress && (
+                        <div className="mt-4 border-t border-dashed border-stone-300 pt-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (
+                                        window.confirm(
+                                            'Generate a new address? The old one stops working immediately — anywhere you saved it (contacts, forwarding rules) will need updating.',
+                                        )
+                                    ) {
+                                        router.post(
+                                            '/settings/evidence/regenerate-address',
+                                        );
+                                    }
+                                }}
+                                className="cursor-pointer text-[12.5px] font-semibold text-stone-500 underline decoration-dashed underline-offset-4 hover:text-ink"
+                            >
+                                Address leaked or getting junk? Generate a new
+                                one
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div>
