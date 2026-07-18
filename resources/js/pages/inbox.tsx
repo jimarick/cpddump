@@ -168,7 +168,7 @@ export default function Inbox({
                 </Button>
             </div>
 
-            <div className="mb-5 flex flex-wrap gap-x-5 gap-y-1 rounded-[12px] border-2 border-ink bg-white px-4 py-3 text-[13px] text-stone-600 shadow-[4px_4px_0_rgba(28,25,23,.12)]">
+            <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[10px] bg-paper-alt px-4 py-2.5 text-[13px] text-stone-600">
                 <span>
                     <strong className="text-ink">{stats.activities}</strong>{' '}
                     activities
