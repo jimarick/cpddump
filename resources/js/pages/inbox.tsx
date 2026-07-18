@@ -190,7 +190,59 @@ export default function Inbox({
                 </Button>
             </div>
 
-            <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[10px] bg-paper-alt px-4 py-2.5 text-[13px] text-stone-600">
+            {items.length === 0 ? (
+                <EmptyState onAdd={() => setAdding(true)} />
+            ) : (
+                <div className="relative mt-9 flex h-[62vh] min-h-[420px] flex-col rounded-[18px] border-2 border-dashed border-stone-400 bg-white p-4 pt-6 shadow-[inset_3px_4px_10px_rgba(28,25,23,.10)]">
+                    <span className="pointer-events-none absolute -top-7 left-7 rotate-[-3deg] font-hand text-[26px] font-semibold text-ink">
+                        waiting for your review ↓
+                    </span>
+                    <span className="pointer-events-none absolute right-8 bottom-16 rotate-[8deg] rounded-[10px] border-[3px] border-double border-brand-dark/35 px-3.5 py-1 text-[13px] font-bold tracking-[0.22em] text-brand-dark/35">
+                        INBOX
+                    </span>
+                    <div className="grid min-h-0 min-w-0 flex-1 auto-rows-min grid-cols-[minmax(0,1fr)] gap-2.5 overflow-y-auto px-1 pt-1 pb-2">
+                        {items.map((item, i) => (
+                            <InboxRow
+                                key={item.id}
+                                item={item}
+                                index={i}
+                                onOpen={() =>
+                                    item.status === 'ready' ||
+                                    item.status === 'failed'
+                                        ? setReviewing(item)
+                                        : undefined
+                                }
+                                onDelete={() =>
+                                    router.delete(`/inbox/${item.id}`, {
+                                        preserveScroll: true,
+                                    })
+                                }
+                            />
+                        ))}
+                    </div>
+                    <div className="mt-3 flex shrink-0 flex-col items-center gap-2 py-2">
+                        <Button
+                            onClick={() => setAdding(true)}
+                            className="rotate-[-1deg] border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+                        >
+                            <Plus className="size-4" /> Dump something else
+                        </Button>
+                        <span className="text-[12px] text-stone-400">
+                            or drop files anywhere on this page
+                        </span>
+                    </div>
+                    <RegularsStrip
+                        recurrences={recurrences}
+                        onAdd={() => {
+                            setAddMode('regular');
+                            setAdding(true);
+                        }}
+                        onManage={setManaging}
+                    />
+                </div>
+            )}
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[10px] bg-paper-alt px-4 py-2.5 text-[13px] text-stone-600">
                 <span>
                     <strong className="text-ink">{stats.activities}</strong>{' '}
                     activities
@@ -220,58 +272,6 @@ export default function Inbox({
                     </span>
                 )}
             </div>
-
-            {items.length === 0 ? (
-                <EmptyState onAdd={() => setAdding(true)} />
-            ) : (
-                <div className="relative mt-9 flex min-h-[55vh] flex-col rounded-[18px] border-2 border-dashed border-stone-400 bg-white p-4 pt-6 shadow-[inset_3px_4px_10px_rgba(28,25,23,.10)]">
-                    <span className="pointer-events-none absolute -top-7 left-7 rotate-[-3deg] font-hand text-[26px] font-semibold text-ink">
-                        waiting for your review ↓
-                    </span>
-                    <span className="pointer-events-none absolute right-8 bottom-6 rotate-[8deg] rounded-[10px] border-[3px] border-double border-brand-dark/35 px-3.5 py-1 text-[13px] font-bold tracking-[0.22em] text-brand-dark/35">
-                        INBOX
-                    </span>
-                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5 px-1 pt-1">
-                        {items.map((item, i) => (
-                            <InboxRow
-                                key={item.id}
-                                item={item}
-                                index={i}
-                                onOpen={() =>
-                                    item.status === 'ready' ||
-                                    item.status === 'failed'
-                                        ? setReviewing(item)
-                                        : undefined
-                                }
-                                onDelete={() =>
-                                    router.delete(`/inbox/${item.id}`, {
-                                        preserveScroll: true,
-                                    })
-                                }
-                            />
-                        ))}
-                    </div>
-                    <div className="mt-3 flex min-h-[140px] flex-1 flex-col items-center justify-center gap-2.5">
-                        <Button
-                            onClick={() => setAdding(true)}
-                            className="rotate-[-1deg] border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
-                        >
-                            <Plus className="size-4" /> Dump something else
-                        </Button>
-                        <span className="text-[12px] text-stone-400">
-                            or drop files anywhere on this page
-                        </span>
-                    </div>
-                    <RegularsStrip
-                        recurrences={recurrences}
-                        onAdd={() => {
-                            setAddMode('regular');
-                            setAdding(true);
-                        }}
-                        onManage={setManaging}
-                    />
-                </div>
-            )}
 
             {dragging && (
                 <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-paper/85">
