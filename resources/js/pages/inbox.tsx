@@ -170,7 +170,15 @@ export default function Inbox({
                     </h1>
                     {period && (
                         <p className="mt-1 text-[12.5px] font-semibold text-stone-500">
-                            Appraisal year: {period.label}
+                            since{' '}
+                            {new Date(period.starts_on).toLocaleDateString(
+                                'en-GB',
+                                {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                },
+                            )}
                         </p>
                     )}
                 </div>
