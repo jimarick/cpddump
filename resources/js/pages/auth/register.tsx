@@ -1,4 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
+import { useState } from 'react';
+import { NhsMailHint } from '@/components/cpd/nhs-mail-hint';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -14,6 +16,8 @@ type Props = {
 };
 
 export default function Register({ passwordRules }: Props) {
+    const [email, setEmail] = useState('');
+
     return (
         <>
             <Head title="Register" />
@@ -54,8 +58,10 @@ export default function Register({ passwordRules }: Props) {
                                     autoComplete="email"
                                     name="email"
                                     placeholder="email@example.com"
+                                    onChange={(e) => setEmail(e.target.value)}
                                 />
                                 <InputError message={errors.email} />
+                                <NhsMailHint email={email} />
                             </div>
 
                             <div className="grid gap-2">

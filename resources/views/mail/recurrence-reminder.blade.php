@@ -14,4 +14,8 @@ Open your inbox
 </x-mail::button>
 
 {{ config('app.name') }}
+
+<x-slot:subcopy>
+[Stop these reminders]({{ $unsubscribe_url }}) — drafts will still appear quietly in your inbox.
+</x-slot:subcopy>
 </x-mail::message>

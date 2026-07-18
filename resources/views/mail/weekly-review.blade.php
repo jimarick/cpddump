@@ -38,4 +38,8 @@ Your dump address, for anything CPD-shaped that lands in your email:
 
 Small pile now, easy appraisal later.<br>
 {{ config('app.name') }}
+
+<x-slot:subcopy>
+[Unsubscribe from weekly emails]({{ $unsubscribe_url }}) — your evidence keeps collecting either way.
+</x-slot:subcopy>
 </x-mail::message>

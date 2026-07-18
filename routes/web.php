@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\AiAssistController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\GeneratedReportController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InboxItemController;
@@ -25,6 +26,10 @@ Route::post('webhooks/ses-inbound', SesInboundController::class)
     ->name('webhooks.ses-inbound');
 Route::post('webhooks/ses-events', SesEventsController::class)
     ->name('webhooks.ses-events');
+
+Route::match(['get', 'post'], 'email/unsubscribe/{user}', EmailUnsubscribeController::class)
+    ->middleware('signed')
+    ->name('email.unsubscribe');
 
 Route::inertia('/', 'marketing/home')->name('home');
 Route::inertia('privacy', 'marketing/privacy')->name('privacy');
