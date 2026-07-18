@@ -1,4 +1,5 @@
 import { AiTextarea } from '@/components/cpd/ai-textarea';
+import { DictatedInput } from '@/components/cpd/dictated-fields';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -62,10 +63,10 @@ export function DetailsStepFields({
         <div className="grid gap-5">
             <div className="grid gap-1.5">
                 <Label htmlFor="title">Title</Label>
-                <Input
+                <DictatedInput
                     id="title"
                     value={values.title}
-                    onChange={(e) => onChange({ title: e.target.value })}
+                    onValueChange={(title) => onChange({ title })}
                 />
                 <FieldError message={errors.title} />
             </div>
@@ -141,10 +142,10 @@ export function DetailsStepFields({
 
             <div className="grid gap-1.5">
                 <Label htmlFor="organisation">Organisation</Label>
-                <Input
+                <DictatedInput
                     id="organisation"
                     value={values.organisation}
-                    onChange={(e) => onChange({ organisation: e.target.value })}
+                    onValueChange={(organisation) => onChange({ organisation })}
                     placeholder="e.g. Royal College of Radiologists"
                 />
             </div>

@@ -4,6 +4,10 @@ import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Sparkle } from '@/components/brand/sparkle';
+import {
+    DictatedInput,
+    DictatedTextarea,
+} from '@/components/cpd/dictated-fields';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -183,14 +187,13 @@ function AskCard() {
                     <Label htmlFor="ask-question">
                         The question, as your form asks it
                     </Label>
-                    <input
+                    <DictatedInput
                         id="ask-question"
                         value={form.data.question}
-                        onChange={(e) =>
-                            form.setData('question', e.target.value)
+                        onValueChange={(question) =>
+                            form.setData('question', question)
                         }
                         placeholder="e.g. What personal and professional challenges have you faced this year?"
-                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                     />
                     <InputError message={form.errors.question} />
                 </div>
@@ -199,13 +202,12 @@ function AskCard() {
                     <Label htmlFor="ask-notes">
                         Your rough thoughts (optional, but makes it yours)
                     </Label>
-                    <textarea
+                    <DictatedTextarea
                         id="ask-notes"
                         value={form.data.notes}
                         rows={3}
-                        onChange={(e) => form.setData('notes', e.target.value)}
+                        onValueChange={(notes) => form.setData('notes', notes)}
                         placeholder="Bullet points, half-sentences, anything — the AI weaves your portfolio around them."
-                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                     />
                 </div>
 

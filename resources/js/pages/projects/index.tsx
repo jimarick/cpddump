@@ -3,6 +3,10 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
+import {
+    DictatedInput,
+    DictatedTextarea,
+} from '@/components/cpd/dictated-fields';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -260,11 +264,11 @@ function ProjectDialog({
 
                     <div className="grid gap-1.5">
                         <Label htmlFor="project-title">Title</Label>
-                        <Input
+                        <DictatedInput
                             id="project-title"
                             value={values.title}
-                            onChange={(e) =>
-                                setValues({ ...values, title: e.target.value })
+                            onValueChange={(title) =>
+                                setValues({ ...values, title })
                             }
                             placeholder="e.g. Improve paediatric imaging reporting"
                         />
@@ -275,17 +279,13 @@ function ProjectDialog({
                         <Label htmlFor="project-description">
                             Description (optional)
                         </Label>
-                        <textarea
+                        <DictatedTextarea
                             id="project-description"
                             value={values.description}
                             rows={3}
-                            onChange={(e) =>
-                                setValues({
-                                    ...values,
-                                    description: e.target.value,
-                                })
+                            onValueChange={(description) =>
+                                setValues({ ...values, description })
                             }
-                            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                         />
                     </div>
 
