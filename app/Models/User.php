@@ -51,14 +51,11 @@ class User extends Authenticatable implements PasskeyUser
     use Billable, HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * A changed address is a fresh start — suppression belongs to the
+     * old, bouncing one.
      */
     protected static function booted(): void
     {
-        // A changed address is a fresh start — suppression belongs to
-        // the old, bouncing one.
         static::updating(function (User $user): void {
             if ($user->isDirty('email')) {
                 $user->email_suppressed_at = null;
@@ -67,6 +64,11 @@ class User extends Authenticatable implements PasskeyUser
         });
     }
 
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
