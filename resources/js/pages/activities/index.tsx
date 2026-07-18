@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { Loader2, Paperclip, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
+import { AttachmentLinks } from '@/components/cpd/attachment-links';
 import { EvidenceFormFields } from '@/components/cpd/evidence-form-fields';
 import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
 import { Button } from '@/components/ui/button';
@@ -184,6 +185,8 @@ function EditActivityDialog({
                         Edit activity
                     </DialogTitle>
                 </DialogHeader>
+
+                <AttachmentLinks attachments={activity.attachments} />
 
                 <EvidenceFormFields
                     values={values}

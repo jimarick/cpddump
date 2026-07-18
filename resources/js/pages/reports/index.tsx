@@ -1,5 +1,13 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Check, Copy, Download, FileText, Loader2, Trash2 } from 'lucide-react';
+import {
+    Check,
+    Copy,
+    Download,
+    FileText,
+    FolderArchive,
+    Loader2,
+    Trash2,
+} from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
@@ -20,10 +28,11 @@ import { Label } from '@/components/ui/label';
 
 interface ReportData {
     id: number;
-    kind: 'question' | 'report';
+    kind: 'question' | 'report' | 'evidence_zip';
     question: string | null;
     status: 'pending' | 'ready' | 'failed';
     failure_reason: string | null;
+    files: number | null;
     content: string | null;
     period: string | null;
     created_at: string;
@@ -96,11 +105,17 @@ export default function ReportsIndex({ reports, period }: Props) {
                                 key={report.id}
                                 type="button"
                                 disabled={report.status === 'pending'}
-                                onClick={() =>
-                                    report.status === 'ready'
-                                        ? setViewing(report)
-                                        : undefined
-                                }
+                                onClick={() => {
+                                    if (report.status !== 'ready') {
+                                        return;
+                                    }
+
+                                    if (report.kind === 'evidence_zip') {
+                                        window.location.href = `/reports/${report.id}/download`;
+                                    } else {
+                                        setViewing(report);
+                                    }
+                                }}
                                 className={`flex w-full items-center gap-3 px-4 py-3 text-left md:px-5 ${
                                     i === reports.length - 1
                                         ? ''
@@ -109,6 +124,8 @@ export default function ReportsIndex({ reports, period }: Props) {
                             >
                                 {report.kind === 'report' ? (
                                     <FileText className="size-4 shrink-0 text-brand" />
+                                ) : report.kind === 'evidence_zip' ? (
+                                    <FolderArchive className="size-4 shrink-0 text-brand" />
                                 ) : (
                                     <Sparkle
                                         size={14}
@@ -119,7 +136,9 @@ export default function ReportsIndex({ reports, period }: Props) {
                                     <span className="block truncate text-[13.5px] font-semibold">
                                         {report.kind === 'report'
                                             ? `Full report — ${report.period}`
-                                            : report.question}
+                                            : report.kind === 'evidence_zip'
+                                              ? `Evidence bundle — ${report.period}${report.files ? ` (${report.files} files)` : ''}`
+                                              : report.question}
                                     </span>
                                     {report.status === 'pending' && (
                                         <span className="flex items-center gap-1.5 text-xs text-stone-500">
@@ -143,8 +162,13 @@ export default function ReportsIndex({ reports, period }: Props) {
                                     })}
                                 </span>
                                 {report.status === 'ready' && (
-                                    <span className="rounded-[7px] border-[1.5px] border-ink bg-white px-2.5 py-1 text-[11.5px] font-bold whitespace-nowrap">
-                                        View
+                                    <span className="flex items-center gap-1 rounded-[7px] border-[1.5px] border-ink bg-white px-2.5 py-1 text-[11.5px] font-bold whitespace-nowrap">
+                                        {report.kind === 'evidence_zip' && (
+                                            <Download className="size-3" />
+                                        )}
+                                        {report.kind === 'evidence_zip'
+                                            ? 'Download'
+                                            : 'View'}
                                     </span>
                                 )}
                             </button>
@@ -262,6 +286,20 @@ function FullReportCard({
                 {form.processing && <Loader2 className="size-4 animate-spin" />}
                 Write my report
             </Button>
+            <div className="mt-4 border-t border-dashed border-stone-300 pt-3">
+                <p className="text-[12px] text-stone-500">
+                    Your appraiser wants the actual certificates too:
+                </p>
+                <button
+                    type="button"
+                    disabled={!period}
+                    onClick={() => router.post('/reports/evidence-export')}
+                    className="mt-1 flex cursor-pointer items-center gap-1.5 text-[12.5px] font-semibold text-brand hover:text-brand-dark disabled:opacity-50"
+                >
+                    <FolderArchive className="size-3.5" /> Download all evidence
+                    for {period?.label ?? 'this year'} (zip)
+                </button>
+            </div>
         </div>
     );
 }

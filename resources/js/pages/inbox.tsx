@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
 import { Sparkle } from '@/components/brand/sparkle';
+import { AttachmentLinks } from '@/components/cpd/attachment-links';
 import {
     DictatedInput,
     DictatedTextarea,
@@ -922,6 +923,10 @@ function ReviewDialog({
                             colleagues must never be identifiable.
                         </p>
                     </div>
+                )}
+
+                {item.attachments.length > 0 && (
+                    <AttachmentLinks attachments={item.attachments} />
                 )}
 
                 {missingEvidence.length > 0 && step === 0 && (

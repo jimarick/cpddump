@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ReportKind;
+use App\Jobs\BuildEvidenceZip;
 use App\Jobs\GenerateReport;
 use App\Models\GeneratedReport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GeneratedReportController extends Controller
 {
@@ -27,7 +30,8 @@ class GeneratedReportController extends Controller
                 'question' => $r->question,
                 'status' => $r->status,
                 'failure_reason' => $r->params['failure_reason'] ?? null,
-                'content' => $r->status === 'ready' ? $r->content : null,
+                'files' => $r->params['files'] ?? null,
+                'content' => $r->status === 'ready' && $r->kind !== ReportKind::EvidenceZip ? $r->content : null,
                 'period' => $r->appraisalPeriod?->label,
                 'created_at' => $r->created_at->toIso8601String(),
             ]);
@@ -64,6 +68,41 @@ class GeneratedReportController extends Controller
         return back()->with('success', $report->kind === ReportKind::Question
             ? 'Drafting your answer…'
             : 'Writing your report — this takes a minute…');
+    }
+
+    public function exportEvidence(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $period = $user->currentAppraisalPeriod();
+
+        abort_unless($period !== null, 422, 'No current appraisal period.');
+
+        $report = $user->generatedReports()->create([
+            'appraisal_period_id' => $period->id,
+            'kind' => ReportKind::EvidenceZip,
+            'params' => [],
+            'status' => 'pending',
+        ]);
+
+        BuildEvidenceZip::dispatch($report);
+
+        return back()->with('success', 'Bundling your evidence — the download appears below when ready.');
+    }
+
+    public function download(Request $request, GeneratedReport $report): StreamedResponse
+    {
+        abort_unless($report->user_id === $request->user()->id, 404);
+        abort_unless(
+            $report->kind === ReportKind::EvidenceZip
+                && $report->status === 'ready'
+                && filled($report->content),
+            404,
+        );
+
+        $label = str_replace(['/', ' '], '-', $report->appraisalPeriod->label ?? 'period');
+
+        return Storage::disk(config('filesystems.default'))
+            ->download($report->content, "cpd-evidence-{$label}.zip");
     }
 
     public function destroy(Request $request, GeneratedReport $report): RedirectResponse

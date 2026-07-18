@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\AiAssistController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\GeneratedReportController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InboxItemController;
@@ -49,7 +50,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('reports', [GeneratedReportController::class, 'index'])->name('reports.index');
         Route::post('reports', [GeneratedReportController::class, 'store'])->middleware('throttle:6,1')->name('reports.store');
+        Route::post('reports/evidence-export', [GeneratedReportController::class, 'exportEvidence'])->middleware('throttle:3,10')->name('reports.evidence-export');
+        Route::get('reports/{report}/download', [GeneratedReportController::class, 'download'])->name('reports.download');
         Route::delete('reports/{report}', [GeneratedReportController::class, 'destroy'])->name('reports.destroy');
+
+        Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
 
         Route::get('search', SearchController::class)->name('search');
         Route::post('ai/text-assist', [AiAssistController::class, 'textAssist'])

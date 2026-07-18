@@ -7,6 +7,7 @@ use Database\Factories\GeneratedReportFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -24,6 +25,16 @@ class GeneratedReport extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    protected static function booted(): void
+    {
+        // Evidence zips live on disk; deleting the row deletes the file.
+        static::deleted(function (GeneratedReport $report): void {
+            if ($report->kind === ReportKind::EvidenceZip && filled($report->content)) {
+                Storage::disk(config('filesystems.default'))->delete($report->content);
+            }
+        });
+    }
 
     protected function casts(): array
     {
