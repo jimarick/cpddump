@@ -8,14 +8,15 @@ Everything code-side is built; these are the account/DNS/env steps to go live.
 - [ ] Provision Serverless Postgres; attach to the app (env injected automatically).
 - [ ] Attach an object storage bucket (R2); set `FILESYSTEM_DISK=s3` in the environment.
 - [ ] Enable a Managed Queue (default queue) — analysis, email processing and calendar sync all run through it.
-- [ ] Scheduler is on by default — verify `cpd:send-weekly-reviews` (Mon 07:00) and `cpd:sync-calendars` (Sun 18:00) appear.
+- [ ] Scheduler is on by default — verify `cpd:generate-recurring` (daily 06:00), `cpd:send-weekly-reviews` (Mon 07:00) and `cpd:sync-calendars` (Sun 18:00) appear.
 - [ ] Custom domain `cpddump.com` → point at Laravel Cloud per its DNS instructions (keep authoritative DNS at the registrar/Cloudflare).
 
 ## Environment variables (production)
 
 - [ ] `APP_URL=https://cpddump.com`
-- [ ] `ANTHROPIC_API_KEY` (platform default AI) and `OPENAI_API_KEY` (audio transcription)
-- [ ] `AI_DAILY_TOKEN_BUDGET` — default 200k output tokens/user/day; tune later
+- [ ] `AI_DEFAULT_PROVIDER=openai`, `OPENAI_API_KEY` (platform default AI + transcription), `ANTHROPIC_API_KEY` (optional fallback provider)
+- [ ] Budgets (all default sensibly; tune later): `AI_DAILY_TOKEN_BUDGET` (200k out/user/day), `AI_DAILY_INPUT_TOKEN_BUDGET` (1M in/user/day), `AI_PLATFORM_DAILY_TOKEN_BUDGET` (10M/day global), `AI_MAX_SCANNED_PDF_PAGES` (20), `CPD_DAILY_ITEM_CAP` (40 items/user/day)
+- [ ] Set hard spend limits in the OpenAI and Anthropic consoles (the code budgets' backstop)
 - [ ] `RESEND_API_KEY` (outbound mail + inbound API) and `MAIL_MAILER=resend`, `MAIL_FROM_ADDRESS=hello@cpddump.com`
 - [ ] `RESEND_INBOUND_WEBHOOK_SECRET` (from the webhook created below)
 - [ ] `INBOUND_EMAIL_DOMAIN=in.cpddump.com`
