@@ -10,6 +10,7 @@ import {
     PenLine,
     Plus,
     RefreshCw,
+    Trash2,
     X,
 } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
@@ -214,6 +215,11 @@ export default function Inbox({
                                         ? setReviewing(item)
                                         : undefined
                                 }
+                                onDelete={() =>
+                                    router.delete(`/inbox/${item.id}`, {
+                                        preserveScroll: true,
+                                    })
+                                }
                             />
                         ))}
                     </div>
@@ -318,10 +324,12 @@ function InboxRow({
     item,
     last,
     onOpen,
+    onDelete,
 }: {
     item: InboxItemData;
     last: boolean;
     onOpen?: () => void;
+    onDelete: () => void;
 }) {
     const title =
         item.ai_analysis?.title ??
@@ -335,10 +343,8 @@ function InboxRow({
     const warnings = (item.ai_warnings?.pii_flags?.length ?? 0) > 0;
 
     return (
-        <button
-            type="button"
-            onClick={onOpen}
-            disabled={busy}
+        <div
+            onClick={busy ? undefined : onOpen}
             className={`flex w-full items-center gap-3 px-4 py-3 text-left md:px-5 ${last ? '' : 'border-b border-ink/7'} ${
                 busy
                     ? 'cursor-default opacity-70'
@@ -392,7 +398,20 @@ function InboxRow({
                     <RefreshCw className="size-3" /> Retry
                 </span>
             )}
-        </button>
+
+            <button
+                type="button"
+                title="Bin it"
+                aria-label={`Bin ${title}`}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                }}
+                className="shrink-0 cursor-pointer rounded p-1 text-red-500/60 transition-colors hover:bg-red-50 hover:text-red-600"
+            >
+                <Trash2 className="size-4" />
+            </button>
+        </div>
     );
 }
 
