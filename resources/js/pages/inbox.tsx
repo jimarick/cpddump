@@ -202,7 +202,7 @@ export default function Inbox({
             {items.length === 0 ? (
                 <EmptyState onAdd={() => setAdding(true)} />
             ) : (
-                <div className="relative mt-4 flex min-h-[55vh] flex-col rounded-[18px] border-2 border-dashed border-stone-400 bg-[#f0ede5] p-4 pt-7 shadow-[inset_3px_4px_10px_rgba(28,25,23,.13),inset_-1px_-1px_4px_rgba(255,255,255,.9)]">
+                <div className="relative mt-4 flex min-h-[55vh] flex-col rounded-[18px] border-2 border-dashed border-stone-400 bg-white p-4 pt-7 shadow-[inset_3px_4px_10px_rgba(28,25,23,.10)]">
                     <span className="pointer-events-none absolute -top-4 left-7 rotate-[-3deg] font-hand text-[26px] font-semibold text-ink">
                         waiting for your review ↓
                     </span>
