@@ -3,25 +3,31 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enums\EvidenceSource;
+use App\Enums\InboxItemStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ApproveInboxItemRequest;
+use App\Models\Attachment;
+use App\Models\InboxItem;
 use App\Services\EvidenceIngestor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * The capture endpoint for the future companion app: text notes, voice
- * recordings, photos and documents, straight into the evidence inbox.
+ * The companion app's inbox: capture (text notes, voice recordings, photos,
+ * documents and links), plus list/review/approve/bin — mirroring the web
+ * inbox so both clients share one lifecycle on the server.
  */
 class InboxItemApiController extends Controller
 {
     public function store(Request $request, EvidenceIngestor $ingestor): JsonResponse
     {
         $validated = $request->validate([
-            'title' => ['nullable', 'string', 'max:255', 'required_without_all:files,audio'],
+            'title' => ['nullable', 'string', 'max:255', 'required_without_all:files,audio,url'],
             'details' => ['nullable', 'string', 'max:20000'],
+            'url' => ['nullable', 'url', 'max:2048'],
             'audio' => ['nullable', 'file', 'max:51200', 'mimetypes:audio/webm,audio/ogg,audio/mpeg,audio/mp4,audio/wav,audio/x-m4a,video/webm'],
             'files' => ['nullable', 'array', 'max:5'],
-            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,webp,heic,gif,doc,docx,txt'],
+            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,webp,heic,gif,doc,docx,ppt,pptx,txt'],
         ]);
 
         $audio = $request->file('audio');
@@ -34,12 +40,20 @@ class InboxItemApiController extends Controller
             $files[] = $audio;
         }
 
+        $source = match (true) {
+            $audio !== null => EvidenceSource::VoiceNote,
+            $files !== [] => EvidenceSource::Upload,
+            filled($validated['url'] ?? null) => EvidenceSource::Link,
+            default => EvidenceSource::Manual,
+        };
+
         $item = $ingestor->ingest(
             user: $request->user(),
-            source: $audio ? EvidenceSource::VoiceNote : ($files !== [] ? EvidenceSource::Upload : EvidenceSource::Manual),
+            source: $source,
             rawPayload: array_filter([
                 'title' => $validated['title'] ?? null,
                 'details' => $validated['details'] ?? null,
+                'url' => $validated['url'] ?? null,
             ]),
             files: $files,
         );
@@ -52,5 +66,102 @@ class InboxItemApiController extends Controller
             'id' => $item->id,
             'status' => $item->status->value,
         ], 201);
+    }
+
+    /** The open pile, newest first — the app's tray. */
+    public function index(Request $request): JsonResponse
+    {
+        $items = $request->user()->inboxItems()
+            ->open()
+            ->with('attachments:id,attachable_type,attachable_id,original_filename,mime_type')
+            ->latest()
+            ->get()
+            ->map(fn (InboxItem $item) => $this->serialise($item));
+
+        return response()->json(['items' => $items]);
+    }
+
+    public function show(Request $request, InboxItem $item): JsonResponse
+    {
+        $this->authorizeItem($request, $item);
+
+        return response()->json(['item' => $this->serialise($item, detailed: true)]);
+    }
+
+    public function approve(ApproveInboxItemRequest $request, InboxItem $item): JsonResponse
+    {
+        abort_if($item->isResolved(), 422, 'Already resolved.');
+
+        $activity = $item->approve($request->validated());
+
+        return response()->json([
+            'activity_id' => $activity->id,
+            'status' => $item->status->value,
+        ]);
+    }
+
+    public function dismiss(Request $request, InboxItem $item): JsonResponse
+    {
+        $this->authorizeItem($request, $item);
+
+        $validated = $request->validate([
+            'ignore_rule' => ['nullable', 'array'],
+            'ignore_rule.field' => ['required_with:ignore_rule', 'in:title,organiser,sender,sender_domain'],
+            'ignore_rule.operator' => ['required_with:ignore_rule', 'in:equals,contains'],
+            'ignore_rule.value' => ['required_with:ignore_rule', 'string', 'max:512'],
+        ]);
+
+        if (filled($validated['ignore_rule'] ?? null)) {
+            $request->user()->ignoreRules()->create([
+                'source' => $item->source,
+                'field' => $validated['ignore_rule']['field'],
+                'operator' => $validated['ignore_rule']['operator'],
+                'value' => $validated['ignore_rule']['value'],
+                'is_active' => true,
+            ]);
+        }
+
+        $item->dismiss();
+
+        return response()->json(['status' => $item->status->value]);
+    }
+
+    public function retry(Request $request, InboxItem $item, EvidenceIngestor $ingestor): JsonResponse
+    {
+        $this->authorizeItem($request, $item);
+
+        abort_if($item->isResolved(), 422);
+
+        $item->update(['status' => InboxItemStatus::Pending, 'failure_reason' => null]);
+        $ingestor->dispatchPipeline($item);
+
+        return response()->json(['status' => $item->status->value]);
+    }
+
+    private function authorizeItem(Request $request, InboxItem $item): void
+    {
+        abort_unless($item->user_id === $request->user()->id, 403);
+    }
+
+    /** @return array<string, mixed> */
+    private function serialise(InboxItem $item, bool $detailed = false): array
+    {
+        return [
+            'id' => $item->id,
+            'source' => $item->source->value,
+            'source_label' => $item->source->label(),
+            'status' => $item->status->value,
+            'raw_payload' => $item->raw_payload,
+            'ai_analysis' => $item->ai_analysis,
+            'ai_warnings' => $item->ai_warnings,
+            'failure_reason' => $item->failure_reason,
+            'created_at' => $item->created_at->toIso8601String(),
+            'attachments' => $item->attachments->map(fn (Attachment $a) => array_filter([
+                'id' => $a->id,
+                'name' => $a->original_filename,
+                'mime_type' => $a->mime_type,
+                'url' => $detailed ? "/api/v1/attachments/{$a->id}" : null,
+            ]))->all(),
+        ];
     }
 }
