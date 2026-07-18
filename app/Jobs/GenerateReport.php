@@ -41,6 +41,19 @@ class GenerateReport implements ShouldQueue
             return;
         }
 
+        // Reports are the priciest single AI calls — they respect the
+        // same daily budget as everything else.
+        if ($ai->overDailyBudget($user)) {
+            $report->update([
+                'status' => 'failed',
+                'params' => array_merge($report->params ?? [], [
+                    'failure_reason' => 'Daily AI allowance reached — try again tomorrow, or add your own API key in Settings.',
+                ]),
+            ]);
+
+            return;
+        }
+
         $professionName = $user->profession->name ?? 'healthcare professional';
         $portfolio = $digest->build($user, $period);
 

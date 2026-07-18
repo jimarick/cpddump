@@ -23,6 +23,7 @@ interface ReportData {
     kind: 'question' | 'report';
     question: string | null;
     status: 'pending' | 'ready' | 'failed';
+    failure_reason: string | null;
     content: string | null;
     period: string | null;
     created_at: string;
@@ -128,7 +129,8 @@ export default function ReportsIndex({ reports, period }: Props) {
                                     )}
                                     {report.status === 'failed' && (
                                         <span className="text-xs text-red-600">
-                                            Failed — try again.
+                                            {report.failure_reason ??
+                                                'Failed — try again.'}
                                         </span>
                                     )}
                                 </span>

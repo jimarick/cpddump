@@ -9,6 +9,7 @@ use App\Models\InboxItem;
 use App\Services\AiGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\Image;
 use Laravel\Ai\Files\StoredDocument;
@@ -44,6 +45,18 @@ class AnalyzeInboxItem implements ShouldQueue
             ]);
 
             $this->release(now()->startOfDay()->addDay()->addMinutes(5));
+
+            return;
+        }
+
+        // Scanned PDFs are read page-by-page by the model, so a big one
+        // can burn a day's input budget in one call. Gate on page count
+        // for platform-key users.
+        if ($user->ai_api_key === null && ($oversized = $this->oversizedScannedPdf($item))) {
+            $item->update([
+                'status' => InboxItemStatus::Failed,
+                'failure_reason' => "\"{$oversized}\" is a scanned document too long to analyse automatically. Fill the details in manually, or attach a shorter version.",
+            ]);
 
             return;
         }
@@ -123,6 +136,37 @@ class AnalyzeInboxItem implements ShouldQueue
         $text = trim("Source: {$item->source->value}\n\n{$payload}\n\n{$extracted}");
 
         return mb_substr($text, 0, config('cpd.ai.evidence_char_limit'));
+    }
+
+    /**
+     * The filename of the first image-only PDF whose page count exceeds
+     * the configured gate, or null when everything is within bounds.
+     */
+    private function oversizedScannedPdf(InboxItem $item): ?string
+    {
+        $limit = (int) config('cpd.ai.max_scanned_pdf_pages');
+
+        foreach ($item->attachments as $attachment) {
+            if (! $attachment->isPdf() || filled($attachment->extracted_text)) {
+                continue;
+            }
+
+            $contents = Storage::disk($attachment->disk)->get($attachment->path);
+
+            if ($contents === null) {
+                continue;
+            }
+
+            // Counting page objects beats fully parsing a document that
+            // may be tens of MB; "/Type /Pages" nodes don't match.
+            $pages = preg_match_all('#/Type\s*/Page\b#', $contents);
+
+            if ($pages !== false && $pages > $limit) {
+                return $attachment->original_filename;
+            }
+        }
+
+        return null;
     }
 
     /**

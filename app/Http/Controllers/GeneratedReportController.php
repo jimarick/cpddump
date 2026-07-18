@@ -26,6 +26,7 @@ class GeneratedReportController extends Controller
                 'kind' => $r->kind->value,
                 'question' => $r->question,
                 'status' => $r->status,
+                'failure_reason' => $r->params['failure_reason'] ?? null,
                 'content' => $r->status === 'ready' ? $r->content : null,
                 'period' => $r->appraisalPeriod?->label,
                 'created_at' => $r->created_at->toIso8601String(),

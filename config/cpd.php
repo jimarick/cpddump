@@ -40,11 +40,27 @@ return [
         ],
 
         /*
-         | Soft daily output-token budget per user on the platform key.
-         | Once exceeded, analysis jobs are held until the next day (or
-         | the user adds their own key).
+         | Soft daily budgets per user on the platform key. Output and
+         | input tokens are capped separately (attachments drive input);
+         | exceeding either holds AI work until the next day (or the
+         | user adds their own key).
          */
         'daily_token_budget' => (int) env('AI_DAILY_TOKEN_BUDGET', 200_000),
+        'daily_input_token_budget' => (int) env('AI_DAILY_INPUT_TOKEN_BUDGET', 1_000_000),
+
+        /*
+         | Hard ceiling on total platform-key tokens (input + output)
+         | across ALL users per day — the kill-switch against
+         | multi-account abuse. BYO-key users are unaffected.
+         */
+        'platform_daily_token_budget' => (int) env('AI_PLATFORM_DAILY_TOKEN_BUDGET', 10_000_000),
+
+        /*
+         | Image-only (scanned) PDFs above this page count are not sent
+         | raw to the model on the platform key — each page costs
+         | thousands of input tokens.
+         */
+        'max_scanned_pdf_pages' => (int) env('AI_MAX_SCANNED_PDF_PAGES', 20),
 
         /*
          | Truncation budget for evidence text sent to the analyst

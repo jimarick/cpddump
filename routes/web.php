@@ -48,7 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
 
         Route::get('reports', [GeneratedReportController::class, 'index'])->name('reports.index');
-        Route::post('reports', [GeneratedReportController::class, 'store'])->name('reports.store');
+        Route::post('reports', [GeneratedReportController::class, 'store'])->middleware('throttle:6,1')->name('reports.store');
         Route::delete('reports/{report}', [GeneratedReportController::class, 'destroy'])->name('reports.destroy');
 
         Route::get('search', SearchController::class)->name('search');

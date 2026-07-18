@@ -98,7 +98,8 @@ class AiGateway
     }
 
     /**
-     * Has this user exhausted the platform-key daily token budget?
+     * Has this user exhausted the platform-key daily token budgets
+     * (output or input), or has the platform-wide ceiling been hit?
      * Users on their own key are never budget-limited.
      */
     public function overDailyBudget(User $user): bool
@@ -111,9 +112,33 @@ class AiGateway
             ->where('user_id', $user->id)
             ->where('used_user_key', false)
             ->where('created_at', '>=', now()->startOfDay())
-            ->sum('output_tokens');
+            ->selectRaw('coalesce(sum(output_tokens), 0) as output_sum')
+            ->selectRaw('coalesce(sum(input_tokens), 0) as input_sum')
+            ->toBase()
+            ->first();
 
-        return $spent >= config('cpd.ai.daily_token_budget');
+        if ($spent !== null
+            && ((int) $spent->output_sum >= config('cpd.ai.daily_token_budget')
+                || (int) $spent->input_sum >= config('cpd.ai.daily_input_token_budget'))) {
+            return true;
+        }
+
+        return $this->platformOverDailyBudget();
+    }
+
+    /**
+     * Total platform-key spend (input + output) across all users today
+     * has hit the global ceiling — the multi-account abuse kill-switch.
+     */
+    public function platformOverDailyBudget(): bool
+    {
+        $total = (int) AiGeneration::query()
+            ->where('used_user_key', false)
+            ->where('created_at', '>=', now()->startOfDay())
+            ->selectRaw('coalesce(sum(input_tokens), 0) + coalesce(sum(output_tokens), 0) as total')
+            ->value('total');
+
+        return $total >= config('cpd.ai.platform_daily_token_budget');
     }
 
     /**
