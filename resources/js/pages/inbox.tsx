@@ -202,7 +202,13 @@ export default function Inbox({
             {items.length === 0 ? (
                 <EmptyState onAdd={() => setAdding(true)} />
             ) : (
-                <div className="flex min-h-[55vh] flex-col rounded-[14px] border-2 border-dashed border-stone-400 bg-white/50 p-3">
+                <div className="relative mt-4 flex min-h-[55vh] flex-col rounded-[18px] border-2 border-dashed border-stone-400 bg-[#f0ede5] p-4 pt-7 shadow-[inset_3px_4px_10px_rgba(28,25,23,.13),inset_-1px_-1px_4px_rgba(255,255,255,.9)]">
+                    <span className="pointer-events-none absolute -top-4 left-7 rotate-[-3deg] font-hand text-[26px] font-semibold text-ink">
+                        the pile ↓
+                    </span>
+                    <span className="pointer-events-none absolute right-8 bottom-6 rotate-[8deg] rounded-[10px] border-[3px] border-double border-brand-dark/35 px-3.5 py-1 text-[13px] font-bold tracking-[0.22em] text-brand-dark/35">
+                        INBOX
+                    </span>
                     <div className="grid gap-2.5 px-1 pt-1">
                         {items.map((item, i) => (
                             <InboxRow
