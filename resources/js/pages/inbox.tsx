@@ -217,14 +217,17 @@ export default function Inbox({
                             />
                         ))}
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setAdding(true)}
-                        className="mt-3 flex min-h-[120px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[12px] text-[13px] font-semibold text-stone-400 transition-colors hover:bg-white/70 hover:text-stone-600"
-                    >
-                        <Plus className="size-4" /> drop files anywhere, or
-                        click to dump something else
-                    </button>
+                    <div className="mt-3 flex min-h-[140px] flex-1 flex-col items-center justify-center gap-2.5">
+                        <Button
+                            onClick={() => setAdding(true)}
+                            className="rotate-[-1deg] border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+                        >
+                            <Plus className="size-4" /> Dump something else
+                        </Button>
+                        <span className="text-[12px] text-stone-400">
+                            or drop files anywhere on this page
+                        </span>
+                    </div>
                 </div>
             )}
 
