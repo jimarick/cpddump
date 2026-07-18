@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
 import { Sparkle } from '@/components/brand/sparkle';
+import { DictationButton } from '@/components/cpd/dictation-button';
 import {
     CategorisationStepFields,
     DetailsStepFields,
@@ -68,32 +69,32 @@ export default function Inbox({
 
         const enter = (e: DragEvent) => {
             if (!hasFiles(e)) {
-return;
-}
+                return;
+            }
 
             depth += 1;
             setDragging(true);
         };
         const over = (e: DragEvent) => {
             if (hasFiles(e)) {
-e.preventDefault();
-}
+                e.preventDefault();
+            }
         };
         const leave = (e: DragEvent) => {
             if (!hasFiles(e)) {
-return;
-}
+                return;
+            }
 
             depth = Math.max(0, depth - 1);
 
             if (depth === 0) {
-setDragging(false);
-}
+                setDragging(false);
+            }
         };
         const drop = (e: DragEvent) => {
             if (!hasFiles(e)) {
-return;
-}
+                return;
+            }
 
             e.preventDefault();
             depth = 0;
@@ -545,18 +546,32 @@ function AddEvidenceDialog({
                                     <Label htmlFor="new-title">
                                         What was it?
                                     </Label>
-                                    <Input
-                                        id="new-title"
-                                        autoFocus
-                                        value={form.data.title}
-                                        onChange={(e) =>
-                                            form.setData(
-                                                'title',
-                                                e.target.value,
-                                            )
-                                        }
-                                        placeholder="e.g. Taught FRCR physics revision session"
-                                    />
+                                    <div className="relative">
+                                        <Input
+                                            id="new-title"
+                                            autoFocus
+                                            value={form.data.title}
+                                            onChange={(e) =>
+                                                form.setData(
+                                                    'title',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder="e.g. Taught FRCR physics revision session"
+                                            className="pr-10"
+                                        />
+                                        <DictationButton
+                                            onTranscript={(text) =>
+                                                form.setData(
+                                                    'title',
+                                                    form.data.title.trim()
+                                                        ? `${form.data.title.trim()} ${text}`
+                                                        : text,
+                                                )
+                                            }
+                                            className="absolute top-1/2 right-1.5 -translate-y-1/2"
+                                        />
+                                    </div>
                                     <InputError message={form.errors.title} />
                                 </div>
                                 <OptionalNote
@@ -602,14 +617,27 @@ function OptionalNote({
     return (
         <div className="grid gap-1.5">
             <Label htmlFor="new-details">{label}</Label>
-            <textarea
-                id="new-details"
-                value={form.data.details}
-                onChange={(e) => form.setData('details', e.target.value)}
-                rows={3}
-                placeholder="Ramble freely — dates, who it was for, what you took away. The AI tidies it up."
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-            />
+            <div className="relative">
+                <textarea
+                    id="new-details"
+                    value={form.data.details}
+                    onChange={(e) => form.setData('details', e.target.value)}
+                    rows={3}
+                    placeholder="Ramble freely — dates, who it was for, what you took away. The AI tidies it up."
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 pr-10 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                />
+                <DictationButton
+                    onTranscript={(text) =>
+                        form.setData(
+                            'details',
+                            form.data.details.trim()
+                                ? `${form.data.details.trim()} ${text}`
+                                : text,
+                        )
+                    }
+                    className="absolute top-2 right-2"
+                />
+            </div>
         </div>
     );
 }
