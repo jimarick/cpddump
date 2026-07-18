@@ -31,11 +31,11 @@ return [
                 'weekly_digest' => env('AI_MODEL_DIGEST', 'claude-haiku-4-5-20251001'),
             ],
             'openai' => [
-                'inbox_analysis' => env('AI_OPENAI_MODEL', 'gpt-5'),
-                'text_assist' => env('AI_OPENAI_MODEL_FAST', 'gpt-5-mini'),
-                'question_answer' => env('AI_OPENAI_MODEL', 'gpt-5'),
-                'report' => env('AI_OPENAI_MODEL', 'gpt-5'),
-                'weekly_digest' => env('AI_OPENAI_MODEL_FAST', 'gpt-5-mini'),
+                'inbox_analysis' => env('AI_OPENAI_MODEL', 'gpt-5.4'),
+                'text_assist' => env('AI_OPENAI_MODEL_FAST', 'gpt-5.4-mini'),
+                'question_answer' => env('AI_OPENAI_MODEL', 'gpt-5.4'),
+                'report' => env('AI_OPENAI_MODEL', 'gpt-5.4'),
+                'weekly_digest' => env('AI_OPENAI_MODEL_FAST', 'gpt-5.4-mini'),
             ],
         ],
 
