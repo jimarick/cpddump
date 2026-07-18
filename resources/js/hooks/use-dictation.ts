@@ -2,18 +2,81 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 /**
- * Mic-button dictation: records with MediaRecorder, sends the clip to
- * /ai/transcribe, and hands back the transcript. Not live streaming —
- * click, talk, click, text appears.
+ * The browser's built-in speech recognition, used only for the live
+ * preview while recording. Not in TypeScript's DOM lib yet (still
+ * vendor-prefixed in every browser that ships it).
+ */
+interface SpeechRecognitionLike {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    onresult:
+        | ((event: {
+              results: ArrayLike<ArrayLike<{ transcript: string }>>;
+          }) => void)
+        | null;
+    onerror: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+}
+
+declare global {
+    interface Window {
+        SpeechRecognition?: new () => SpeechRecognitionLike;
+        webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+    }
+}
+
+/**
+ * Mic-button dictation: records with MediaRecorder and sends the clip to
+ * /ai/transcribe for the real transcript. While recording, the browser's
+ * own speech recognition (where available) provides a rough live preview —
+ * it never becomes the final text.
  */
 export function useDictation(onTranscript: (text: string) => void) {
     const [recording, setRecording] = useState(false);
     const [transcribing, setTranscribing] = useState(false);
+    const [preview, setPreview] = useState('');
     const recorder = useRef<MediaRecorder | null>(null);
+    const recognition = useRef<SpeechRecognitionLike | null>(null);
     const chunks = useRef<Blob[]>([]);
+
+    const startPreview = () => {
+        const Recognition =
+            window.SpeechRecognition ?? window.webkitSpeechRecognition;
+
+        if (!Recognition) {
+            return;
+        }
+
+        try {
+            const instance = new Recognition();
+            instance.continuous = true;
+            instance.interimResults = true;
+            instance.lang = 'en-GB';
+            instance.onresult = (event) => {
+                let text = '';
+
+                for (let i = 0; i < event.results.length; i++) {
+                    text += event.results[i][0]?.transcript ?? '';
+                }
+
+                setPreview(text.trim());
+            };
+            instance.onerror = () => {
+                // Preview is best-effort; the real transcript still happens.
+            };
+            instance.start();
+            recognition.current = instance;
+        } catch {
+            // No preview — recording carries on regardless.
+        }
+    };
 
     const stop = () => {
         recorder.current?.stop();
+        recognition.current?.stop();
+        recognition.current = null;
         setRecording(false);
     };
 
@@ -80,12 +143,15 @@ export function useDictation(onTranscript: (text: string) => void) {
                     );
                 } finally {
                     setTranscribing(false);
+                    setPreview('');
                 }
             };
 
             mediaRecorder.start();
             recorder.current = mediaRecorder;
             setRecording(true);
+            setPreview('');
+            startPreview();
         } catch {
             toast.error(
                 'Microphone access was blocked — allow it in your browser settings.',
@@ -96,6 +162,7 @@ export function useDictation(onTranscript: (text: string) => void) {
     return {
         recording,
         transcribing,
+        preview,
         toggle: () => (recording ? stop() : start()),
     };
 }
