@@ -19,13 +19,13 @@ Everything code-side is built; these are the account/DNS/env steps to go live.
 - [ ] Set hard spend limits in the OpenAI and Anthropic consoles (the code budgets' backstop)
 - [ ] `RESEND_API_KEY` (outbound mail + inbound API) and `MAIL_MAILER=resend`, `MAIL_FROM_ADDRESS=hello@cpddump.com`
 - [ ] `RESEND_INBOUND_WEBHOOK_SECRET` (from the webhook created below)
-- [ ] `INBOUND_EMAIL_DOMAIN=in.cpddump.com`
+- [ ] `INBOUND_EMAIL_DOMAIN=cpddump.com` (root domain does sending *and* receiving — Resend basic plan allows one domain; replies to hello@ vanish into Resend inbound, so use a personal address for human contact)
 - [ ] Paddle sandbox (scaffold only, nothing charged yet): `PADDLE_SANDBOX=true`, `PADDLE_SELLER_ID`, `PADDLE_API_KEY`, `PADDLE_CLIENT_SIDE_TOKEN`, `PADDLE_WEBHOOK_SECRET`
 
 ## Resend
 
 - [ ] Verify `cpddump.com` as a sending domain (SPF + DKIM records).
-- [ ] Add `in.cpddump.com` as a **receiving** domain; add its MX record at the DNS provider.
+- [ ] Enable **receiving** on `cpddump.com` (one-domain plan); add the root `@` MX record at DigitalOcean DNS.
 - [ ] Create a webhook for `email.received` → `https://cpddump.com/webhooks/resend-inbound`; copy the signing secret into `RESEND_INBOUND_WEBHOOK_SECRET`.
 - [ ] Send a test email to your own dump address end-to-end.
 
