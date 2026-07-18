@@ -10,6 +10,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "aws/aws-php-sns-message-validator": "^1.10",
+        "aws/aws-sdk-php": "^3.388",
         "inertiajs/inertia-laravel": "^3.0",
         "laravel/ai": "^0.9.1",
         "laravel/cashier-paddle": "^2.8",
@@ -24,7 +26,8 @@
         "phpoffice/phpword": "^1.4",
         "resend/resend-php": "^1.5",
         "sabre/vobject": "^5.0",
-        "smalot/pdfparser": "^2.12"
+        "smalot/pdfparser": "^2.12",
+        "zbateson/mail-mime-parser": "^4.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",
@@ -51,6 +54,7 @@
         }
     },
     "scripts": {
+        "pre-autoload-dump": "Aws\\Script\\Composer\\Composer::removeUnusedServices",
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
@@ -105,6 +109,13 @@
         ]
     },
     "extra": {
+        "aws/aws-sdk-php": [
+            "Ses",
+            "SesV2",
+            "S3",
+            "Sns",
+            "Sts"
+        ],
         "laravel": {
             "dont-discover": [],
             "installer": {

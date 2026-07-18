@@ -23,10 +23,26 @@ return [
         'inbound_webhook_secret' => env('RESEND_INBOUND_WEBHOOK_SECRET'),
     ],
 
+    /*
+     | Outbound mail via SES. Deliberately NOT the AWS_* env names —
+     | Laravel Cloud injects those for its R2 object storage.
+     */
     'ses' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
-        'secret' => env('AWS_SECRET_ACCESS_KEY'),
-        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+        'key' => env('SES_KEY', env('SES_INBOUND_KEY')),
+        'secret' => env('SES_SECRET', env('SES_INBOUND_SECRET')),
+        'region' => env('SES_REGION', env('SES_INBOUND_REGION', 'eu-west-2')),
+    ],
+
+    /*
+     | Inbound mail: SES receipt rules drop raw emails into this bucket;
+     | the app fetches, parses, ingests and deletes them.
+     */
+    'ses_inbound' => [
+        'key' => env('SES_INBOUND_KEY'),
+        'secret' => env('SES_INBOUND_SECRET'),
+        'region' => env('SES_INBOUND_REGION', 'eu-west-2'),
+        'bucket' => env('SES_INBOUND_BUCKET'),
+        'verify_signature' => (bool) env('SES_VERIFY_SIGNATURE', true),
     ],
 
     'slack' => [

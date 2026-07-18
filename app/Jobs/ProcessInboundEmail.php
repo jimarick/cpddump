@@ -7,6 +7,7 @@ use App\Models\InboxItem;
 use App\Models\User;
 use App\Services\EvidenceIngestor;
 use App\Services\ResendInbound;
+use App\Support\HtmlToText;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
@@ -109,10 +110,6 @@ class ProcessInboundEmail implements ShouldQueue
 
     private function htmlToText(string $html): string
     {
-        $html = preg_replace('/<(script|style)\b[^>]*>.*?<\/\1>/si', ' ', $html) ?? $html;
-        $text = html_entity_decode(strip_tags($html));
-        $text = preg_replace('/[ \t]+/', ' ', $text) ?? $text;
-
-        return trim(preg_replace('/\n{3,}/', "\n\n", $text) ?? $text);
+        return HtmlToText::convert($html);
     }
 }

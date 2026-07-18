@@ -13,12 +13,15 @@ use App\Http\Controllers\RecurrenceController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\Webhooks\ResendInboundController;
+use App\Http\Controllers\Webhooks\SesInboundController;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureOnboarded;
 use Illuminate\Support\Facades\Route;
 
 Route::post('webhooks/resend-inbound', ResendInboundController::class)
     ->name('webhooks.resend-inbound');
+Route::post('webhooks/ses-inbound', SesInboundController::class)
+    ->name('webhooks.ses-inbound');
 
 Route::inertia('/', 'marketing/home')->name('home');
 Route::inertia('privacy', 'marketing/privacy')->name('privacy');

@@ -23,6 +23,14 @@ return [
     'inbound_email_domain' => env('INBOUND_EMAIL_DOMAIN', 'in.cpddump.com'),
 
     /*
+     | Local parts on the receiving domain that are humans, not dump
+     | tokens — inbound mail to these is relayed to contact_email.
+     */
+    'inbound_aliases' => ['hello', 'support', 'contact'],
+
+    'contact_email' => env('CPD_CONTACT_EMAIL', 'james.ricketts@gmail.com'),
+
+    /*
     |--------------------------------------------------------------------------
     | Ingestion Limits
     |--------------------------------------------------------------------------
