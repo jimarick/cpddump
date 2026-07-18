@@ -8,6 +8,7 @@ use App\Jobs\AnalyzeInboxItem;
 use App\Jobs\ExtractAttachmentText;
 use App\Jobs\FetchLinkContent;
 use App\Jobs\TranscribeVoiceNote;
+use App\Models\Attachment;
 use App\Models\InboxItem;
 use App\Models\User;
 use DateTimeInterface;
@@ -76,7 +77,10 @@ class EvidenceIngestor
     /** Queue the right preparation job, ending in AI analysis. */
     public function dispatchPipeline(InboxItem $item, ?DateTimeInterface $delay = null): void
     {
-        $needsText = $item->attachments()->where('mime_type', 'application/pdf')->whereNull('extracted_text')->exists();
+        $needsText = $item->attachments()
+            ->whereIn('mime_type', Attachment::EXTRACTABLE_MIMES)
+            ->whereNull('extracted_text')
+            ->exists();
 
         if ($item->source === EvidenceSource::Link || $item->source === EvidenceSource::Article) {
             FetchLinkContent::dispatch($item)->delay($delay);

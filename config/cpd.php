@@ -23,6 +23,16 @@ return [
 
     'ingest' => [
         'daily_item_cap' => (int) env('CPD_DAILY_ITEM_CAP', 40),
+
+        /*
+         | The only file types stored from any source. Email attachments
+         | outside this list are silently skipped (no .exe in the
+         | evidence folder, however it's renamed).
+         */
+        'allowed_extensions' => [
+            'pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic', 'gif',
+            'doc', 'docx', 'ppt', 'pptx', 'txt', 'ics',
+        ],
     ],
 
     /*

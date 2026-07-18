@@ -134,8 +134,21 @@ class AnalyzeInboxItem implements ShouldQueue
             ->implode("\n\n");
 
         $text = trim("Source: {$item->source->value}\n\n{$payload}\n\n{$extracted}");
+        $text = mb_substr($text, 0, config('cpd.ai.evidence_char_limit'));
 
-        return mb_substr($text, 0, config('cpd.ai.evidence_char_limit'));
+        // Be honest about files the model gets no view of — never let a
+        // draft read as if the slides were understood from their filename.
+        $unread = $item->attachments
+            ->filter(fn ($a) => $a->isUnreadable())
+            ->map(fn ($a) => $a->original_filename);
+
+        if ($unread->isNotEmpty()) {
+            $text .= "\n\nAttached files whose contents could NOT be read (you only know their names): "
+                .$unread->implode(', ')
+                .'. Do not infer their contents. List each in missing_evidence as an unread attachment.';
+        }
+
+        return $text;
     }
 
     /**

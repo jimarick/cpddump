@@ -40,6 +40,14 @@ class Attachment extends Model
         return $this->morphTo();
     }
 
+    /** Mime types we can pull text out of server-side. */
+    public const EXTRACTABLE_MIMES = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain',
+    ];
+
     public function isImage(): bool
     {
         return str_starts_with($this->mime_type, 'image/');
@@ -48,6 +56,20 @@ class Attachment extends Model
     public function isPdf(): bool
     {
         return $this->mime_type === 'application/pdf';
+    }
+
+    public function isExtractable(): bool
+    {
+        return in_array($this->mime_type, self::EXTRACTABLE_MIMES, true);
+    }
+
+    /**
+     * True when the AI will get no view of this file's contents: not an
+     * image, not a raw-readable PDF, and no text was extracted.
+     */
+    public function isUnreadable(): bool
+    {
+        return blank($this->extracted_text) && ! $this->isImage() && ! $this->isPdf();
     }
 
     public function temporaryUrl(int $minutes = 30): string

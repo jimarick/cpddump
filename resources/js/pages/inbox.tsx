@@ -429,7 +429,8 @@ function InboxRow({
     );
 }
 
-const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.heic,.gif,.doc,.docx,.txt';
+const FILE_ACCEPT =
+    '.pdf,.jpg,.jpeg,.png,.webp,.heic,.gif,.doc,.docx,.ppt,.pptx,.txt';
 
 type DumpMode = 'files' | 'link' | 'text';
 

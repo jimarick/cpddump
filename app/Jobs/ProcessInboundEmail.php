@@ -82,9 +82,14 @@ class ProcessInboundEmail implements ShouldQueue
             return;
         }
 
-        $contents = $resend->download((string) $downloadUrl);
         $filename = (string) ($attachment['filename'] ?? 'attachment');
-        $extension = pathinfo($filename, PATHINFO_EXTENSION) ?: 'bin';
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        if (! in_array($extension, config('cpd.ingest.allowed_extensions'), true)) {
+            return;
+        }
+
+        $contents = $resend->download((string) $downloadUrl);
         $disk = config('filesystems.default');
         $path = "evidence/{$item->user_id}/".Str::uuid().'.'.$extension;
 
