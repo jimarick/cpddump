@@ -22,8 +22,12 @@ In the Claude Code prompt (the `!` prefix runs these outside the sandbox):
 ```
 ! curl -fsSL 'https://awscli.amazonaws.com/v2/install.sh' | bash
 ! aws login --region eu-west-2
-! aws configure agent-toolkit --yes --region eu-west-2
+! aws configure agent-toolkit --yes --region us-east-1
 ```
+
+(The `us-east-1` on the last line is where the Agent Toolkit service itself
+lives — it's the only region it supports. It does NOT affect where our
+resources go; everything we build still lands in eu-west-2.)
 
 `aws login` opens a browser — sign in with the account from step 1. The session
 lasts 12 hours (renewable ~90 days). Then restart the Claude Code session so
