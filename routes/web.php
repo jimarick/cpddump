@@ -61,6 +61,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::middleware(EnsureAdmin::class)->prefix('admin')->group(function () {
+        Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
         Route::get('users', [AdminController::class, 'users'])->name('admin.users');
         Route::get('usage', [AdminController::class, 'usage'])->name('admin.usage');
     });

@@ -35,12 +35,20 @@ export default function AdminUsers({ users }: Props) {
                         {users.total} registered
                     </p>
                 </div>
-                <Link
-                    href="/admin/usage"
-                    className="text-[13px] font-semibold text-brand"
-                >
-                    AI usage →
-                </Link>
+                <div className="flex gap-4">
+                    <Link
+                        href="/admin"
+                        className="text-[13px] font-semibold text-stone-500 hover:text-ink"
+                    >
+                        ← Admin
+                    </Link>
+                    <Link
+                        href="/admin/usage"
+                        className="text-[13px] font-semibold text-brand"
+                    >
+                        AI usage →
+                    </Link>
+                </div>
             </div>
 
             <div className="overflow-x-auto rounded-[14px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(28,25,23,.12)]">

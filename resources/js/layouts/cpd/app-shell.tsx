@@ -1,5 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings, ShieldCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { StampLogo } from '@/components/brand/stamp-logo';
 import { SearchCommand } from '@/components/cpd/search-command';
@@ -77,6 +77,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
                                         <Settings className="size-4" /> Settings
                                     </Link>
                                 </DropdownMenuItem>
+                                {auth.user.is_admin && (
+                                    <DropdownMenuItem asChild>
+                                        <Link
+                                            href="/admin"
+                                            className="flex w-full items-center gap-2"
+                                        >
+                                            <ShieldCheck className="size-4" />{' '}
+                                            Admin
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                     onClick={() => router.post(logout().url)}
                                     className="flex items-center gap-2"

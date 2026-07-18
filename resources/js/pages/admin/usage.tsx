@@ -43,12 +43,20 @@ export default function AdminUsage({ daily, byPurpose, topUsers }: Props) {
                         Last 30 days
                     </p>
                 </div>
-                <Link
-                    href="/admin/users"
-                    className="text-[13px] font-semibold text-brand"
-                >
-                    ← Users
-                </Link>
+                <div className="flex gap-4">
+                    <Link
+                        href="/admin"
+                        className="text-[13px] font-semibold text-stone-500 hover:text-ink"
+                    >
+                        ← Admin
+                    </Link>
+                    <Link
+                        href="/admin/users"
+                        className="text-[13px] font-semibold text-brand"
+                    >
+                        Users →
+                    </Link>
+                </div>
             </div>
 
             <div className="grid gap-5 lg:grid-cols-2">

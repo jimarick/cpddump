@@ -12,9 +12,15 @@ use Laravel\Ai\Ai;
 test('admin pages are hidden from non-admins and visible to admins', function () {
     $user = ukDoctor();
 
+    $this->actingAs($user)->get('/admin')->assertNotFound();
     $this->actingAs($user)->get('/admin/users')->assertNotFound();
 
     $this->artisan('cpd:make-admin', ['email' => $user->email])->assertSuccessful();
+
+    $this->actingAs($user->fresh())->get('/admin')
+        ->assertInertia(fn ($page) => $page->component('admin/dashboard')
+            ->has('stats.users')
+            ->has('stats.ai_calls_30d'));
 
     $this->actingAs($user->fresh())->get('/admin/users')
         ->assertInertia(fn ($page) => $page->component('admin/users'));

@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Activity;
 use App\Models\AiGeneration;
+use App\Models\GeneratedReport;
+use App\Models\InboxItem;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +15,26 @@ use Inertia\Response;
 
 class AdminController extends Controller
 {
+    public function dashboard(Request $request): Response
+    {
+        $thirtyDays = now()->subDays(30);
+
+        return Inertia::render('admin/dashboard', [
+            'stats' => [
+                'users' => User::count(),
+                'onboarded' => User::whereNotNull('onboarded_at')->count(),
+                'new_users_30d' => User::where('created_at', '>=', $thirtyDays)->count(),
+                'activities' => Activity::count(),
+                'inbox_items_30d' => InboxItem::where('created_at', '>=', $thirtyDays)->count(),
+                'ai_calls_30d' => AiGeneration::where('created_at', '>=', $thirtyDays)->count(),
+                'platform_output_tokens_30d' => (int) AiGeneration::where('created_at', '>=', $thirtyDays)
+                    ->where('used_user_key', false)
+                    ->sum('output_tokens'),
+                'reports_30d' => GeneratedReport::where('created_at', '>=', $thirtyDays)->count(),
+            ],
+        ]);
+    }
+
     public function users(Request $request): Response
     {
         $users = User::query()
