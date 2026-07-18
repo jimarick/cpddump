@@ -29,6 +29,7 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
      * @param  array<int, array{key: string, label: string, question: string}>  $reflectionPrompts
      * @param  array<int, array{id: int, title: string, date: ?string, type: string}>  $recentActivities
      * @param  array<int, array{id: int, title: string}>  $openProjects
+     * @param  array<int, array{id: int, title: string}>  $recurrences
      */
     public function __construct(
         public readonly Profession $profession,
@@ -39,6 +40,7 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
         public readonly array $reflectionPrompts,
         public readonly array $recentActivities = [],
         public readonly array $openProjects = [],
+        public readonly array $recurrences = [],
     ) {}
 
     public static function for(User $user): self
@@ -71,6 +73,11 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
                 ->get()
                 ->map(fn ($p) => ['id' => $p->id, 'title' => $p->title])
                 ->all(),
+            recurrences: $user->recurrences()
+                ->where('is_active', true)
+                ->get()
+                ->map(fn ($r) => ['id' => $r->id, 'title' => $r->title])
+                ->all(),
         );
     }
 
@@ -97,6 +104,10 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
 
         $projects = collect($this->openProjects)
             ->map(fn ($p) => "- id {$p['id']}: {$p['title']}")
+            ->implode("\n") ?: '(none)';
+
+        $regulars = collect($this->recurrences)
+            ->map(fn ($r) => "- id {$r['id']}: {$r['title']}")
             ->implode("\n") ?: '(none)';
 
         return <<<PROMPT
@@ -141,6 +152,11 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
 
         The user's open projects/objectives (suggest links only when clearly relevant):
         {$projects}
+
+        The user's declared regular activities (recurring fixtures and yearly expectations). If this
+        evidence IS an occurrence of one of them (e.g. an email about that very meeting), set
+        matched_recurrence_id to its id — otherwise null. An email merely mentioning it does not count.
+        {$regulars}
         PROMPT;
     }
 
@@ -165,6 +181,7 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
             'attribute_codes' => $schema->array()->items($schema->string()->enum(array_keys($this->attributes)))->required(),
             'suggested_project_ids' => $schema->array()->items($schema->integer())->required(),
             'possible_duplicate_activity_ids' => $schema->array()->items($schema->integer())->required(),
+            'matched_recurrence_id' => $schema->integer()->description('Id of the regular activity this evidence is an occurrence of, or null')->nullable(),
             'confidence' => $schema->number()->description('Between 0 and 1: overall confidence in this extraction')->required(),
             'pii_flags' => $schema->array()->items($schema->object([
                 'type' => $schema->string()->description('e.g. patient_name, nhs_number, dob, address, case_details')->required(),

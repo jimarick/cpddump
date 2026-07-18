@@ -15,6 +15,10 @@ Review your inbox
 </x-mail::button>
 @endif
 
+@if (($regulars_waiting ?? 0) > 0)
+**{{ $regulars_waiting }}** of your regular activities {{ $regulars_waiting === 1 ? 'has' : 'have' }} a draft waiting for a quick reflection.
+@endif
+
 ## Where you stand this appraisal year
 
 - **{{ $total_activities }}** activities · **{{ $total_points }}** CPD points
@@ -22,6 +26,9 @@ Review your inbox
 - Looking thin: {{ implode(' · ', $thin_areas) }}
 @else
 - Every domain has evidence — genuinely rare. Well done.
+@endif
+@if (count($behind_expectations ?? []) > 0)
+- Behind schedule: {{ implode(' · ', $behind_expectations) }}
 @endif
 
 @if (filled($dump_address))

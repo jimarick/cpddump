@@ -9,6 +9,7 @@ use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InboxItemController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\RecurrenceController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\Webhooks\ResendInboundController;
@@ -55,6 +56,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('reports/{report}', [GeneratedReportController::class, 'destroy'])->name('reports.destroy');
 
         Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
+
+        Route::post('recurrences', [RecurrenceController::class, 'store'])->name('recurrences.store');
+        Route::patch('recurrences/{recurrence}', [RecurrenceController::class, 'update'])->name('recurrences.update');
+        Route::delete('recurrences/{recurrence}', [RecurrenceController::class, 'destroy'])->name('recurrences.destroy');
 
         Route::get('search', SearchController::class)->name('search');
         Route::post('ai/text-assist', [AiAssistController::class, 'textAssist'])

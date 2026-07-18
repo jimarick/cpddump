@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Ai\InboxAnalystAgent;
 use App\Enums\AiPurpose;
+use App\Enums\EvidenceSource;
 use App\Enums\InboxItemStatus;
 use App\Models\InboxItem;
 use App\Services\AiGateway;
@@ -107,6 +108,40 @@ class AnalyzeInboxItem implements ShouldQueue
             'analysed_at' => now(),
             'failure_reason' => null,
         ]);
+
+        $this->reconcileRecurrence($item, $analysis);
+    }
+
+    /**
+     * Real evidence tagged as an occurrence of a declared regular activity
+     * counts toward its tally and supersedes any waiting template draft.
+     *
+     * @param  array<string, mixed>  $analysis
+     */
+    private function reconcileRecurrence(InboxItem $item, array $analysis): void
+    {
+        $matchedId = $analysis['matched_recurrence_id'] ?? null;
+
+        if (! $matchedId) {
+            return;
+        }
+
+        $recurrence = $item->user->recurrences()->whereKey($matchedId)->first();
+
+        if (! $recurrence) {
+            return;
+        }
+
+        $item->update(['recurrence_id' => $recurrence->id]);
+
+        // The real capture replaces any unresolved auto-draft.
+        $recurrence->inboxItems()
+            ->where('id', '!=', $item->id)
+            ->where('source', EvidenceSource::Recurring)
+            ->whereIn('status', [InboxItemStatus::Pending, InboxItemStatus::Ready])
+            ->get()
+            ->each
+            ->dismiss();
     }
 
     public function failed(?Throwable $exception): void

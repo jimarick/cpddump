@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\EvidenceSource;
 use App\Enums\InboxItemStatus;
 use App\Mail\WeeklyReview;
 use App\Models\User;
@@ -44,6 +45,18 @@ class SendWeeklyReviews extends Command
                     ->values()
                     ->all();
 
+                $regularsWaiting = $user->inboxItems()
+                    ->where('source', EvidenceSource::Recurring)
+                    ->where('status', InboxItemStatus::Ready)
+                    ->whereIn('recurrence_id', $user->recurrences()->whereIn('reminder', ['weekly', 'same_day'])->pluck('id'))
+                    ->count();
+
+                $behindExpectations = collect((array) ($periodStats['gaps']['expectations'] ?? []))
+                    ->filter(fn ($e) => $e['captured'] < $e['expected'])
+                    ->map(fn ($e) => "{$e['title']} ({$e['captured']} of {$e['expected']})")
+                    ->values()
+                    ->all();
+
                 Mail::to($user)->queue(new WeeklyReview($user, [
                     'captured_this_week' => $capturedThisWeek,
                     'points_this_week' => $pointsThisWeek,
@@ -51,6 +64,8 @@ class SendWeeklyReviews extends Command
                     'total_activities' => $periodStats['activities'],
                     'total_points' => $periodStats['points'],
                     'thin_areas' => $thinAreas,
+                    'regulars_waiting' => $regularsWaiting,
+                    'behind_expectations' => $behindExpectations,
                     'dump_address' => $user->inboundEmailAddress(),
                     'inbox_url' => route('inbox'),
                 ]));

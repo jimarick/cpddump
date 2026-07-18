@@ -10,6 +10,7 @@ import {
     PenLine,
     Plus,
     RefreshCw,
+    Repeat,
     Trash2,
     X,
 } from 'lucide-react';
@@ -40,10 +41,18 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import type {
     InboxItemData,
     InboxStats,
     PeriodData,
+    RecurrenceData,
     ReferenceData,
 } from '@/types/cpd';
 
@@ -53,6 +62,7 @@ interface Props {
     period: PeriodData | null;
     reference: ReferenceData;
     dumpAddress: string | null;
+    recurrences: RecurrenceData[];
 }
 
 export default function Inbox({
@@ -61,9 +71,12 @@ export default function Inbox({
     period,
     reference,
     dumpAddress,
+    recurrences,
 }: Props) {
     const [reviewing, setReviewing] = useState<InboxItemData | null>(null);
     const [adding, setAdding] = useState(false);
+    const [addMode, setAddMode] = useState<DumpMode | null>(null);
+    const [managing, setManaging] = useState<RecurrenceData | null>(null);
     const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
     const [dragging, setDragging] = useState(false);
 
@@ -241,6 +254,14 @@ export default function Inbox({
                             or drop files anywhere on this page
                         </span>
                     </div>
+                    <RegularsStrip
+                        recurrences={recurrences}
+                        onAdd={() => {
+                            setAddMode('regular');
+                            setAdding(true);
+                        }}
+                        onManage={setManaging}
+                    />
                 </div>
             )}
 
@@ -261,10 +282,21 @@ export default function Inbox({
             {adding && (
                 <AddEvidenceDialog
                     initialFiles={droppedFiles}
+                    initialMode={addMode}
+                    activityTypes={reference.activityTypes}
                     onClose={() => {
                         setAdding(false);
+                        setAddMode(null);
                         setDroppedFiles([]);
                     }}
+                />
+            )}
+
+            {managing && (
+                <ManageRecurrenceDialog
+                    key={managing.id}
+                    recurrence={managing}
+                    onClose={() => setManaging(null)}
                 />
             )}
 
@@ -433,7 +465,7 @@ function InboxRow({
 const FILE_ACCEPT =
     '.pdf,.jpg,.jpeg,.png,.webp,.heic,.gif,.doc,.docx,.ppt,.pptx,.txt';
 
-type DumpMode = 'files' | 'link' | 'text';
+type DumpMode = 'files' | 'link' | 'text' | 'regular';
 
 const DUMP_MODES: {
     key: DumpMode;
@@ -463,17 +495,28 @@ const DUMP_MODES: {
         blurb: 'Type what happened',
         rotate: '-0.5deg',
     },
+    {
+        key: 'regular',
+        icon: Repeat,
+        title: 'Something regular',
+        blurb: 'MDTs, journal clubs, audits',
+        rotate: '0.4deg',
+    },
 ];
 
 function AddEvidenceDialog({
     initialFiles,
+    initialMode = null,
+    activityTypes,
     onClose,
 }: {
     initialFiles: File[];
+    initialMode?: DumpMode | null;
+    activityTypes: ReferenceData['activityTypes'];
     onClose: () => void;
 }) {
     const [mode, setMode] = useState<DumpMode | null>(
-        initialFiles.length > 0 ? 'files' : null,
+        initialFiles.length > 0 ? 'files' : initialMode,
     );
 
     const form = useForm<{
@@ -525,7 +568,7 @@ function AddEvidenceDialog({
                 </DialogHeader>
 
                 {mode === null ? (
-                    <div className="grid gap-3 py-1 sm:grid-cols-3">
+                    <div className="grid gap-3 py-1 sm:grid-cols-2">
                         {DUMP_MODES.map((m) => (
                             <button
                                 key={m.key}
@@ -543,11 +586,13 @@ function AddEvidenceDialog({
                                 </span>
                             </button>
                         ))}
-                        <p className="text-center text-[11.5px] text-stone-400 sm:col-span-3">
+                        <p className="text-center text-[11.5px] text-stone-400 sm:col-span-2">
                             Tip: you can also drop files straight onto the
                             inbox, or forward emails to your dump address.
                         </p>
                     </div>
+                ) : mode === 'regular' ? (
+                    <RegularForm activityTypes={activityTypes} onDone={close} />
                 ) : (
                     <form onSubmit={submit} className="grid gap-4">
                         {mode === 'files' && (
@@ -1053,6 +1098,376 @@ function ReviewDialog({
                         </div>
                     </>
                 )}
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+const REMINDER_LABELS: Record<RecurrenceData['reminder'], string> = {
+    same_day: 'Email me the same day',
+    weekly: 'Mention in my weekly email',
+    none: 'No reminders',
+};
+
+function RegularForm({
+    activityTypes,
+    onDone,
+}: {
+    activityTypes: ReferenceData['activityTypes'];
+    onDone: () => void;
+}) {
+    const form = useForm<{
+        kind: 'scheduled' | 'expectation';
+        title: string;
+        activity_type_slug: string;
+        cpd_points: number | string;
+        frequency: 'weekly' | 'fortnightly' | 'monthly';
+        expected_per_year: number | string;
+        reminder: RecurrenceData['reminder'];
+    }>({
+        kind: 'scheduled',
+        title: '',
+        activity_type_slug: activityTypes[0]?.slug ?? 'meeting',
+        cpd_points: 0.5,
+        frequency: 'weekly',
+        expected_per_year: 4,
+        reminder: 'weekly',
+    });
+
+    const scheduled = form.data.kind === 'scheduled';
+
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        form.post('/recurrences', { onSuccess: onDone });
+    };
+
+    return (
+        <form onSubmit={submit} className="grid gap-4">
+            <div className="grid grid-cols-2 gap-2">
+                {(
+                    [
+                        [
+                            'scheduled',
+                            'On a schedule',
+                            'Weekly MDT, monthly journal club',
+                        ],
+                        [
+                            'expectation',
+                            'A few times a year',
+                            'Audits, exam boards — dates unknown',
+                        ],
+                    ] as const
+                ).map(([kind, label, blurb]) => (
+                    <button
+                        key={kind}
+                        type="button"
+                        onClick={() => form.setData('kind', kind)}
+                        className={`cursor-pointer rounded-[10px] border-2 px-3 py-2.5 text-left transition-colors ${
+                            form.data.kind === kind
+                                ? 'rotate-[-0.4deg] border-ink bg-brand-tint'
+                                : 'border-dashed border-stone-300 hover:border-ink'
+                        }`}
+                    >
+                        <span className="block text-[13px] font-bold">
+                            {label}
+                        </span>
+                        <span className="block text-[11px] leading-snug text-stone-500">
+                            {blurb}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            <div className="grid gap-1.5">
+                <Label htmlFor="regular-title">What is it?</Label>
+                <DictatedInput
+                    id="regular-title"
+                    autoFocus
+                    value={form.data.title}
+                    onValueChange={(title) => form.setData('title', title)}
+                    placeholder={
+                        scheduled ? 'e.g. Lung MDT' : 'e.g. Audit meeting'
+                    }
+                />
+                <InputError message={form.errors.title} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                    <Label>Type</Label>
+                    <Select
+                        value={form.data.activity_type_slug}
+                        onValueChange={(v) =>
+                            form.setData('activity_type_slug', v)
+                        }
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {activityTypes.map((t) => (
+                                <SelectItem key={t.slug} value={t.slug}>
+                                    {t.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="grid gap-1.5">
+                    <Label htmlFor="regular-points">CPD points each time</Label>
+                    <Input
+                        id="regular-points"
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={form.data.cpd_points}
+                        onChange={(e) =>
+                            form.setData('cpd_points', e.target.value)
+                        }
+                    />
+                    <InputError message={form.errors.cpd_points} />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                {scheduled ? (
+                    <div className="grid gap-1.5">
+                        <Label>How often?</Label>
+                        <Select
+                            value={form.data.frequency}
+                            onValueChange={(v) =>
+                                form.setData(
+                                    'frequency',
+                                    v as typeof form.data.frequency,
+                                )
+                            }
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                                <SelectItem value="fortnightly">
+                                    Fortnightly
+                                </SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                ) : (
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="regular-per-year">Times per year</Label>
+                        <Input
+                            id="regular-per-year"
+                            type="number"
+                            min={1}
+                            max={52}
+                            value={form.data.expected_per_year}
+                            onChange={(e) =>
+                                form.setData(
+                                    'expected_per_year',
+                                    e.target.value,
+                                )
+                            }
+                        />
+                        <InputError message={form.errors.expected_per_year} />
+                    </div>
+                )}
+                <div className="grid gap-1.5">
+                    <Label>Reminders</Label>
+                    <Select
+                        value={form.data.reminder}
+                        onValueChange={(v) =>
+                            form.setData(
+                                'reminder',
+                                v as RecurrenceData['reminder'],
+                            )
+                        }
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {(
+                                Object.entries(REMINDER_LABELS) as [
+                                    RecurrenceData['reminder'],
+                                    string,
+                                ][]
+                            ).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                    {label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            <p className="text-[12px] leading-snug text-stone-500">
+                {scheduled
+                    ? 'A ready-to-approve draft appears in your inbox at each occurrence — no AI cost, your own words.'
+                    : 'If a stretch passes with none captured, a prompt appears in your inbox asking whether one happened. Real emails and calendar events that match get counted automatically.'}
+            </p>
+
+            <Button
+                type="submit"
+                disabled={form.processing || form.data.title.trim() === ''}
+                className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+            >
+                {form.processing ? (
+                    <Loader2 className="size-4 animate-spin" />
+                ) : (
+                    <Repeat className="size-4" />
+                )}
+                Save regular activity
+            </Button>
+        </form>
+    );
+}
+
+function RegularsStrip({
+    recurrences,
+    onAdd,
+    onManage,
+}: {
+    recurrences: RecurrenceData[];
+    onAdd: () => void;
+    onManage: (recurrence: RecurrenceData) => void;
+}) {
+    return (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed border-stone-300 pt-3">
+            <span className="text-[10px] font-bold tracking-[0.08em] text-stone-400 uppercase">
+                Regulars
+            </span>
+            {recurrences.map((recurrence) => (
+                <button
+                    key={recurrence.id}
+                    type="button"
+                    onClick={() => onManage(recurrence)}
+                    title="Manage this regular activity"
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
+                        recurrence.is_active
+                            ? 'border-ink bg-white hover:bg-brand-tint'
+                            : 'border-dashed border-stone-300 text-stone-400 hover:border-ink'
+                    }`}
+                >
+                    <Repeat className="size-3 text-brand" />
+                    {recurrence.title}
+                    <span className="text-stone-400">
+                        {recurrence.kind === 'scheduled'
+                            ? recurrence.frequency
+                            : `${recurrence.captured ?? 0}/${recurrence.expected_per_year}`}
+                    </span>
+                    {!recurrence.is_active && <span>· paused</span>}
+                </button>
+            ))}
+            <button
+                type="button"
+                onClick={onAdd}
+                className="flex cursor-pointer items-center gap-1 rounded-full border-[1.5px] border-dashed border-stone-400 px-2.5 py-1 text-[11.5px] font-semibold text-stone-500 transition-colors hover:border-ink hover:text-ink"
+            >
+                <Plus className="size-3" /> add a regular
+            </button>
+        </div>
+    );
+}
+
+function ManageRecurrenceDialog({
+    recurrence,
+    onClose,
+}: {
+    recurrence: RecurrenceData;
+    onClose: () => void;
+}) {
+    const [processing, setProcessing] = useState(false);
+
+    const patch = (data: { is_active?: boolean; reminder?: string }) => {
+        setProcessing(true);
+        router.patch(`/recurrences/${recurrence.id}`, data, {
+            preserveScroll: true,
+            onSuccess: onClose,
+            onFinish: () => setProcessing(false),
+        });
+    };
+
+    const remove = () => {
+        if (
+            !window.confirm(
+                `Remove "${recurrence.title}"? Unresolved drafts are binned; approved activities stay.`,
+            )
+        ) {
+            return;
+        }
+
+        setProcessing(true);
+        router.delete(`/recurrences/${recurrence.id}`, {
+            preserveScroll: true,
+            onSuccess: onClose,
+            onFinish: () => setProcessing(false),
+        });
+    };
+
+    return (
+        <Dialog open onOpenChange={(o) => !o && onClose()}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 font-display text-2xl font-semibold">
+                        <Repeat className="size-5 text-brand" />
+                        {recurrence.title}
+                    </DialogTitle>
+                </DialogHeader>
+
+                <p className="text-[13px] text-stone-500">
+                    {recurrence.kind === 'scheduled'
+                        ? `Repeats ${recurrence.frequency}${recurrence.type ? ` · ${recurrence.type}` : ''}. A draft lands in your inbox at each occurrence.`
+                        : `Expected ${recurrence.expected_per_year}× a year${recurrence.type ? ` · ${recurrence.type}` : ''} — ${recurrence.captured ?? 0} captured so far this appraisal year.`}
+                </p>
+
+                <div className="grid gap-1.5">
+                    <Label>Reminders</Label>
+                    <Select
+                        value={recurrence.reminder}
+                        onValueChange={(v) => patch({ reminder: v })}
+                        disabled={processing}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {(
+                                Object.entries(REMINDER_LABELS) as [
+                                    RecurrenceData['reminder'],
+                                    string,
+                                ][]
+                            ).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                    {label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
+                    <Button
+                        variant="outline"
+                        disabled={processing}
+                        onClick={() =>
+                            patch({ is_active: !recurrence.is_active })
+                        }
+                        className="border-2 border-ink"
+                    >
+                        {recurrence.is_active ? 'Pause' : 'Resume'}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        disabled={processing}
+                        onClick={remove}
+                        className="text-red-600 hover:text-red-700"
+                    >
+                        <Trash2 className="size-4" /> Remove
+                    </Button>
+                </div>
             </DialogContent>
         </Dialog>
     );

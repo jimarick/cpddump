@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityType;
 use App\Models\Attachment;
+use App\Models\Recurrence;
 use App\Services\StatsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -51,6 +52,23 @@ class InboxController extends Controller
                 'projects' => $user->projects()->where('status', 'open')->get(['id', 'title', 'kind']),
             ],
             'dumpAddress' => $user->inboundEmailAddress(),
+            'recurrences' => $user->recurrences()
+                ->with('type:id,slug,name')
+                ->orderBy('created_at')
+                ->get()
+                ->map(fn (Recurrence $r) => [
+                    'id' => $r->id,
+                    'kind' => $r->kind,
+                    'title' => $r->title,
+                    'type' => $r->type?->name,
+                    'frequency' => $r->frequency,
+                    'expected_per_year' => $r->expected_per_year,
+                    'reminder' => $r->reminder,
+                    'is_active' => $r->is_active,
+                    'captured' => $r->kind === 'expectation' && $period
+                        ? $r->activities()->where('appraisal_period_id', $period->id)->count()
+                        : null,
+                ]),
         ]);
     }
 }

@@ -102,6 +102,12 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(Project::class);
     }
 
+    /** @return HasMany<Recurrence, $this> */
+    public function recurrences(): HasMany
+    {
+        return $this->hasMany(Recurrence::class);
+    }
+
     /** @return HasMany<IgnoreRule, $this> */
     public function ignoreRules(): HasMany
     {

@@ -115,7 +115,27 @@ export interface InboxStats {
     gaps: {
         categories: GapEntry[];
         domains: GapEntry[];
+        expectations: ExpectationProgress[];
     };
+}
+
+export interface ExpectationProgress {
+    id: number;
+    title: string;
+    expected: number;
+    captured: number;
+}
+
+export interface RecurrenceData {
+    id: number;
+    kind: 'scheduled' | 'expectation';
+    title: string;
+    type: string | null;
+    frequency: 'weekly' | 'fortnightly' | 'monthly' | null;
+    expected_per_year: number | null;
+    reminder: 'same_day' | 'weekly' | 'none';
+    is_active: boolean;
+    captured: number | null;
 }
 
 export interface PeriodData {

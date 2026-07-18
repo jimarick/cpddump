@@ -25,6 +25,7 @@ use RuntimeException;
  * @property array<string, mixed>|null $ai_analysis
  * @property array<string, mixed>|null $ai_warnings
  * @property int|null $activity_id
+ * @property int|null $recurrence_id
  * @property string|null $failure_reason
  * @property Carbon|null $analysed_at
  * @property Carbon|null $resolved_at
@@ -53,6 +54,12 @@ class InboxItem extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<Recurrence, $this> */
+    public function recurrence(): BelongsTo
+    {
+        return $this->belongsTo(Recurrence::class);
     }
 
     /** @return BelongsTo<Activity, $this> */
@@ -106,6 +113,7 @@ class InboxItem extends Model
             $activity = $user->activities()->create([
                 'appraisal_period_id' => $period->id,
                 'inbox_item_id' => $this->id,
+                'recurrence_id' => $this->recurrence_id,
                 'activity_type_id' => $type->id,
                 'title' => $payload['title'],
                 'starts_on' => $payload['starts_on'] ?? null,
@@ -148,6 +156,11 @@ class InboxItem extends Model
                 'status' => InboxItemStatus::Approved,
                 'activity_id' => $activity->id,
                 'resolved_at' => now(),
+            ]);
+
+            // A capture counts toward its regular activity's tally.
+            $this->recurrence?->update([
+                'last_matched_on' => $activity->starts_on?->toDateString() ?? now()->toDateString(),
             ]);
 
             return $activity;
