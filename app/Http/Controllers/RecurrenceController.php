@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\EvidenceSource;
+use App\Enums\InboxItemStatus;
 use App\Models\ActivityType;
 use App\Models\Recurrence;
 use Illuminate\Http\RedirectResponse;
@@ -46,6 +47,25 @@ class RecurrenceController extends Controller
         return back()->with('success', $scheduled
             ? 'Regular saved — a draft will appear at each occurrence.'
             : "Expectation saved — we'll nudge you if none get captured.");
+    }
+
+    /** Drop a ready-to-approve occurrence draft into the inbox right now. */
+    public function occurrence(Request $request, Recurrence $recurrence): RedirectResponse
+    {
+        abort_unless($recurrence->user_id === $request->user()->id, 403);
+
+        $item = $request->user()->inboxItems()->create([
+            'source' => EvidenceSource::Recurring,
+            'status' => InboxItemStatus::Ready,
+            'recurrence_id' => $recurrence->id,
+            'raw_payload' => ['title' => $recurrence->title, 'occurred_on' => now()->toDateString()],
+            'content_hash' => hash('sha256', "rec:{$recurrence->id}:manual:".now()->timestamp),
+            'ai_analysis' => $recurrence->templateAnalysis(now()->toDateString()),
+            'ai_warnings' => ['pii_flags' => [], 'missing_evidence' => [], 'possible_duplicate_activity_ids' => []],
+            'analysed_at' => now(),
+        ]);
+
+        return back()->with('success', "Draft added for today's {$recurrence->title} — review when ready.");
     }
 
     public function update(Request $request, Recurrence $recurrence): RedirectResponse

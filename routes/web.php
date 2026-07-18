@@ -58,6 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
 
         Route::post('recurrences', [RecurrenceController::class, 'store'])->name('recurrences.store');
+        Route::post('recurrences/{recurrence}/occurrence', [RecurrenceController::class, 'occurrence'])->name('recurrences.occurrence');
         Route::patch('recurrences/{recurrence}', [RecurrenceController::class, 'update'])->name('recurrences.update');
         Route::delete('recurrences/{recurrence}', [RecurrenceController::class, 'destroy'])->name('recurrences.destroy');
 

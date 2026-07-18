@@ -159,6 +159,21 @@ test('regulars can be created, paused and removed from the UI endpoints', functi
         ->and($draft->fresh()->status)->toBe(InboxItemStatus::Dismissed);
 });
 
+test('a regular can drop an occurrence draft for today on demand', function () {
+    $user = ukDoctor();
+    $recurrence = Recurrence::factory()->for($user)->create(['title' => 'Lung MDT']);
+
+    $this->actingAs($user)
+        ->post("/recurrences/{$recurrence->id}/occurrence")
+        ->assertRedirect();
+
+    $item = $user->inboxItems()->firstOrFail();
+
+    expect($item->status)->toBe(InboxItemStatus::Ready)
+        ->and($item->recurrence_id)->toBe($recurrence->id)
+        ->and($item->ai_analysis['starts_on'])->toBe(today()->toDateString());
+});
+
 test('strangers cannot touch someone else\'s recurrence', function () {
     $owner = ukDoctor();
     $recurrence = Recurrence::factory()->for($owner)->create();

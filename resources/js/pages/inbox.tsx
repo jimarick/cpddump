@@ -1448,7 +1448,25 @@ function ManageRecurrenceDialog({
                     </Select>
                 </div>
 
-                <div className="flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
+                <div className="flex flex-wrap items-center gap-2 border-t border-dashed border-stone-300 pt-4">
+                    <Button
+                        disabled={processing}
+                        onClick={() => {
+                            setProcessing(true);
+                            router.post(
+                                `/recurrences/${recurrence.id}/occurrence`,
+                                {},
+                                {
+                                    preserveScroll: true,
+                                    onSuccess: onClose,
+                                    onFinish: () => setProcessing(false),
+                                },
+                            );
+                        }}
+                        className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+                    >
+                        <Plus className="size-4" /> Add one for today
+                    </Button>
                     <Button
                         variant="outline"
                         disabled={processing}
