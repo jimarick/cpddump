@@ -201,20 +201,30 @@ export default function Inbox({
             {items.length === 0 ? (
                 <EmptyState onAdd={() => setAdding(true)} />
             ) : (
-                <div className="overflow-hidden rounded-[14px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(28,25,23,.12)]">
-                    {items.map((item, i) => (
-                        <InboxRow
-                            key={item.id}
-                            item={item}
-                            last={i === items.length - 1}
-                            onOpen={() =>
-                                item.status === 'ready' ||
-                                item.status === 'failed'
-                                    ? setReviewing(item)
-                                    : undefined
-                            }
-                        />
-                    ))}
+                <div className="flex min-h-[55vh] flex-col rounded-[14px] border-2 border-dashed border-stone-400 bg-white/50 p-3">
+                    <div className="overflow-hidden rounded-[12px] border-2 border-ink bg-white shadow-[4px_4px_0_rgba(28,25,23,.12)]">
+                        {items.map((item, i) => (
+                            <InboxRow
+                                key={item.id}
+                                item={item}
+                                last={i === items.length - 1}
+                                onOpen={() =>
+                                    item.status === 'ready' ||
+                                    item.status === 'failed'
+                                        ? setReviewing(item)
+                                        : undefined
+                                }
+                            />
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setAdding(true)}
+                        className="mt-3 flex min-h-[120px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[12px] text-[13px] font-semibold text-stone-400 transition-colors hover:bg-white/70 hover:text-stone-600"
+                    >
+                        <Plus className="size-4" /> drop files anywhere, or
+                        click to dump something else
+                    </button>
                 </div>
             )}
 
