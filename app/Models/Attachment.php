@@ -72,6 +72,13 @@ class Attachment extends Model
         return blank($this->extracted_text) && ! $this->isImage() && ! $this->isPdf();
     }
 
+    /** Delete the stored file and the record — evidence lifecycle cleanup. */
+    public function purge(): void
+    {
+        Storage::disk($this->disk)->delete($this->path);
+        $this->delete();
+    }
+
     public function temporaryUrl(int $minutes = 30): string
     {
         $disk = Storage::disk($this->disk);

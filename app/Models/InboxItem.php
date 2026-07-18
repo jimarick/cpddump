@@ -156,6 +156,10 @@ class InboxItem extends Model
 
     public function dismiss(): void
     {
+        // Binned means not evidence: stored files are deleted immediately.
+        // The item row (and its analysis) stays for dedupe and audit.
+        $this->attachments()->get()->each->purge();
+
         $this->update([
             'status' => InboxItemStatus::Dismissed,
             'resolved_at' => now(),

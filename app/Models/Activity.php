@@ -35,6 +35,15 @@ class Activity extends Model
 
     protected $guarded = [];
 
+    protected static function booted(): void
+    {
+        // Deleting an activity is the user discarding its evidence — the
+        // stored files go with it (lifecycle retention policy).
+        static::deleted(function (Activity $activity): void {
+            $activity->attachments()->get()->each->purge();
+        });
+    }
+
     protected function casts(): array
     {
         return [
