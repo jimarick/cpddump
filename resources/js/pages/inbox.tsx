@@ -203,12 +203,12 @@ export default function Inbox({
                 <EmptyState onAdd={() => setAdding(true)} />
             ) : (
                 <div className="flex min-h-[55vh] flex-col rounded-[14px] border-2 border-dashed border-stone-400 bg-white/50 p-3">
-                    <div className="overflow-hidden rounded-[12px] border-2 border-ink bg-white shadow-[4px_4px_0_rgba(28,25,23,.12)]">
+                    <div className="grid gap-2.5 px-1 pt-1">
                         {items.map((item, i) => (
                             <InboxRow
                                 key={item.id}
                                 item={item}
-                                last={i === items.length - 1}
+                                index={i}
                                 onOpen={() =>
                                     item.status === 'ready' ||
                                     item.status === 'failed'
@@ -320,14 +320,16 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
     );
 }
 
+const ROW_TILTS = ['-0.4deg', '0.3deg', '-0.2deg', '0.45deg', '-0.35deg'];
+
 function InboxRow({
     item,
-    last,
+    index,
     onOpen,
     onDelete,
 }: {
     item: InboxItemData;
-    last: boolean;
+    index: number;
     onOpen?: () => void;
     onDelete: () => void;
 }) {
@@ -345,10 +347,11 @@ function InboxRow({
     return (
         <div
             onClick={busy ? undefined : onOpen}
-            className={`flex w-full items-center gap-3 px-4 py-3 text-left md:px-5 ${last ? '' : 'border-b border-ink/7'} ${
+            style={{ rotate: ROW_TILTS[index % ROW_TILTS.length] }}
+            className={`flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-white px-4 py-3 text-left shadow-[3px_3px_0_rgba(28,25,23,.12)] transition-transform md:px-5 ${
                 busy
                     ? 'cursor-default opacity-70'
-                    : 'cursor-pointer hover:bg-[#fffbf8]'
+                    : 'cursor-pointer hover:-translate-y-0.5 hover:bg-[#fffbf8]'
             }`}
         >
             <span className="w-[58px] shrink-0 text-[9.5px] font-bold tracking-[0.08em] text-stone-500 uppercase">
