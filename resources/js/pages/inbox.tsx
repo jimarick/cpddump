@@ -186,7 +186,7 @@ export default function Inbox({
                     onClick={() => setAdding(true)}
                     className="rotate-[-1deg] border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
                 >
-                    <Plus className="size-4" /> Make a new deposit
+                    <Plus className="size-4" /> Add something else
                 </Button>
             </div>
 
