@@ -115,4 +115,21 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Markdown Mail Settings
+    |--------------------------------------------------------------------------
+    |
+    | Markdown mailables render through the paper-and-ink "cpd" theme in
+    | resources/views/vendor/mail/html/themes, matching the app's design.
+    |
+    */
+
+    'markdown' => [
+        'theme' => 'cpd',
+        'paths' => [
+            resource_path('views/vendor/mail'),
+        ],
+    ],
+
 ];

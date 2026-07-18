@@ -19,6 +19,8 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        abort_unless(config('cpd.registration_open'), 403, 'Registration is not open yet.');
+
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),

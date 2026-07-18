@@ -4,6 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Registration
+    |--------------------------------------------------------------------------
+    |
+    | Flip off to close the doors: /register shows a "coming soon" page and
+    | new sign-ups are refused, while existing accounts log in as normal.
+    |
+    */
+
+    'registration_open' => (bool) env('CPD_REGISTRATION_OPEN', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Inbound Email
     |--------------------------------------------------------------------------
     */
