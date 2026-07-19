@@ -9,6 +9,7 @@ use App\Http\Requests\ApproveInboxItemRequest;
 use App\Models\Attachment;
 use App\Models\InboxItem;
 use App\Services\EvidenceIngestor;
+use App\Services\PidScanner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,7 +28,7 @@ class InboxItemApiController extends Controller
             'url' => ['nullable', 'url', 'max:2048'],
             'audio' => ['nullable', 'file', 'max:51200', 'mimetypes:audio/webm,audio/ogg,audio/mpeg,audio/mp4,audio/wav,audio/x-m4a,video/webm'],
             'files' => ['nullable', 'array', 'max:5'],
-            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,webp,heic,gif,doc,docx,ppt,pptx,txt'],
+            'files.*' => ['file', 'max:25600', 'mimes:'.implode(',', config('cpd.ingest.allowed_extensions'))],
         ]);
 
         $audio = $request->file('audio');
@@ -92,12 +93,54 @@ class InboxItemApiController extends Controller
     {
         abort_if($item->isResolved(), 422, 'Already resolved.');
 
+        // Same PII gate as the web: flagged content still held in a file or
+        // the user's own text requires an explicit decision. The server is
+        // the enforcement point — clients only surface it.
+        if ($item->piiGateActive()) {
+            if (! $request->boolean('pii_ack')) {
+                return response()->json([
+                    'message' => 'Possible patient information was found. Remove it, or confirm you have checked it, before approving.',
+                    'errors' => ['pii' => ['Possible patient information was found. Remove it, or confirm you have checked it, before approving.']],
+                ], 422);
+            }
+
+            $item->recordPiiResolution('affirmed');
+        }
+
         $activity = $item->approve($request->validated());
 
         return response()->json([
             'activity_id' => $activity->id,
             'status' => $item->status->value,
         ]);
+    }
+
+    /**
+     * "Remove patient info" — API parity with the web: purge stored files to
+     * stubs and scrub NHS numbers from user-authored text, keeping the
+     * identifier-free draft. Lifts the PII gate.
+     */
+    public function removePii(Request $request, InboxItem $item, PidScanner $scanner): JsonResponse
+    {
+        $this->authorizeItem($request, $item);
+
+        $item->attachments()->whereNull('purged_at')->get()->each(function (Attachment $attachment) {
+            $attachment->purgeToStub();
+            $attachment->update(['extracted_text' => null]);
+        });
+
+        $payload = $item->raw_payload ?? [];
+
+        foreach (['title', 'details'] as $key) {
+            if (is_string($payload[$key] ?? null)) {
+                $payload[$key] = $scanner->scrubNhsNumbers($payload[$key])['text'];
+            }
+        }
+
+        $item->update(['raw_payload' => $payload]);
+        $item->recordPiiResolution('removed');
+
+        return response()->json(['item' => $this->serialise($item->fresh('attachments'), detailed: true)]);
     }
 
     public function dismiss(Request $request, InboxItem $item): JsonResponse
@@ -152,7 +195,10 @@ class InboxItemApiController extends Controller
             'source' => $item->source->value,
             'source_label' => $item->source->label(),
             'status' => $item->status->value,
-            'raw_payload' => $item->raw_payload,
+            // Only what clients display — raw source text (email bodies,
+            // transcripts) never ships; it is scrubbed post-analysis anyway.
+            'raw_payload' => collect($item->raw_payload)->only(['title', 'subject', 'url', 'details'])->all(),
+            'pii_gate' => $item->piiGateActive(),
             'ai_analysis' => $item->ai_analysis,
             'ai_warnings' => $item->ai_warnings,
             'failure_reason' => $item->failure_reason,

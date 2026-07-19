@@ -25,6 +25,7 @@ Route::prefix('v1')->group(function () {
         Route::get('inbox-items/{item}', [InboxItemApiController::class, 'show'])->name('api.inbox-items.show');
         Route::post('inbox-items/{item}/approve', [InboxItemApiController::class, 'approve'])->name('api.inbox-items.approve');
         Route::post('inbox-items/{item}/retry', [InboxItemApiController::class, 'retry'])->name('api.inbox-items.retry');
+        Route::post('inbox-items/{item}/remove-pii', [InboxItemApiController::class, 'removePii'])->name('api.inbox-items.remove-pii');
         Route::delete('inbox-items/{item}', [InboxItemApiController::class, 'dismiss'])->name('api.inbox-items.dismiss');
 
         Route::get('activities', [ActivityApiController::class, 'index'])->name('api.activities.index');

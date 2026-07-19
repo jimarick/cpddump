@@ -60,7 +60,7 @@ class ActivityApiController extends Controller
     {
         abort_unless($activity->user_id === $request->user()->id, 403);
 
-        $activity->load(['type:id,slug,name,color,icon', 'categories:id,slug,name', 'frameworkDomains:id,code,name', 'projects:id,title', 'attachments:id,attachable_type,attachable_id,original_filename,mime_type']);
+        $activity->load(['type:id,slug,name,color,icon', 'categories:id,slug,name', 'frameworkDomains:id,code,name', 'projects:id,title', 'attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at']);
 
         return response()->json(['activity' => [
             'id' => $activity->id,
@@ -79,8 +79,8 @@ class ActivityApiController extends Controller
                 'id' => $a->id,
                 'name' => $a->original_filename,
                 'mime_type' => $a->mime_type,
-                'url' => "/api/v1/attachments/{$a->id}",
-            ])->all(),
+                'purged' => $a->isPurged(),
+            ] + ($a->isPurged() ? [] : ['url' => "/api/v1/attachments/{$a->id}"]))->all(),
         ]]);
     }
 }
