@@ -123,7 +123,8 @@ class InboxItemApiController extends Controller
 
         $item->dismiss();
 
-        return response()->json(['status' => $item->status->value]);
+        // The row no longer exists — binned means deleted.
+        return response()->json(['status' => 'dismissed', 'deleted' => true]);
     }
 
     public function retry(Request $request, InboxItem $item, EvidenceIngestor $ingestor): JsonResponse

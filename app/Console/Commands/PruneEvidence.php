@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\ReportKind;
 use App\Models\Attachment;
+use App\Models\DismissedCalendarEvent;
 use App\Models\GeneratedReport;
 use App\Models\InboxItem;
 use Illuminate\Console\Command;
@@ -22,8 +23,22 @@ class PruneEvidence extends Command
         $this->deleteOrphanedFiles();
         $this->expireOldExports();
         $this->pruneFailedJobs();
+        $this->pruneCalendarDismissals();
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Dismissed-calendar UIDs only matter while the weekly sync could
+     * re-import the event; beyond the sync window they are dead weight.
+     */
+    private function pruneCalendarDismissals(): void
+    {
+        $count = DismissedCalendarEvent::query()
+            ->where('dismissed_at', '<', now()->subMonths(15))
+            ->delete();
+
+        $this->info("Pruned {$count} stale calendar dismissals.");
     }
 
     /**
@@ -35,7 +50,7 @@ class PruneEvidence extends Command
         $count = 0;
 
         InboxItem::query()
-            ->whereIn('status', ['approved', 'dismissed'])
+            ->where('status', 'approved')
             ->where('resolved_at', '<', now()->subDays(7))
             ->eachById(function (InboxItem $item) use (&$count) {
                 $before = $item->raw_payload;

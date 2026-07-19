@@ -130,15 +130,16 @@ test('remove patient info purges files and scrubs authored text, lifting the gat
     Storage::disk('local')->assertMissing($attachment->path);
 });
 
-test('flag excerpts are redacted to type and severity at resolve', function () {
+test('flag excerpts are redacted to type and severity at approval', function () {
     $user = ukDoctor();
 
+    // Dismissal now hard-deletes, so approval is where redaction shows.
     $item = InboxItem::factory()->for($user)->ready()->create([
         'ai_warnings' => ['pii_flags' => [['type' => 'nhs_number', 'excerpt' => VALID_NHS, 'severity' => 'high']]],
         'ai_analysis' => ['title' => 'MDT', 'pii_flags' => [['type' => 'nhs_number', 'excerpt' => VALID_NHS, 'severity' => 'high']]],
     ]);
 
-    $item->dismiss();
+    $item->approve(['title' => 'MDT', 'activity_type_slug' => 'course', 'cpd_points' => 1]);
 
     $fresh = $item->fresh();
 

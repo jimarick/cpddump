@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Activity;
 use App\Models\InboxItem;
 use Illuminate\Support\Facades\Storage;
 
@@ -31,8 +32,9 @@ test('binning an inbox item deletes its stored files immediately', function () {
 
     Storage::disk('local')->assertMissing($path);
 
-    expect($item->fresh()->attachments()->count())->toBe(0)
-        ->and($item->fresh()->status->value)->toBe('dismissed');
+    // Delete means delete: files gone AND the row itself.
+    expect(InboxItem::find($item->id))->toBeNull()
+        ->and($user->attachments()->count())->toBe(0);
 });
 
 test('approved evidence keeps kept files until the activity is deleted', function () {
@@ -61,5 +63,6 @@ test('approved evidence keeps kept files until the activity is deleted', functio
     $this->actingAs($user)->delete("/activities/{$activity->id}")->assertRedirect();
 
     Storage::disk('local')->assertMissing($path);
-    expect($activity->fresh()->attachments()->count())->toBe(0);
+    expect(Activity::find($activity->id))->toBeNull()
+        ->and($user->attachments()->count())->toBe(0);
 });

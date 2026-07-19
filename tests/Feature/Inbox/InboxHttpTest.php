@@ -93,7 +93,7 @@ test('dismissing with an ignore rule creates the rule', function () {
         ])
         ->assertRedirect();
 
-    expect($item->fresh()->status)->toBe(InboxItemStatus::Dismissed)
+    expect(InboxItem::find($item->id))->toBeNull()
         ->and($user->ignoreRules()->count())->toBe(1)
         ->and($user->ignoreRules->first()->value)->toBe('Lung MDT');
 });

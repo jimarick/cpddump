@@ -34,7 +34,7 @@ test('approving an item strips third-party content but keeps metadata', function
         ->and($payload)->toHaveKey('redacted_at');
 });
 
-test('binning an item strips transcripts too', function () {
+test('binning an item deletes it outright, transcript and all', function () {
     $user = ukDoctor();
 
     $item = InboxItem::factory()->for($user)->ready()->create([
@@ -43,8 +43,7 @@ test('binning an item strips transcripts too', function () {
 
     $item->dismiss();
 
-    expect($item->fresh()->raw_payload)->not->toHaveKey('transcript')
-        ->and($item->fresh()->raw_payload)->toHaveKey('redacted_at');
+    expect(InboxItem::find($item->id))->toBeNull();
 });
 
 test('the prune command sweeps stragglers, orphans, stale exports and old failed jobs', function () {

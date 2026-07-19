@@ -8,7 +8,7 @@ use App\Jobs\AnalyzeInboxItem;
 use App\Jobs\ExtractAttachmentText;
 use App\Jobs\FetchLinkContent;
 use App\Jobs\TranscribeVoiceNote;
-use App\Models\Attachment;
+use App\Models\DismissedCalendarEvent;
 use App\Models\InboxItem;
 use App\Models\User;
 use DateTimeInterface;
@@ -47,6 +47,15 @@ class EvidenceIngestor
 
             if ($existing) {
                 return $existing;
+            }
+
+            // A binned calendar event stays binned — its UID is remembered
+            // even though the item row itself is long gone.
+            if ($source === EvidenceSource::Calendar && DismissedCalendarEvent::query()
+                ->where('user_id', $user->id)
+                ->where('uid', $externalId)
+                ->exists()) {
+                return null;
             }
         }
 

@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -31,16 +30,23 @@ class Activity extends Model
     /** @use HasFactory<ActivityFactory> */
     use HasFactory;
 
-    use SoftDeletes;
-
     protected $guarded = [];
 
     protected static function booted(): void
     {
-        // Deleting an activity is the user discarding its evidence — the
-        // stored files go with it (lifecycle retention policy).
-        static::deleted(function (Activity $activity): void {
+        // Deleting an activity is permanent (no soft-delete bin — the
+        // confirm modal carries that weight): its files go, and so does
+        // the originating inbox item row, which holds a copy of the AI
+        // analysis. Pivots cascade at the database level. Runs on
+        // `deleting` — the FK nulls inbox_items.activity_id once the row
+        // is actually gone, so the lookup must happen first.
+        static::deleting(function (Activity $activity): void {
             $activity->attachments()->get()->each->purge();
+
+            InboxItem::where('activity_id', $activity->id)->get()->each(function (InboxItem $item) {
+                $item->attachments()->get()->each->purge();
+                $item->delete();
+            });
         });
     }
 

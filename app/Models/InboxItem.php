@@ -180,17 +180,18 @@ class InboxItem extends Model
 
     public function dismiss(): void
     {
-        // Binned means not evidence: stored files are deleted immediately.
-        // The item row (and its analysis) stays for dedupe and audit.
+        // Delete means delete: files, analysis, the row itself — gone.
+        // The single exception is a calendar event's UID, remembered so the
+        // weekly sync never resurrects what the user binned.
+        if ($this->source === EvidenceSource::Calendar && $this->external_id !== null) {
+            DismissedCalendarEvent::query()->firstOrCreate(
+                ['user_id' => $this->user_id, 'uid' => $this->external_id],
+                ['dismissed_at' => now()],
+            );
+        }
+
         $this->attachments()->get()->each->purge();
-
-        $this->update([
-            'status' => InboxItemStatus::Dismissed,
-            'resolved_at' => now(),
-        ]);
-
-        $this->redactPayload();
-        $this->redactFlagExcerpts();
+        $this->delete();
     }
 
     /** Payload keys that carry third-party content (email bodies etc.). */

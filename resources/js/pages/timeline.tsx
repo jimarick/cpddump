@@ -481,6 +481,7 @@ function EditActivityDialog({
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     const save = () => {
         setProcessing(true);
@@ -502,14 +503,6 @@ function EditActivityDialog({
     };
 
     const remove = () => {
-        if (
-            !confirm(
-                'Delete this activity? Its evidence attachments go with it.',
-            )
-        ) {
-            return;
-        }
-
         setProcessing(true);
         router.delete(`/activities/${activity.id}`, {
             onSuccess: onClose,
@@ -579,13 +572,55 @@ function EditActivityDialog({
                     </Button>
                     <Button
                         variant="ghost"
-                        onClick={remove}
+                        onClick={() => setConfirmingDelete(true)}
                         disabled={processing}
                         className="ml-auto text-red-600 hover:text-red-700"
                     >
                         <Trash2 className="size-4" /> Delete
                     </Button>
                 </div>
+
+                {confirmingDelete && (
+                    <Dialog
+                        open
+                        onOpenChange={(o) => !o && setConfirmingDelete(false)}
+                    >
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle className="font-display text-xl font-extrabold">
+                                    Delete “{activity.title}”?
+                                </DialogTitle>
+                            </DialogHeader>
+                            <p className="text-sm text-stone-600">
+                                This permanently deletes it — including your
+                                reflection and any kept files.{' '}
+                                <span className="font-semibold text-ink">
+                                    This cannot be undone.
+                                </span>
+                            </p>
+                            <div className="flex items-center gap-2 pt-1">
+                                <Button
+                                    onClick={remove}
+                                    disabled={processing}
+                                    className="border-2 border-ink bg-red-600 font-bold text-white shadow-[3px_3px_0_#1c1917] hover:bg-red-700"
+                                >
+                                    {processing && (
+                                        <Loader2 className="size-4 animate-spin" />
+                                    )}{' '}
+                                    Delete forever
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setConfirmingDelete(false)}
+                                    disabled={processing}
+                                    className="border-2 border-ink"
+                                >
+                                    Keep it
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                )}
             </DialogContent>
         </Dialog>
     );

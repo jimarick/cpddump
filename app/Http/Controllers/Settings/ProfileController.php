@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,6 +52,16 @@ class ProfileController extends Controller
         $user = $request->user();
 
         Auth::logout();
+
+        // "Delete my account" means everything, immediately: stored files
+        // first (DB cascades don't run model hooks), then the rows via
+        // FK cascade with the user.
+        foreach ($user->attachments()->whereNull('purged_at')->get() as $attachment) {
+            Storage::disk($attachment->disk)->delete($attachment->path);
+        }
+
+        Storage::disk(config('filesystems.default'))->deleteDirectory("exports/{$user->id}");
+        Storage::disk(config('filesystems.default'))->deleteDirectory("evidence/{$user->id}");
 
         $user->delete();
 

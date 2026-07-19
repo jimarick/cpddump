@@ -46,8 +46,7 @@ class StatsService
         // serverless Postgres charges real latency for every round-trip.
         $activityScope = fn ($join) => $join
             ->where('activities.user_id', $user->id)
-            ->where('activities.appraisal_period_id', $period->id)
-            ->whereNull('activities.deleted_at');
+            ->where('activities.appraisal_period_id', $period->id);
 
         $countsByCategory = DB::table('activity_category')
             ->join('activities', fn ($join) => $activityScope(

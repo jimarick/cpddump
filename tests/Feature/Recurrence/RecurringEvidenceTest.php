@@ -91,7 +91,7 @@ test('real evidence matched by the AI supersedes the waiting prompt', function (
     (new AnalyzeInboxItem($email))->handle(app(AiGateway::class));
 
     expect($email->fresh()->recurrence_id)->toBe($recurrence->id)
-        ->and($prompt->fresh()->status)->toBe(InboxItemStatus::Dismissed);
+        ->and(InboxItem::find($prompt->id))->toBeNull();
 });
 
 test('approving a matched item counts toward the expectation', function () {
@@ -156,7 +156,7 @@ test('regulars can be created, paused and removed from the UI endpoints', functi
     $this->actingAs($user)->delete("/recurrences/{$recurrence->id}")->assertRedirect();
 
     expect(Recurrence::find($recurrence->id))->toBeNull()
-        ->and($draft->fresh()->status)->toBe(InboxItemStatus::Dismissed);
+        ->and(InboxItem::find($draft->id))->toBeNull();
 });
 
 test('a regular can drop an occurrence draft for today on demand', function () {

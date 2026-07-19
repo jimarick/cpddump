@@ -79,7 +79,7 @@ test('dismissing an item resolves it without creating an activity', function () 
 
     $item->dismiss();
 
-    expect($item->fresh()->status)->toBe(InboxItemStatus::Dismissed)
-        ->and($item->fresh()->activity_id)->toBeNull()
+    // Delete means delete: the row is gone, no activity was created.
+    expect(InboxItem::find($item->id))->toBeNull()
         ->and($user->activities()->count())->toBe(0);
 });

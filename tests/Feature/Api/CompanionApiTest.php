@@ -188,8 +188,8 @@ test('binning over the API purges attachments and can add an ignore rule', funct
         'ignore_rule' => ['field' => 'title', 'operator' => 'contains', 'value' => 'newsletter'],
     ])->assertOk()->assertJsonPath('status', 'dismissed');
 
-    expect($item->fresh()->status)->toBe(InboxItemStatus::Dismissed)
-        ->and($item->attachments()->count())->toBe(0)
+    expect(InboxItem::find($item->id))->toBeNull()
+        ->and($user->attachments()->count())->toBe(0)
         ->and($user->ignoreRules()->where('value', 'newsletter')->exists())->toBeTrue();
 });
 
