@@ -1,20 +1,213 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * The animated watermark for the inbox tray's empty space: a field of
- * faint evidence doodles (emails, certificates, voice notes…) gently
- * bobbing. Positions are percentages so the field stretches with the
- * tray. Purely decorative — pointer-events off, honours
- * prefers-reduced-motion via the .cpd-doodle CSS class.
+ * faint evidence doodles that bob idly, flee the cursor, and bounce off
+ * the walls and each other before drifting home. Purely decorative —
+ * pointer-events off, static under prefers-reduced-motion.
  */
 export function InboxDoodles() {
+    const fieldRef = useRef<HTMLDivElement>(null);
+    const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+    useEffect(() => {
+        const field = fieldRef.current;
+
+        if (
+            !field ||
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ) {
+            return; // Static fallback: the % positions from render stand.
+        }
+
+        const state = DOODLES.map((d) => ({
+            x: 0,
+            y: d.top,
+            vx: 0,
+            vy: 0,
+            hx: 0,
+            hy: d.top,
+            radius: d.size / 2,
+            phase: Math.random() * Math.PI * 2,
+            bobSpeed: 0.9 + Math.random() * 0.5,
+        }));
+
+        let width = 0;
+        let height = 0;
+        let started = false;
+
+        const measure = () => {
+            width = field.offsetWidth;
+            height = field.offsetHeight;
+
+            state.forEach((s, i) => {
+                s.hx = (DOODLES[i].leftPct / 100) * width;
+
+                if (!started) {
+                    s.x = s.hx;
+                    s.y = s.hy;
+                }
+            });
+
+            started = true;
+        };
+
+        measure();
+        const resizeObserver = new ResizeObserver(measure);
+        resizeObserver.observe(field);
+
+        // Physics items are absolutely positioned from the origin and
+        // driven entirely by transform.
+        itemRefs.current.forEach((el) => {
+            if (el) {
+                el.style.left = '0px';
+                el.style.top = '0px';
+            }
+        });
+
+        let mouse: { x: number; y: number } | null = null;
+
+        const onMove = (e: MouseEvent) => {
+            const rect = field.getBoundingClientRect();
+            mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        };
+        const onLeave = () => {
+            mouse = null;
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseout', onLeave);
+
+        const FLEE_RADIUS = 100;
+        const FLEE_FORCE = 1.4;
+        const HOME_SPRING = 0.004;
+        const DAMPING = 0.93;
+
+        let frame = 0;
+
+        const tick = (t: number) => {
+            for (const s of state) {
+                // Spring home.
+                s.vx += (s.hx - s.x) * HOME_SPRING;
+                s.vy += (s.hy - s.y) * HOME_SPRING;
+
+                // Flee the cursor.
+                if (mouse) {
+                    const dx = s.x - mouse.x;
+                    const dy = s.y - mouse.y;
+                    const d = Math.hypot(dx, dy);
+
+                    if (d > 0 && d < FLEE_RADIUS) {
+                        const push =
+                            ((FLEE_RADIUS - d) / FLEE_RADIUS) * FLEE_FORCE;
+                        s.vx += (dx / d) * push;
+                        s.vy += (dy / d) * push;
+                    }
+                }
+            }
+
+            // Bounce off each other (equal-mass elastic).
+            for (let i = 0; i < state.length; i++) {
+                for (let j = i + 1; j < state.length; j++) {
+                    const a = state[i];
+                    const b = state[j];
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const d = Math.hypot(dx, dy);
+                    const min = a.radius + b.radius;
+
+                    if (d > 0 && d < min) {
+                        const nx = dx / d;
+                        const ny = dy / d;
+                        const overlap = (min - d) / 2;
+
+                        a.x -= nx * overlap;
+                        a.y -= ny * overlap;
+                        b.x += nx * overlap;
+                        b.y += ny * overlap;
+
+                        const rel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
+
+                        if (rel > 0) {
+                            a.vx -= rel * nx;
+                            a.vy -= rel * ny;
+                            b.vx += rel * nx;
+                            b.vy += rel * ny;
+                        }
+                    }
+                }
+            }
+
+            for (let i = 0; i < state.length; i++) {
+                const s = state[i];
+
+                s.vx *= DAMPING;
+                s.vy *= DAMPING;
+                s.x += s.vx;
+                s.y += s.vy;
+
+                // Bounce off the tray walls.
+                if (s.x < s.radius) {
+                    s.x = s.radius;
+                    s.vx = Math.abs(s.vx) * 0.8;
+                } else if (s.x > width - s.radius) {
+                    s.x = width - s.radius;
+                    s.vx = -Math.abs(s.vx) * 0.8;
+                }
+
+                if (s.y < s.radius) {
+                    s.y = s.radius;
+                    s.vy = Math.abs(s.vy) * 0.8;
+                } else if (s.y > height - s.radius) {
+                    s.y = height - s.radius;
+                    s.vy = -Math.abs(s.vy) * 0.8;
+                }
+
+                // Idle bob rides on top of the physics position.
+                const bob = Math.sin(t * 0.0012 * s.bobSpeed + s.phase) * 3;
+
+                const el = itemRefs.current[i];
+
+                if (el) {
+                    el.style.transform = `translate(${s.x - s.radius}px, ${
+                        s.y - s.radius + bob
+                    }px) rotate(${DOODLES[i].rotate}deg)`;
+                }
+            }
+
+            frame = requestAnimationFrame(tick);
+        };
+
+        frame = requestAnimationFrame(tick);
+
+        return () => {
+            cancelAnimationFrame(frame);
+            resizeObserver.disconnect();
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseout', onLeave);
+        };
+    }, []);
+
     return (
         <div
+            ref={fieldRef}
             aria-hidden
             className="pointer-events-none absolute inset-x-0 bottom-14 h-[190px] select-none"
         >
             {DOODLES.map((d, i) => (
-                <div key={i} className="cpd-doodle absolute" style={d.style}>
+                <div
+                    key={i}
+                    ref={(el) => {
+                        itemRefs.current[i] = el;
+                    }}
+                    className="absolute"
+                    style={{
+                        left: `${d.leftPct}%`,
+                        top: d.top,
+                        transform: `rotate(${d.rotate}deg)`,
+                    }}
+                >
                     {d.svg}
                 </div>
             ))}
@@ -31,15 +224,21 @@ const stroke = {
     strokeLinejoin: 'round',
 } as const;
 
-const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
+interface Doodle {
+    leftPct: number;
+    top: number;
+    rotate: number;
+    size: number;
+    svg: ReactNode;
+}
+
+const DOODLES: Doodle[] = [
     {
         // Envelope
-        style: {
-            left: '9%',
-            top: 30,
-            ['--r' as string]: '-6deg',
-            animation: 'dv-bob 4.2s ease-in-out infinite',
-        },
+        leftPct: 9,
+        top: 30,
+        rotate: -6,
+        size: 34,
         svg: (
             <svg width="34" height="28" viewBox="0 0 34 28">
                 <g {...stroke}>
@@ -51,12 +250,10 @@ const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
     },
     {
         // Document
-        style: {
-            left: '28%',
-            top: 55,
-            ['--r' as string]: '5deg',
-            animation: 'dv-bob 5.1s ease-in-out .6s infinite',
-        },
+        leftPct: 28,
+        top: 55,
+        rotate: 5,
+        size: 32,
         svg: (
             <svg width="26" height="32" viewBox="0 0 26 32">
                 <g {...stroke}>
@@ -70,12 +267,10 @@ const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
     },
     {
         // Clock
-        style: {
-            left: '48%',
-            top: 28,
-            ['--r' as string]: '-4deg',
-            animation: 'dv-bob 4.6s ease-in-out 1.2s infinite',
-        },
+        leftPct: 48,
+        top: 28,
+        rotate: -4,
+        size: 28,
         svg: (
             <svg width="28" height="28" viewBox="0 0 28 28">
                 <g {...stroke}>
@@ -88,12 +283,10 @@ const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
     },
     {
         // Briefcase
-        style: {
-            left: '67%',
-            top: 52,
-            ['--r' as string]: '6deg',
-            animation: 'dv-bob 5.4s ease-in-out .3s infinite',
-        },
+        leftPct: 67,
+        top: 52,
+        rotate: 6,
+        size: 30,
         svg: (
             <svg width="30" height="30" viewBox="0 0 30 30">
                 <g {...stroke}>
@@ -105,12 +298,10 @@ const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
     },
     {
         // File / certificate
-        style: {
-            left: '86%',
-            top: 30,
-            ['--r' as string]: '-5deg',
-            animation: 'dv-bob 4.4s ease-in-out .9s infinite',
-        },
+        leftPct: 86,
+        top: 30,
+        rotate: -5,
+        size: 28,
         svg: (
             <svg width="26" height="28" viewBox="0 0 26 28">
                 <g {...stroke}>
@@ -122,12 +313,10 @@ const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
     },
     {
         // Check circle (orange tick)
-        style: {
-            left: '17%',
-            top: 120,
-            ['--r' as string]: '4deg',
-            animation: 'dv-bob 5s ease-in-out 1.5s infinite',
-        },
+        leftPct: 17,
+        top: 120,
+        rotate: 4,
+        size: 26,
         svg: (
             <svg width="26" height="26" viewBox="0 0 26 26">
                 <g {...stroke}>
@@ -139,12 +328,10 @@ const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
     },
     {
         // Voice-note pill (orange waveform)
-        style: {
-            left: '38%',
-            top: 125,
-            ['--r' as string]: '-5deg',
-            animation: 'dv-sway 3.8s ease-in-out infinite',
-        },
+        leftPct: 38,
+        top: 125,
+        rotate: -5,
+        size: 40,
         svg: (
             <svg width="40" height="24" viewBox="0 0 40 24">
                 <g {...stroke}>
@@ -157,14 +344,19 @@ const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
         ),
     },
     {
-        // Sparkle (twinkles)
-        style: {
-            left: '58%',
-            top: 118,
-            animation: 'dv-twinkle 3.2s ease-in-out infinite',
-        },
+        // Sparkle — keeps its CSS twinkle on the svg itself
+        leftPct: 58,
+        top: 118,
+        rotate: 0,
+        size: 26,
         svg: (
-            <svg width="26" height="26" viewBox="0 0 26 26">
+            <svg
+                width="26"
+                height="26"
+                viewBox="0 0 26 26"
+                className="cpd-doodle"
+                style={{ animation: 'dv-twinkle 3.2s ease-in-out infinite' }}
+            >
                 <path
                     d="M13 1 L15.7 9.3 L24 12 L15.7 14.7 L13 23 L10.3 14.7 L2 12 L10.3 9.3 Z"
                     fill="#f4590c"
@@ -174,12 +366,10 @@ const DOODLES: { style: CSSProperties; svg: ReactNode }[] = [
     },
     {
         // Monitor / screen
-        style: {
-            left: '76%',
-            top: 122,
-            ['--r' as string]: '-4deg',
-            animation: 'dv-bob 4.8s ease-in-out .4s infinite',
-        },
+        leftPct: 76,
+        top: 122,
+        rotate: -4,
+        size: 30,
         svg: (
             <svg width="30" height="28" viewBox="0 0 30 28">
                 <g {...stroke}>
