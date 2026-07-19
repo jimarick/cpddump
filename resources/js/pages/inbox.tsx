@@ -812,8 +812,26 @@ function ReviewDialog({
     const [processing, setProcessing] = useState(false);
     const [neverAgain, setNeverAgain] = useState(false);
     const [keepIds, setKeepIds] = useState<number[]>([]);
+    const [piiAck, setPiiAck] = useState(false);
+    const [piiRemoved, setPiiRemoved] = useState(false);
 
-    const keepableFiles = item.attachments.filter((a) => !a.purged);
+    const keepableFiles = piiRemoved
+        ? []
+        : item.attachments.filter((a) => !a.purged);
+    const gateActive = item.pii_gate && !piiAck && !piiRemoved;
+
+    const removePii = () => {
+        setProcessing(true);
+        router.post(
+            `/inbox/${item.id}/remove-pii`,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => setPiiRemoved(true),
+                onFinish: () => setProcessing(false),
+            },
+        );
+    };
 
     const piiFlags = item.ai_warnings?.pii_flags ?? [];
     const missingEvidence = item.ai_warnings?.missing_evidence ?? [];
@@ -834,6 +852,7 @@ function ReviewDialog({
                 ends_on: values.ends_on || null,
                 reflection_draft: values.reflection,
                 keep_attachment_ids: keepIds,
+                pii_ack: piiAck,
             },
             {
                 onSuccess: onClose,
@@ -926,16 +945,61 @@ function ReviewDialog({
                             {piiFlags.map((flag, i) => (
                                 <li key={i}>
                                     <span className="font-semibold">
-                                        {flag.type.replace('_', ' ')}
+                                        {flag.type.replace(/_/g, ' ')}
                                     </span>
-                                    : “{flag.excerpt}”
+                                    {flag.excerpt ? <>: “{flag.excerpt}”</> : null}
                                 </li>
                             ))}
                         </ul>
-                        <p className="mt-1 text-[12.5px] text-stone-500">
-                            Edit these out before approving — patients and
-                            colleagues must never be identifiable.
-                        </p>
+                        {gateActive ? (
+                            <div className="mt-2">
+                                <p className="text-[12.5px] text-stone-600">
+                                    This is still held in{' '}
+                                    {keepableFiles.length > 0
+                                        ? 'an attached file'
+                                        : 'your entry text'}
+                                    . Decide before approving:
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={removePii}
+                                        disabled={processing}
+                                        className="border-2 border-ink bg-white font-bold"
+                                    >
+                                        Remove patient info
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setPiiAck(true)}
+                                        disabled={processing}
+                                        className="text-stone-600"
+                                    >
+                                        Keep — I've checked it
+                                    </Button>
+                                </div>
+                                {errors.pii && (
+                                    <p className="mt-1.5 text-[12.5px] font-semibold text-red-600">
+                                        {errors.pii}
+                                    </p>
+                                )}
+                            </div>
+                        ) : piiAck ? (
+                            <p className="mt-1 text-[12.5px] text-stone-500">
+                                You've confirmed you checked this — it will be
+                                recorded with your approval.
+                            </p>
+                        ) : (
+                            <p className="mt-1 text-[12.5px] text-stone-500">
+                                {piiRemoved ||
+                                (item.pii_gate === false &&
+                                    item.attachments.every((a) => a.purged))
+                                    ? 'The source containing this has already been deleted — nothing identifiable is stored. The drafted text below is written without identifiers.'
+                                    : 'Edit these out before approving — patients and colleagues must never be identifiable.'}
+                            </p>
+                        )}
                     </div>
                 )}
 
@@ -1097,7 +1161,12 @@ function ReviewDialog({
                                 ) : (
                                     <Button
                                         onClick={approve}
-                                        disabled={processing}
+                                        disabled={processing || gateActive}
+                                        title={
+                                            gateActive
+                                                ? 'Resolve the patient-information warning first'
+                                                : undefined
+                                        }
                                         className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
                                     >
                                         {processing && (

@@ -4,6 +4,7 @@ use App\Http\Controllers\AiAssistController;
 use App\Http\Controllers\Api\ActivityApiController;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\InboxItemApiController;
+use App\Http\Controllers\Api\PushTokenApiController;
 use App\Http\Controllers\Api\ReferenceApiController;
 use App\Http\Controllers\AttachmentController;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::delete('auth/token', [AuthApiController::class, 'revoke'])->name('api.auth.revoke');
         Route::get('user', [AuthApiController::class, 'me'])->name('api.user');
+
+        Route::post('push-tokens', [PushTokenApiController::class, 'store'])->name('api.push-tokens.store');
 
         Route::get('inbox-items', [InboxItemApiController::class, 'index'])->name('api.inbox-items.index');
         Route::post('inbox-items', [InboxItemApiController::class, 'store'])->name('api.inbox-items.store');

@@ -46,11 +46,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('inbox', [InboxItemController::class, 'store'])->middleware('throttle:30,1')->name('inbox.store');
         Route::post('inbox/{item}/approve', [InboxItemController::class, 'approve'])->name('inbox.approve');
         Route::post('inbox/{item}/retry', [InboxItemController::class, 'retry'])->name('inbox.retry');
+        Route::post('inbox/{item}/remove-pii', [InboxItemController::class, 'removePii'])->name('inbox.remove-pii');
         Route::delete('inbox/{item}', [InboxItemController::class, 'dismiss'])->name('inbox.dismiss');
 
         Route::redirect('activities', '/timeline')->name('activities.index');
         Route::put('activities/{activity}', [ActivityController::class, 'update'])->name('activities.update');
         Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->name('activities.destroy');
+        Route::post('activities/{activity}/remove-pii', [ActivityController::class, 'removePii'])->name('activities.remove-pii');
 
         Route::get('timeline', [TimelineController::class, 'index'])->name('timeline');
         Route::post('timeline/reset', [TimelineController::class, 'reset'])->name('timeline.reset');

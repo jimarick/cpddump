@@ -48,6 +48,10 @@ class AuthApiController extends Controller
 
     public function revoke(Request $request): JsonResponse
     {
+        // Signing out must silence the device too — an APNs token keeps
+        // delivering long after the bearer token dies.
+        $request->user()->pushTokens()->delete();
+
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(null, 204);
@@ -69,6 +73,7 @@ class AuthApiController extends Controller
             'onboarded' => $user->hasOnboarded(),
             'profession' => $user->profession?->only(['id', 'slug', 'name']),
             'dump_address' => $user->inboundEmailAddress(),
+            'attachment_retention' => $user->attachment_retention,
             'period' => $user->currentAppraisalPeriod()?->only(['id', 'label', 'starts_on', 'ends_on']),
         ];
     }

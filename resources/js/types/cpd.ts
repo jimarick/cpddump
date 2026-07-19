@@ -56,8 +56,10 @@ export interface AttachmentRef {
 
 export interface PiiFlag {
     type: string;
-    excerpt: string;
+    /** Redacted to type+severity once the item is resolved. */
+    excerpt?: string;
     severity: 'low' | 'medium' | 'high';
+    detected_by?: 'scanner';
 }
 
 export interface AiAnalysis {
@@ -85,6 +87,8 @@ export interface AiWarnings {
     missing_evidence?: string[];
     possible_duplicate_activity_ids?: number[];
     possible_duplicate_inbox_item_ids?: number[];
+    pii_resolved?: 'removed' | 'affirmed';
+    pii_resolved_at?: string;
 }
 
 export type InboxItemStatus =
@@ -101,6 +105,8 @@ export interface InboxItemData {
     failure_reason: string | null;
     created_at: string;
     attachments: AttachmentRef[];
+    /** True when flagged content still exists in a file or the user's own text. */
+    pii_gate: boolean;
 }
 
 export interface GapEntry {

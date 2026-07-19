@@ -73,7 +73,7 @@ class InboxItemApiController extends Controller
     {
         $items = $request->user()->inboxItems()
             ->open()
-            ->with('attachments:id,attachable_type,attachable_id,original_filename,mime_type')
+            ->with('attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at')
             ->latest()
             ->get()
             ->map(fn (InboxItem $item) => $this->serialise($item));
@@ -156,12 +156,12 @@ class InboxItemApiController extends Controller
             'ai_warnings' => $item->ai_warnings,
             'failure_reason' => $item->failure_reason,
             'created_at' => $item->created_at->toIso8601String(),
-            'attachments' => $item->attachments->map(fn (Attachment $a) => array_filter([
+            'attachments' => $item->attachments->map(fn (Attachment $a) => [
                 'id' => $a->id,
                 'name' => $a->original_filename,
                 'mime_type' => $a->mime_type,
-                'url' => $detailed ? "/api/v1/attachments/{$a->id}" : null,
-            ]))->all(),
+                'purged' => $a->isPurged(),
+            ] + ($detailed && ! $a->isPurged() ? ['url' => "/api/v1/attachments/{$a->id}"] : []))->all(),
         ];
     }
 }

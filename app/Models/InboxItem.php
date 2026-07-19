@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\EvidenceSource;
 use App\Enums\InboxItemStatus;
+use App\Observers\InboxItemObserver;
 use Database\Factories\InboxItemFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +32,7 @@ use RuntimeException;
  * @property Carbon|null $analysed_at
  * @property Carbon|null $resolved_at
  */
+#[ObservedBy(InboxItemObserver::class)]
 class InboxItem extends Model
 {
     /** @use HasFactory<InboxItemFactory> */
@@ -169,6 +172,7 @@ class InboxItem extends Model
             ]);
 
             $this->redactPayload();
+            $this->redactFlagExcerpts();
 
             return $activity;
         });
@@ -186,6 +190,7 @@ class InboxItem extends Model
         ]);
 
         $this->redactPayload();
+        $this->redactFlagExcerpts();
     }
 
     /** Payload keys that carry third-party content (email bodies etc.). */
@@ -211,6 +216,64 @@ class InboxItem extends Model
                 ->put('redacted_at', now()->toIso8601String())
                 ->all(),
         ]);
+    }
+
+    /**
+     * The PII gate blocks approval ONLY when something persistent still
+     * holds flagged content: a stored file, or user-authored text. Flags
+     * whose source was already-deleted text get an informational note, not
+     * a prompt — asking users to delete what no longer exists trains them
+     * to ignore the gate.
+     */
+    public function piiGateActive(): bool
+    {
+        $flags = $this->ai_warnings['pii_flags'] ?? [];
+
+        if ($flags === [] || filled($this->ai_warnings['pii_resolved'] ?? null)) {
+            return false;
+        }
+
+        $hasStoredFiles = $this->attachments()->whereNull('purged_at')->exists();
+        $hasAuthoredText = in_array($this->source, [EvidenceSource::Manual, EvidenceSource::Upload], true)
+            && filled($this->raw_payload['details'] ?? null);
+
+        return $hasStoredFiles || $hasAuthoredText;
+    }
+
+    /** Record how the user resolved a PII gate: 'removed' or 'affirmed'. */
+    public function recordPiiResolution(string $how): void
+    {
+        $this->update([
+            'ai_warnings' => array_merge($this->ai_warnings ?? [], [
+                'pii_resolved' => $how,
+                'pii_resolved_at' => now()->toIso8601String(),
+            ]),
+        ]);
+    }
+
+    /**
+     * Flagging an identifier must not preserve a copy of it: once the item
+     * is resolved, flag excerpts collapse to type + severity only.
+     */
+    public function redactFlagExcerpts(): void
+    {
+        $strip = fn (array $flags) => array_map(
+            fn ($flag) => is_array($flag) ? array_diff_key($flag, ['excerpt' => true]) : $flag,
+            $flags,
+        );
+
+        $warnings = $this->ai_warnings ?? [];
+        $analysis = $this->ai_analysis ?? [];
+
+        if (($warnings['pii_flags'] ?? []) !== []) {
+            $warnings['pii_flags'] = $strip($warnings['pii_flags']);
+        }
+
+        if (($analysis['pii_flags'] ?? []) !== []) {
+            $analysis['pii_flags'] = $strip($analysis['pii_flags']);
+        }
+
+        $this->update(['ai_warnings' => $warnings, 'ai_analysis' => $analysis]);
     }
 
     /**

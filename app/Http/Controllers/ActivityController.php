@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Activity;
 use App\Models\ActivityType;
 use App\Models\FrameworkAttribute;
+use App\Services\PidScanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -73,5 +74,32 @@ class ActivityController extends Controller
         $activity->delete();
 
         return back()->with('success', 'Activity deleted.');
+    }
+
+    /**
+     * Post-approval remedy for the user who notices patient information
+     * weeks later: purge stored files, scrub NHS numbers from the text,
+     * keep the clean entry.
+     */
+    public function removePii(Request $request, Activity $activity, PidScanner $scanner): RedirectResponse
+    {
+        abort_unless($activity->user_id === $request->user()->id, 403);
+
+        $activity->attachments()->whereNull('purged_at')->get()->each(function ($attachment) {
+            $attachment->purgeToStub();
+            $attachment->update(['extracted_text' => null]);
+        });
+
+        $scrub = fn (?string $text) => $text === null ? null : $scanner->scrubNhsNumbers($text)['text'];
+
+        $activity->update([
+            'title' => $scrub($activity->title),
+            'details' => $scrub($activity->details),
+            'reflection' => collect($activity->reflection ?? [])
+                ->map(fn ($answer) => is_string($answer) ? $scrub($answer) : $answer)
+                ->all(),
+        ]);
+
+        return back()->with('success', 'Files removed and identifiers scrubbed — your entry is kept.');
     }
 }

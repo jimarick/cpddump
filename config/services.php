@@ -45,6 +45,20 @@ return [
         'verify_signature' => (bool) env('SES_VERIFY_SIGNATURE', true),
     ],
 
+    /*
+     | APNs pushes to the iOS companion app, authenticated with a .p8
+     | provider token. "sandbox" reaches Xcode development builds;
+     | TestFlight and App Store builds need "production".
+     */
+    'apns' => [
+        'key_id' => env('APNS_KEY_ID'),
+        'team_id' => env('APNS_TEAM_ID'),
+        'bundle_id' => env('APNS_BUNDLE_ID', 'com.cpddump.CPDDump'),
+        'environment' => env('APNS_ENVIRONMENT', 'sandbox'),
+        'private_key' => env('APNS_PRIVATE_KEY'),
+        'private_key_path' => env('APNS_PRIVATE_KEY_PATH'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

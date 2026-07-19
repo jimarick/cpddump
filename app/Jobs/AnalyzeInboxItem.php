@@ -8,6 +8,7 @@ use App\Enums\EvidenceSource;
 use App\Enums\InboxItemStatus;
 use App\Models\InboxItem;
 use App\Services\AiGateway;
+use App\Services\PidScanner;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
@@ -70,12 +71,15 @@ class AnalyzeInboxItem implements ShouldQueue
             ->latest('analysed_at')
             ->first();
 
+        $scannerFlags = app(PidScanner::class)->scan($this->allSourceText($item));
+
         if ($cached) {
             $item->update([
                 'status' => InboxItemStatus::Ready,
                 'ai_analysis' => $cached->ai_analysis,
                 'ai_warnings' => array_merge($cached->ai_warnings ?? [], [
                     'possible_duplicate_inbox_item_ids' => [$cached->id],
+                    'pii_flags' => $this->mergedFlags($cached->ai_warnings['pii_flags'] ?? [], $scannerFlags),
                 ]),
                 'analysed_at' => now(),
                 'failure_reason' => null,
@@ -99,11 +103,16 @@ class AnalyzeInboxItem implements ShouldQueue
 
         $analysis = $response->toArray();
 
+        // Belt-and-braces: the model is told never to copy identifiers into
+        // its draft, but an NHS number has no business in a reflection ever
+        // — scrub any that slipped through, deterministically.
+        $analysis = $this->scrubDraft($analysis);
+
         $item->update([
             'status' => InboxItemStatus::Ready,
             'ai_analysis' => $analysis,
             'ai_warnings' => [
-                'pii_flags' => $analysis['pii_flags'] ?? [],
+                'pii_flags' => $this->mergedFlags($analysis['pii_flags'] ?? [], $scannerFlags),
                 'missing_evidence' => $analysis['missing_evidence'] ?? [],
                 'possible_duplicate_activity_ids' => $analysis['possible_duplicate_activity_ids'] ?? [],
             ],
@@ -221,6 +230,58 @@ class AnalyzeInboxItem implements ShouldQueue
         }
 
         return null;
+    }
+
+    /** Everything textual we hold for this item, for the deterministic PID scan. */
+    private function allSourceText(InboxItem $item): string
+    {
+        $payloadText = collect($item->raw_payload ?? [])
+            ->filter(fn ($v) => is_string($v))
+            ->implode("\n");
+
+        $extracted = $item->attachments->pluck('extracted_text')->filter()->implode("\n");
+
+        return $payloadText."\n".$extracted;
+    }
+
+    /**
+     * Scanner findings join the analyst's, deduplicated on excerpt so the
+     * same NHS number found twice reads as one flag.
+     *
+     * @param  array<int, array<string, mixed>>  $analystFlags
+     * @param  array<int, array<string, mixed>>  $scannerFlags
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergedFlags(array $analystFlags, array $scannerFlags): array
+    {
+        return collect($analystFlags)
+            ->concat($scannerFlags)
+            ->unique(fn ($flag) => mb_strtolower(trim((string) ($flag['excerpt'] ?? ''))).'|'.($flag['type'] ?? ''))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $analysis
+     * @return array<string, mixed>
+     */
+    private function scrubDraft(array $analysis): array
+    {
+        $scanner = app(PidScanner::class);
+
+        foreach (['title', 'summary', 'organisation'] as $field) {
+            if (is_string($analysis[$field] ?? null)) {
+                $analysis[$field] = $scanner->scrubNhsNumbers($analysis[$field])['text'];
+            }
+        }
+
+        foreach ((array) ($analysis['reflection_draft'] ?? []) as $key => $value) {
+            if (is_string($value)) {
+                $analysis['reflection_draft'][$key] = $scanner->scrubNhsNumbers($value)['text'];
+            }
+        }
+
+        return $analysis;
     }
 
     /**

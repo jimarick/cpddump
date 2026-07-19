@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\AiProvider;
+use App\Enums\InboxItemStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -39,12 +40,13 @@ use Laravel\Sanctum\HasApiTokens;
  * @property AiProvider|null $ai_provider
  * @property string|null $ai_api_key
  * @property bool $weekly_email_enabled
+ * @property bool $push_weekly_nudge_enabled
  * @property string $attachment_retention
  * @property Carbon|null $onboarded_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'profession_id', 'timezone', 'ai_provider', 'ai_api_key', 'weekly_email_enabled', 'attachment_retention', 'onboarded_at'])]
+#[Fillable(['name', 'email', 'password', 'profession_id', 'timezone', 'ai_provider', 'ai_api_key', 'weekly_email_enabled', 'push_weekly_nudge_enabled', 'attachment_retention', 'onboarded_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'ai_api_key'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -81,6 +83,7 @@ class User extends Authenticatable implements PasskeyUser
             'ai_provider' => AiProvider::class,
             'ai_api_key' => 'encrypted',
             'weekly_email_enabled' => 'boolean',
+            'push_weekly_nudge_enabled' => 'boolean',
             'onboarded_at' => 'datetime',
         ];
     }
@@ -154,6 +157,20 @@ class User extends Authenticatable implements PasskeyUser
     public function aiGenerations(): HasMany
     {
         return $this->hasMany(AiGeneration::class);
+    }
+
+    /** @return HasMany<PushToken, $this> */
+    public function pushTokens(): HasMany
+    {
+        return $this->hasMany(PushToken::class);
+    }
+
+    /** Items sitting in the tray needing a decision — the app badge number. */
+    public function awaitingReviewCount(): int
+    {
+        return $this->inboxItems()
+            ->whereIn('status', [InboxItemStatus::Ready, InboxItemStatus::Failed])
+            ->count();
     }
 
     public function hasOnboarded(): bool

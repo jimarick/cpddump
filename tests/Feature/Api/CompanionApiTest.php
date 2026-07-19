@@ -7,6 +7,7 @@ use App\Jobs\AnalyzeInboxItem;
 use App\Jobs\FetchLinkContent;
 use App\Models\Attachment;
 use App\Models\InboxItem;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Ai\Ai;
 use Laravel\Sanctum\Sanctum;
@@ -31,7 +32,8 @@ test('valid credentials exchange for a bearer token', function () {
 
     $this->withToken($token)->getJson('/api/v1/user')
         ->assertOk()
-        ->assertJsonPath('user.id', $user->id);
+        ->assertJsonPath('user.id', $user->id)
+        ->assertJsonPath('user.attachment_retention', 'ask');
 });
 
 test('wrong password is rejected', function () {
@@ -110,7 +112,29 @@ test('the item detail includes analysis and attachment urls', function () {
     $this->getJson("/api/v1/inbox-items/{$item->id}")
         ->assertOk()
         ->assertJsonPath('item.ai_analysis.title', $item->ai_analysis['title'])
+        ->assertJsonPath('item.attachments.0.purged', false)
         ->assertJsonPath('item.attachments.0.url', "/api/v1/attachments/{$attachment->id}");
+});
+
+test('purged attachments are flagged and carry no download url', function () {
+    $user = ukDoctor();
+    $item = InboxItem::factory()->for($user)->ready()->create();
+    $attachment = Attachment::factory()->for($user)->create([
+        'attachable_type' => $item->getMorphClass(),
+        'attachable_id' => $item->id,
+        'purged_at' => now(),
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/v1/inbox-items')
+        ->assertOk()
+        ->assertJsonPath('items.0.attachments.0.purged', true);
+
+    $this->getJson("/api/v1/inbox-items/{$item->id}")
+        ->assertOk()
+        ->assertJsonPath('item.attachments.0.purged', true)
+        ->assertJsonMissingPath('item.attachments.0.url');
 });
 
 test('items belonging to someone else are forbidden', function () {
@@ -282,6 +306,6 @@ test('dictation transcribes over the API', function () {
     $webm = "\x1A\x45\xDF\xA3".str_repeat("\x00", 512);
 
     $this->postJson('/api/v1/ai/transcribe', [
-        'audio' => \Illuminate\Http\UploadedFile::fake()->createWithContent('note.webm', $webm),
+        'audio' => UploadedFile::fake()->createWithContent('note.webm', $webm),
     ])->assertOk()->assertJsonPath('text', 'the audit showed our door-to-needle time improved');
 });

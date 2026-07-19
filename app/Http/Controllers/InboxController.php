@@ -31,6 +31,7 @@ class InboxController extends Controller
                 'raw_payload' => collect($item->raw_payload)->only(['title', 'subject', 'url'])->all(),
                 'ai_analysis' => $item->ai_analysis,
                 'ai_warnings' => $item->ai_warnings,
+                'pii_gate' => $item->piiGateActive(),
                 'failure_reason' => $item->failure_reason,
                 'created_at' => $item->created_at->toIso8601String(),
                 'attachments' => $item->attachments->map(fn (Attachment $a) => [

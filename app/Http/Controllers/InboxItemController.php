@@ -8,6 +8,7 @@ use App\Http\Requests\ApproveInboxItemRequest;
 use App\Http\Requests\StoreInboxItemRequest;
 use App\Models\InboxItem;
 use App\Services\EvidenceIngestor;
+use App\Services\PidScanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -37,9 +38,49 @@ class InboxItemController extends Controller
 
     public function approve(ApproveInboxItemRequest $request, InboxItem $item): RedirectResponse
     {
+        // The PII gate: flagged content still held in a file or the user's
+        // own text requires an explicit decision before approval.
+        if ($item->piiGateActive()) {
+            if (! $request->boolean('pii_ack')) {
+                return back()->withErrors([
+                    'pii' => 'Possible patient information was found. Remove it, or confirm you have checked it, before approving.',
+                ]);
+            }
+
+            $item->recordPiiResolution('affirmed');
+        }
+
         $item->approve($request->validated());
 
         return back()->with('success', 'Approved — added to your timeline.');
+    }
+
+    /**
+     * "Remove patient info": delete every copy of the source we still hold
+     * — stored files (to stubs) and NHS numbers in user-authored text —
+     * keeping the identifier-free draft.
+     */
+    public function removePii(Request $request, InboxItem $item, PidScanner $scanner): RedirectResponse
+    {
+        $this->authorizeItem($request, $item);
+
+        $item->attachments()->whereNull('purged_at')->get()->each(function ($attachment) {
+            $attachment->purgeToStub();
+            $attachment->update(['extracted_text' => null]);
+        });
+
+        $payload = $item->raw_payload ?? [];
+
+        foreach (['title', 'details'] as $key) {
+            if (is_string($payload[$key] ?? null)) {
+                $payload[$key] = $scanner->scrubNhsNumbers($payload[$key])['text'];
+            }
+        }
+
+        $item->update(['raw_payload' => $payload]);
+        $item->recordPiiResolution('removed');
+
+        return back()->with('success', 'Patient information removed — the drafted entry is kept.');
     }
 
     public function dismiss(Request $request, InboxItem $item): RedirectResponse

@@ -528,6 +528,29 @@ function EditActivityDialog({
 
                 <AttachmentLinks attachments={activity.attachments} />
 
+                {(activity.attachments.some((a) => !a.purged) ||
+                    activity.reflection) && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (
+                                confirm(
+                                    'Remove patient information? Stored files are deleted and NHS numbers scrubbed from the text — your entry itself is kept.',
+                                )
+                            ) {
+                                router.post(
+                                    `/activities/${activity.id}/remove-pii`,
+                                    {},
+                                    { onSuccess: onClose },
+                                );
+                            }
+                        }}
+                        className="w-fit cursor-pointer text-[12px] font-semibold text-stone-400 underline decoration-dashed underline-offset-4 hover:text-ink"
+                    >
+                        Spotted patient info in this activity? Remove it
+                    </button>
+                )}
+
                 <EvidenceFormFields
                     values={values}
                     onChange={(patch) => setValues((v) => ({ ...v, ...patch }))}
