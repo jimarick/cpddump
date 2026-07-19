@@ -3,6 +3,7 @@
 use App\Jobs\AnalyzeInboxItem;
 use App\Jobs\ExtractAttachmentText;
 use App\Models\InboxItem;
+use App\Services\AttachmentStore;
 use App\Services\PdfRasterizer;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -90,7 +91,7 @@ test('the extraction job swaps oversized or scanned pdfs for compact rebuilds on
         'extracted_text' => 'Existing text',
     ]);
 
-    (new ExtractAttachmentText($item))->handle(app(PdfRasterizer::class));
+    (new ExtractAttachmentText($item))->handle(app(PdfRasterizer::class), app(AttachmentStore::class));
 
     expect(Storage::disk('local')->get("evidence/{$user->id}/small.pdf"))->toBe($textPdf);
 

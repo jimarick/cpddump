@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Attachment;
 use App\Models\InboxItem;
+use App\Services\AttachmentStore;
 use App\Services\PdfRasterizer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -13,6 +14,7 @@ use PhpOffice\PhpPresentation\Shape\RichText;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use Smalot\PdfParser\Parser;
 use Throwable;
+use ZipArchive;
 
 class ExtractAttachmentText implements ShouldQueue
 {
@@ -22,7 +24,7 @@ class ExtractAttachmentText implements ShouldQueue
 
     public function __construct(public InboxItem $item) {}
 
-    public function handle(PdfRasterizer $rasterizer): void
+    public function handle(PdfRasterizer $rasterizer, AttachmentStore $store): void
     {
         $item = $this->item->fresh('attachments');
 
@@ -53,10 +55,114 @@ class ExtractAttachmentText implements ShouldQueue
         }
 
         foreach ($item->attachments as $attachment) {
-            $this->compactScannedPdf($rasterizer, $attachment);
+            try {
+                $this->compactScannedPdf($rasterizer, $attachment);
+                $this->extractOfficeMedia($store, $item, $attachment);
+            } catch (Throwable) {
+                // Best-effort: a failed compaction or media pull never
+                // blocks analysis of the rest of the item.
+            }
         }
 
         AnalyzeInboxItem::dispatch($item);
+    }
+
+    /**
+     * Office documents are ZIP archives with their images under a media/
+     * folder. Text extraction alone leaves the AI blind to a deck's graphs
+     * and photos — pull the substantial embedded images out and store them
+     * as image attachments (normalised like any upload), so the vision
+     * model sees them alongside the extracted text.
+     */
+    private function extractOfficeMedia(AttachmentStore $store, InboxItem $item, Attachment $attachment): void
+    {
+        $prefix = match ($attachment->mime_type) {
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'word/media/',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'ppt/media/',
+            default => null,
+        };
+
+        if ($prefix === null) {
+            return;
+        }
+
+        // Already extracted (job retry): derived rows carry a marker fingerprint.
+        $marker = "derived:{$attachment->id}:";
+
+        if ($item->attachments()->where('source_fingerprint', 'like', "{$marker}%")->exists()) {
+            return;
+        }
+
+        $contents = Storage::disk($attachment->disk)->get($attachment->path);
+
+        if ($contents === null) {
+            return;
+        }
+
+        foreach ($this->substantialMedia($contents, $prefix) as $media) {
+            $store->store(
+                item: $item,
+                contents: $media['bytes'],
+                originalFilename: basename($media['name']).' (from '.$attachment->original_filename.')',
+                extension: strtolower(pathinfo($media['name'], PATHINFO_EXTENSION)),
+                fallbackMime: 'application/octet-stream',
+                fingerprint: $marker.basename($media['name']).':'.strlen($media['bytes']),
+            );
+        }
+    }
+
+    /**
+     * The largest embedded raster images, skipping bullet icons and logos.
+     *
+     * @return array<int, array{name: string, bytes: string}>
+     */
+    private function substantialMedia(string $zipContents, string $prefix): array
+    {
+        $minBytes = 51_200; // 50KB — below this it's decoration, not evidence.
+        $maxImages = 10;
+        $rasterExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'tif'];
+
+        $media = $this->withTempFile($zipContents, function (string $path) use ($prefix, $minBytes, $maxImages, $rasterExtensions): array {
+            $zip = new ZipArchive;
+
+            if ($zip->open($path) !== true) {
+                return [];
+            }
+
+            $candidates = [];
+
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $stat = $zip->statIndex($i);
+
+                if ($stat === false || ! str_starts_with($stat['name'], $prefix) || $stat['size'] < $minBytes) {
+                    continue;
+                }
+
+                if (! in_array(strtolower(pathinfo($stat['name'], PATHINFO_EXTENSION)), $rasterExtensions, true)) {
+                    continue;
+                }
+
+                $candidates[] = ['name' => $stat['name'], 'size' => $stat['size']];
+            }
+
+            usort($candidates, fn ($a, $b) => $b['size'] <=> $a['size']);
+
+            $media = [];
+
+            foreach (array_slice($candidates, 0, $maxImages) as $candidate) {
+                $bytes = $zip->getFromName($candidate['name']);
+
+                if ($bytes !== false && $bytes !== '') {
+                    $media[] = ['name' => $candidate['name'], 'bytes' => $bytes];
+                }
+            }
+
+            $zip->close();
+
+            return $media;
+        });
+
+        return $media;
     }
 
     /**
@@ -175,14 +281,17 @@ class ExtractAttachmentText implements ShouldQueue
      * The office readers want a real file path, but attachments may live
      * on S3 — round-trip through a temp file.
      *
-     * @param  callable(string): string  $callback
+     * @template T of string|array
+     *
+     * @param  callable(string): T  $callback
+     * @return T
      */
-    private function withTempFile(string $contents, callable $callback): string
+    private function withTempFile(string $contents, callable $callback): string|array
     {
         $path = tempnam(sys_get_temp_dir(), 'cpd-extract-');
 
         if ($path === false) {
-            return '';
+            throw new \RuntimeException('Could not allocate a temp file for extraction.');
         }
 
         file_put_contents($path, $contents);

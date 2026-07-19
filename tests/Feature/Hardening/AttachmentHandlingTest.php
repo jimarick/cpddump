@@ -5,6 +5,7 @@ use App\Jobs\AnalyzeInboxItem;
 use App\Jobs\ExtractAttachmentText;
 use App\Jobs\ProcessInboundEmail;
 use App\Models\InboxItem;
+use App\Services\AttachmentStore;
 use App\Services\EvidenceIngestor;
 use App\Services\PdfRasterizer;
 use App\Services\ResendInbound;
@@ -63,7 +64,7 @@ test('docx attachments get their text extracted for analysis', function () {
 
     Ai::fakeAgent(InboxAnalystAgent::class, [(new InboxItemFactory)->exampleAnalysis()]);
 
-    (new ExtractAttachmentText($item))->handle(app(PdfRasterizer::class));
+    (new ExtractAttachmentText($item))->handle(app(PdfRasterizer::class), app(AttachmentStore::class));
 
     expect($item->attachments()->first()->extracted_text)
         ->toContain('FRCR physics revision session');
@@ -81,7 +82,7 @@ test('pptx attachments get their slide text extracted', function () {
 
     Ai::fakeAgent(InboxAnalystAgent::class, [(new InboxItemFactory)->exampleAnalysis()]);
 
-    (new ExtractAttachmentText($item))->handle(app(PdfRasterizer::class));
+    (new ExtractAttachmentText($item))->handle(app(PdfRasterizer::class), app(AttachmentStore::class));
 
     expect($item->attachments()->first()->extracted_text)
         ->toContain('chest X-ray reporting turnaround');
@@ -98,7 +99,7 @@ test('txt attachments are read directly', function () {
 
     Ai::fakeAgent(InboxAnalystAgent::class, [(new InboxItemFactory)->exampleAnalysis()]);
 
-    (new ExtractAttachmentText($item))->handle(app(PdfRasterizer::class));
+    (new ExtractAttachmentText($item))->handle(app(PdfRasterizer::class), app(AttachmentStore::class));
 
     expect($item->attachments()->first()->extracted_text)
         ->toContain('nodule follow-up');

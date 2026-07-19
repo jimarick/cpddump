@@ -23,8 +23,9 @@ class AttachmentStore
         string $originalFilename,
         string $extension,
         string $fallbackMime,
+        ?string $fingerprint = null,
     ): Attachment {
-        $fingerprint = $originalFilename.':'.strlen($contents);
+        $fingerprint ??= $originalFilename.':'.strlen($contents);
 
         $normalized = $this->images->normalize($contents, $extension);
 
