@@ -1,6 +1,9 @@
 # File Pipeline Plan — every type, normalised at the door
 
-**Status: PLAN — nothing built yet.** Decided 2026-07-19 after confirming production
+**Status: BUILT 2026-07-19 — all 8 steps shipped** (commits 84f91d2 → 363204e,
+211 tests green). This document is now the record of what was built and why.
+
+Decided 2026-07-19 after confirming production
 Laravel Cloud runs Imagick 7.1.2 with HEIC/HEIF/AVIF/WEBP/TIFF delegates and
 unrestricted `proc_open` (`php artisan cpd:check-image-support`). No Lambda needed
 for any of this. **Probe re-run on production 2026-07-19: PDF→image render ✔ —
