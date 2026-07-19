@@ -359,9 +359,11 @@ cascades that skip file-purge hooks. All replaced:
 - **Live-item dedupe unchanged**: `content_hash`/`external_id` still work
   across existing (non-deleted) items; the uniqueness check scopes to live
   rows.
-- **`ai_generations` cost rows survive deletion** (they hold tokens/cost,
-  no content) — budget caps and admin usage must not reset when a user
-  bins items; morph reference nulls out.
+- **`ai_generations` cost rows survive deletion** — confirmed: already its
+  own table keyed by `user_id` (purpose/provider/model/tokens/cost, no
+  content). The build ensures item/activity deletion **nulls the morph
+  reference** rather than cascading the row — cost was incurred regardless,
+  budget caps and admin usage must not reset when a user bins items.
 - **Account deletion becomes an explicit cascade job**: purge every stored
   file, hard-delete items/activities/recurrences/reports/feeds/calendar
   dismissals, drop the Paddle customer, then the user row.
