@@ -152,12 +152,11 @@ when extraction comes back thin — do not silently pretend we read them.
 
 Unchanged transcription (OpenAI, works well). Lifecycle (revised 2026-07-19,
 stricter than the original "delete on approval"): **the audio file is deleted
-immediately after successful transcription** — before approval, before the user
-even sees the draft. The transcript is the evidence; it stays in the payload for
-review, then is redacted at resolve like all payload text (the approved
-activity's reflection/details are what remain). Failed transcription keeps the
-file for retry until the item is resolved. Audio is never offered for keeping —
-no re-listen after transcription.
+immediately after successful transcription**, and **the transcript is scrubbed
+immediately after successful analysis** — the AI reads it, drafts the
+reflection, and the raw transcript goes. What the user reviews and keeps is
+the draft. Failed transcription/analysis keeps file/transcript for retry until
+the item is resolved. Audio is never offered for keeping.
 
 ## Pipeline E — New types worth accepting
 
@@ -192,14 +191,21 @@ the polarity is now flipped.
 - Unkept/purged attachments leave a **metadata stub** (`purged_at`, filename,
   size, mime) so activities and the report zip can honestly show *"file not
   kept"* instead of silently shrinking.
-- **Two clocks — files vs text.** Files follow the rules above. The *text
-  read from* any source (email body, transcript, spreadsheet rows, page
-  text) lives in the DB until the item is resolved — the review modal needs
-  it — then is scrubbed automatically whether or not anything was flagged.
-  The only extracted text that survives resolution is that of files the
-  user explicitly kept (keeps kept certificates content-searchable). The
-  "Remove patient info" click simply brings this scrub forward to now, at
-  flag time, instead of whenever the user gets round to resolving.
+- **Two clocks — files vs text (revised again 2026-07-19: text dies at
+  analysis, not resolve).** Verified: the review UI never displays raw
+  source text — the modal shows the AI draft + attachment files, and the
+  frontend reads only title/subject/url from the payload. So there is no
+  review-time reason to keep it. Free-floating source text (email body/html,
+  transcript, spreadsheet rows, fetched page text) is **scrubbed immediately
+  after successful analysis** — before the user even reviews. It survives
+  only on *failed* items (retry needs the source), purging at resolve as
+  today. Text extracted from a stored file (PDF/office/image) follows its
+  file's fate instead: kept file → text kept (content search), unkept/purged
+  file → text gone. Manual/dictated entries are untouched — that text is the
+  user's own authored evidence, not third-party source material.
+- **Serialisation trim (found during this review):** the inbox controller
+  currently sends the whole `raw_payload` to the browser though the UI uses
+  only title/subject/url — trim to exactly those fields.
 - **PII gate composes with this:** a scan- or AI-flagged file can only be
   kept via the explicit *"Keep — I've checked"* affirmation.
 
@@ -273,10 +279,11 @@ reflection) before the item is considered clean; any hit there is scrubbed too.
 | Digital PDF | The PDF file + its extracted text |
 | Scanned PDF (compact rebuild) | The rebuilt PDF file |
 | Office doc | The original file + extracted embedded images + extracted text |
-| Spreadsheet / csv (text only held) | The extracted text |
-| Email | Body/html text redacted immediately (file already deleted at ingest) + flagged attachments per rows above |
-| Audio (file already gone) | The transcript |
-| Manual text / dictation / link | The flagged excerpts scrubbed from the payload text |
+| Spreadsheet / csv | Nothing left to delete — text scrubbed at analysis; click scrubs flag excerpts + re-checks the draft |
+| Email | Body already scrubbed at analysis; click purges flagged **attachments** per rows above + flag excerpts |
+| Audio | Nothing left — audio died at transcription, transcript at analysis; click scrubs flag excerpts + draft |
+| Manual text / dictation | The flagged excerpts scrubbed from the user's typed text |
+| Link | Nothing left — page text scrubbed at analysis; click scrubs flag excerpts + draft |
 
 In every case what survives is: the drafted, identifier-free reflection and
 the item's metadata. The user's evidence trail continues; the patient data
@@ -293,10 +300,10 @@ pipeline changes). Draft copy:
 | A photo or screenshot | We shrink it, convert it to a standard JPEG and remove all hidden data (including location) before saving anything | Yes — the cleaned copy, until you approve or bin it | Only if you tick "keep this file" — otherwise deleted the moment you approve |
 | A PDF certificate | Small PDFs kept as-is; big scans are rebuilt as compact copies | Yes, until you approve or bin it | Only if you tick "keep this file" |
 | A PowerPoint or Word document | We read the text and key images out of it | Yes, until you approve or bin it | Only if you tick "keep this file" |
-| A spreadsheet (Excel/CSV) | We read the data as text — the file itself is never saved | Only the text summary | Only the text summary |
-| A voice note | We transcribe it, then **delete the recording immediately** — before you even review | Transcript only; the audio is already gone | Transcript is removed too; your written reflection remains |
-| A forwarded email | We read it and **delete the original within seconds of it arriving** | The email's text, until you approve or bin it | The text is erased; your written reflection remains |
-| A link | We read the page's text; we never store the page | Text summary only | Text summary only |
+| A spreadsheet (Excel/CSV) | We read the data, draft your entry, then **delete our copy of the data** — the file itself is never saved | No — already gone once read | No — your drafted entry remains |
+| A voice note | We transcribe it, **delete the recording immediately**, draft your entry, then delete the transcript too | No — already gone once read | No — your drafted entry remains |
+| A forwarded email | We **delete the original within seconds of it arriving**, and delete its text as soon as it's been read | No — already gone once read (attachments follow their own rows) | No — your drafted entry remains |
+| A link | We read the page's text to draft your entry, then delete it; the page is never stored | No — already gone once read | No — your drafted entry remains |
 | Anything you bin | — | — | Deleted immediately, including any files |
 
 Plus two sentences on the PID machinery: "We automatically scan everything
