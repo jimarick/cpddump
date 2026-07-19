@@ -251,6 +251,51 @@ didn't check. Under UK GDPR that's special-category data we never wanted.
    Activity (user notices weeks later): purge file + scrub, keep the clean
    reflection. Activity delete already removes files.
 
+### What "Remove patient info" actually does, per type
+
+The rule everywhere: **delete every copy of the source content we hold (file,
+extracted text, payload text) and keep only the AI draft** — which the prompt
+already requires to be written *around* identifiers. As belt-and-braces, the
+deterministic scanner re-runs over the draft fields (title, summary,
+reflection) before the item is considered clean; any hit there is scrubbed too.
+
+| What we hold | One click removes |
+|---|---|
+| Image (normalised JPEG) | The image file (PID is in the pixels — can't be partially scrubbed) + metadata stub notes why |
+| Digital PDF | The PDF file + its extracted text |
+| Scanned PDF (compact rebuild) | The rebuilt PDF file |
+| Office doc | The original file + extracted embedded images + extracted text |
+| Spreadsheet / csv (text only held) | The extracted text |
+| Email | Body/html text redacted immediately (file already deleted at ingest) + flagged attachments per rows above |
+| Audio (file already gone) | The transcript |
+| Manual text / dictation / link | The flagged excerpts scrubbed from the payload text |
+
+In every case what survives is: the drafted, identifier-free reflection and
+the item's metadata. The user's evidence trail continues; the patient data
+does not.
+
+### Privacy page — "What happens to your uploads" (new deliverable)
+
+A new section on the public privacy page: a plain-English table, one row per
+upload type, kept in lockstep with this pipeline (update the page whenever the
+pipeline changes). Draft copy:
+
+| You give us | What we do with it | Stored while you review? | Stored after you approve? |
+|---|---|---|---|
+| A photo or screenshot | We shrink it, convert it to a standard JPEG and remove all hidden data (including location) before saving anything | Yes — the cleaned copy, until you approve or bin it | Only if you tick "keep this file" — otherwise deleted the moment you approve |
+| A PDF certificate | Small PDFs kept as-is; big scans are rebuilt as compact copies | Yes, until you approve or bin it | Only if you tick "keep this file" |
+| A PowerPoint or Word document | We read the text and key images out of it | Yes, until you approve or bin it | Only if you tick "keep this file" |
+| A spreadsheet (Excel/CSV) | We read the data as text — the file itself is never saved | Only the text summary | Only the text summary |
+| A voice note | We transcribe it, then **delete the recording immediately** — before you even review | Transcript only; the audio is already gone | Transcript is removed too; your written reflection remains |
+| A forwarded email | We read it and **delete the original within seconds of it arriving** | The email's text, until you approve or bin it | The text is erased; your written reflection remains |
+| A link | We read the page's text; we never store the page | Text summary only | Text summary only |
+| Anything you bin | — | — | Deleted immediately, including any files |
+
+Plus two sentences on the PID machinery: "We automatically scan everything
+for patient-identifiable information (like NHS numbers) and will stop you
+approving an item until you've removed it or confirmed it's safe. Files are
+never kept unless you explicitly choose to keep them."
+
 Provider note: OpenAI/Anthropic API inputs aren't used for training and are
 retained ~30 days for abuse monitoring; the file itself never goes to a
 provider unless it's analysable (images/PDFs), and under this plan what goes
@@ -277,6 +322,7 @@ is the normalised, smaller artefact.
 | 3 | Office embedded-media extraction | short evening | step 1 |
 | 4 | New types (.eml, .csv, .md/.rtf) + allowlist/mime-sniff tidy | evening | step 1 |
 | 5 | **Delete-by-default retention** (keep-file prompt at approval, settings overrides) + audio delete-post-transcription + per-user quota + usage meter | evening | — |
-| 6 | **PID defence pack**: deterministic scanner, PII approve-gate + one-click scrub, flag-excerpt redaction on resolve, post-approval remedy | evening | — |
+| 6 | **PID defence pack**: deterministic scanner, PII approve-gate + per-type one-click scrub, flag-excerpt redaction on resolve, post-approval remedy | evening | — |
+| 7 | **Privacy page**: "What happens to your uploads" plain-English table (copy drafted above) | short | steps 1–6 shipped |
 
 Each step is independently shippable; step 1 alone resolves the only live bug.
