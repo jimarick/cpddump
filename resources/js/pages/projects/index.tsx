@@ -56,7 +56,7 @@ export default function ProjectsIndex({
 
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="font-display text-[32px] leading-none font-semibold tracking-[-0.01em]">
+                    <h1 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">
                         Projects &amp; objectives
                     </h1>
                     <p className="mt-1 text-[12.5px] font-semibold text-stone-500">
@@ -74,7 +74,7 @@ export default function ProjectsIndex({
 
             {projects.length === 0 ? (
                 <div className="rounded-[14px] border-2 border-dashed border-stone-400 bg-white px-6 py-14 text-center">
-                    <h2 className="font-display text-2xl font-semibold">
+                    <h2 className="font-display text-2xl font-extrabold">
                         No projects or objectives yet
                     </h2>
                     <p className="mx-auto mt-1 max-w-md text-sm text-pretty text-stone-500">
@@ -204,7 +204,7 @@ function ProjectDialog({
         <Dialog open onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="font-display text-2xl font-semibold">
+                    <DialogTitle className="font-display text-2xl font-extrabold">
                         {project ? 'Edit' : 'New project or objective'}
                     </DialogTitle>
                 </DialogHeader>

@@ -144,7 +144,7 @@ export default function Timeline({
 
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="font-display text-[32px] leading-none font-semibold tracking-[-0.01em]">
+                    <h1 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">
                         Timeline
                     </h1>
                     <p className="mt-1 text-[12.5px] font-semibold text-stone-500">
@@ -191,7 +191,7 @@ export default function Timeline({
 
             {activities.length === 0 ? (
                 <div className="rounded-[14px] border-2 border-dashed border-stone-400 bg-white px-6 py-14 text-center">
-                    <h2 className="font-display text-2xl font-semibold">
+                    <h2 className="font-display text-2xl font-extrabold">
                         Nothing on the line yet
                     </h2>
                     <p className="mx-auto mt-1 max-w-sm text-sm text-stone-500">
@@ -283,7 +283,7 @@ export default function Timeline({
                     {/* The activities themselves, newest first */}
                     <div className="mt-8">
                         <div className="mb-3 flex items-end justify-between">
-                            <h2 className="font-display text-xl font-semibold">
+                            <h2 className="font-display text-xl font-extrabold">
                                 Activities
                             </h2>
                             <span className="text-[12px] font-semibold text-stone-500">
@@ -353,7 +353,7 @@ export default function Timeline({
             <Dialog open={resetting} onOpenChange={setResetting}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="font-display text-2xl font-semibold">
+                        <DialogTitle className="font-display text-2xl font-extrabold">
                             Start a new appraisal year?
                         </DialogTitle>
                     </DialogHeader>
@@ -521,7 +521,7 @@ function EditActivityDialog({
         <Dialog open onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle className="font-display text-2xl font-semibold">
+                    <DialogTitle className="font-display text-2xl font-extrabold">
                         Edit activity
                     </DialogTitle>
                 </DialogHeader>

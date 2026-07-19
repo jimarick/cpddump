@@ -162,7 +162,7 @@ export default function Inbox({
 
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="font-display text-[32px] leading-none font-semibold tracking-[-0.01em]">
+                    <h1 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">
                         Inbox
                     </h1>
                     {period && (
@@ -196,7 +196,7 @@ export default function Inbox({
                     </span>
                     <div className="pointer-events-none absolute inset-x-0 top-10 bottom-14 flex items-center justify-center">
                         <div className="flex size-52 rotate-[-12deg] items-center justify-center rounded-full border-[5px] border-double border-stone-200 text-center">
-                            <span className="font-display text-[26px] leading-tight font-bold tracking-[0.18em] text-stone-200">
+                            <span className="font-display text-[26px] leading-tight font-extrabold tracking-[0.18em] text-stone-200">
                                 CPD
                                 <br />
                                 DUMP
@@ -254,7 +254,7 @@ export default function Inbox({
                 <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-paper/85">
                     <div className="rotate-[-1deg] rounded-[16px] border-[3px] border-dashed border-brand bg-white px-10 py-8 text-center shadow-[6px_6px_0_rgba(28,25,23,.15)]">
                         <FileUp className="mx-auto size-8 text-brand" />
-                        <p className="mt-2 font-display text-2xl font-semibold">
+                        <p className="mt-2 font-display text-2xl font-extrabold">
                             Drop it on the pile
                         </p>
                         <p className="text-[13px] text-stone-500">
@@ -303,7 +303,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
             <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-ink">
                 <Sparkle size={26} className="text-brand" />
             </div>
-            <h2 className="mt-4 font-display text-2xl font-semibold">
+            <h2 className="mt-4 font-display text-2xl font-extrabold">
                 Nothing in the pile yet
             </h2>
             <p className="mx-auto mt-1 max-w-sm text-sm text-pretty text-stone-500">
@@ -516,7 +516,7 @@ function AddEvidenceDialog({
         <Dialog open onOpenChange={(o) => !o && close()}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2.5 font-display text-2xl font-semibold">
+                    <DialogTitle className="flex items-center gap-2.5 font-display text-2xl font-extrabold">
                         {mode !== null && (
                             <button
                                 type="button"
@@ -873,7 +873,7 @@ function ReviewDialog({
         <Dialog open onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 font-display text-2xl font-semibold">
+                    <DialogTitle className="flex items-center gap-2 font-display text-2xl font-extrabold">
                         {item.status === 'failed'
                             ? 'Analysis failed'
                             : 'Review the draft'}
@@ -1375,7 +1375,7 @@ function ManageRecurrenceDialog({
         <Dialog open onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 font-display text-2xl font-semibold">
+                    <DialogTitle className="flex items-center gap-2 font-display text-2xl font-extrabold">
                         <Repeat className="size-5 text-brand" />
                         {recurrence.title}
                     </DialogTitle>

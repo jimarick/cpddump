@@ -28,7 +28,7 @@ export default function AdminUsers({ users }: Props) {
 
             <div className="mb-5 flex items-end justify-between">
                 <div>
-                    <h1 className="font-display text-[32px] leading-none font-semibold tracking-[-0.01em]">
+                    <h1 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">
                         Users
                     </h1>
                     <p className="mt-1 text-[12.5px] font-semibold text-stone-500">

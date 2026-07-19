@@ -1,7 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { LogOut, Settings, ShieldCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { StampLogo } from '@/components/brand/stamp-logo';
+import { Wordmark } from '@/components/brand/wordmark';
 import { SearchCommand } from '@/components/cpd/search-command';
 import {
     DropdownMenu,
@@ -38,8 +38,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <header className="border-b border-dashed border-ink/18 bg-paper">
                 <div className="mx-auto flex max-w-[1080px] items-center justify-between px-4 pt-4 pb-2 md:px-6">
                     <Link href="/inbox">
-                        <StampLogo size="sm" className="md:hidden" />
-                        <StampLogo size="md" className="max-md:hidden" />
+                        <Wordmark size="md" />
                     </Link>
 
                     <nav className="hidden items-center gap-1 md:flex">

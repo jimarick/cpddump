@@ -22,14 +22,30 @@ export default function AdminDashboard({ stats }: Props) {
             <Head title="Admin" />
 
             <div className="mb-6">
-                <h1 className="font-display text-[32px] leading-none font-semibold tracking-[-0.01em]">Admin</h1>
-                <p className="mt-1 text-[12.5px] font-semibold text-stone-500">The whole operation, at a glance.</p>
+                <h1 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">
+                    Admin
+                </h1>
+                <p className="mt-1 text-[12.5px] font-semibold text-stone-500">
+                    The whole operation, at a glance.
+                </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <StatCard label="Users" value={n(stats.users)} sub={`${n(stats.onboarded)} onboarded · ${n(stats.new_users_30d)} new (30d)`} />
-                <StatCard label="Activities" value={n(stats.activities)} sub="approved, all time" />
-                <StatCard label="Items dumped (30d)" value={n(stats.inbox_items_30d)} sub={`${n(stats.reports_30d)} reports generated`} />
+                <StatCard
+                    label="Users"
+                    value={n(stats.users)}
+                    sub={`${n(stats.onboarded)} onboarded · ${n(stats.new_users_30d)} new (30d)`}
+                />
+                <StatCard
+                    label="Activities"
+                    value={n(stats.activities)}
+                    sub="approved, all time"
+                />
+                <StatCard
+                    label="Items dumped (30d)"
+                    value={n(stats.inbox_items_30d)}
+                    sub={`${n(stats.reports_30d)} reports generated`}
+                />
                 <StatCard
                     label="AI calls (30d)"
                     value={n(stats.ai_calls_30d)}
@@ -57,11 +73,23 @@ export default function AdminDashboard({ stats }: Props) {
     );
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+function StatCard({
+    label,
+    value,
+    sub,
+}: {
+    label: string;
+    value: string;
+    sub: string;
+}) {
     return (
         <div className="rounded-[12px] border-2 border-ink bg-white p-4 shadow-[4px_4px_0_rgba(28,25,23,.12)]">
-            <div className="text-[10.5px] font-bold tracking-[0.08em] text-stone-400 uppercase">{label}</div>
-            <div className="mt-1 font-display text-3xl font-semibold">{value}</div>
+            <div className="text-[10.5px] font-bold tracking-[0.08em] text-stone-400 uppercase">
+                {label}
+            </div>
+            <div className="mt-1 font-display text-3xl font-extrabold">
+                {value}
+            </div>
             <div className="mt-1 text-[11.5px] text-stone-500">{sub}</div>
         </div>
     );
@@ -88,7 +116,9 @@ function NavCard({
         >
             <div className="flex items-center gap-2.5">
                 {icon}
-                <span className="font-display text-xl font-semibold">{title}</span>
+                <span className="font-display text-xl font-extrabold">
+                    {title}
+                </span>
             </div>
             <p className="mt-1.5 text-[13px] text-stone-500">{description}</p>
         </Link>

@@ -17,7 +17,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
     return (
         <>
             <div className="mb-5">
-                <h1 className="font-display text-[32px] leading-none font-semibold tracking-[-0.01em]">
+                <h1 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">
                     Settings
                 </h1>
             </div>

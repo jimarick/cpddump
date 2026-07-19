@@ -4,7 +4,7 @@ import { BrandButton } from '@/components/brand/brand-button';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
 import { Sparkle } from '@/components/brand/sparkle';
-import { StampLogo } from '@/components/brand/stamp-logo';
+import { Wordmark } from '@/components/brand/wordmark';
 import { useForceLight } from '@/hooks/use-force-light';
 import { login, register } from '@/routes';
 
@@ -44,7 +44,7 @@ export default function Home() {
 function Nav() {
     return (
         <div className="flex items-center justify-between border-b border-dashed border-ink/18 px-5 py-[18px] md:px-12">
-            <StampLogo size="md" />
+            <Wordmark size="md" />
             <div className="hidden items-center gap-7 text-[13.5px] font-medium text-stone-600 lg:flex">
                 <a
                     href="#how-it-works"
@@ -102,7 +102,7 @@ function Hero() {
                     For UK healthcare providers — from Doctors to Allied Health
                     Professionals
                 </div>
-                <h1 className="max-w-[860px] font-display text-[52px] leading-none font-semibold tracking-[-0.02em] md:text-[74px]">
+                <h1 className="max-w-[860px] font-display text-[52px] leading-none font-extrabold tracking-[-0.02em] md:text-[74px]">
                     Dump it.
                     <br />
                     We'll sort it{' '}
@@ -395,7 +395,7 @@ function Sources() {
                     >
                         feed it anything
                     </CaveatNote>
-                    <h2 className="mt-1 font-display text-[40px] leading-[1.05] font-semibold tracking-[-0.01em]">
+                    <h2 className="mt-1 font-display text-[40px] leading-[1.05] font-extrabold tracking-[-0.03em]">
                         Lots of ways in.
                         <br />
                         All of them lazy.
@@ -478,7 +478,7 @@ function InboxMockup() {
                     >
                         your actual homepage
                     </CaveatNote>
-                    <h2 className="mt-1 font-display text-4xl font-semibold tracking-[-0.01em] md:text-[44px]">
+                    <h2 className="mt-1 font-display text-4xl font-extrabold tracking-[-0.03em] md:text-[44px]">
                         An inbox, not a filing cabinet
                     </h2>
                 </div>
@@ -486,7 +486,7 @@ function InboxMockup() {
                     <div className="-rotate-[0.6deg] overflow-hidden rounded-[14px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(28,25,23,.12)]">
                         <div className="flex items-center justify-between border-b border-ink/10 px-5 py-3.5">
                             <div className="flex items-center gap-2">
-                                <StampLogo size="sm" />
+                                <Wordmark size="sm" />
                                 <span className="text-[13px] font-bold">
                                     Inbox
                                 </span>
@@ -599,7 +599,7 @@ function Timeline() {
                     >
                         where approved things go
                     </CaveatNote>
-                    <h2 className="mt-1 font-display text-4xl font-semibold tracking-[-0.01em] md:text-[44px]">
+                    <h2 className="mt-1 font-display text-4xl font-extrabold tracking-[-0.03em] md:text-[44px]">
                         A year of work, on one line
                     </h2>
                 </div>
@@ -689,7 +689,7 @@ function AiSection() {
                     >
                         the AI bit
                     </CaveatNote>
-                    <h2 className="mt-1 font-display text-4xl leading-[1.1] font-semibold tracking-[-0.01em] md:text-[44px]">
+                    <h2 className="mt-1 font-display text-4xl leading-[1.1] font-extrabold tracking-[-0.03em] md:text-[44px]">
                         It does the boring part. You get the credit.
                     </h2>
                     <p className="mt-3.5 text-[15px] leading-[1.6] text-pretty text-stone-400">
@@ -741,7 +741,7 @@ function Testimonials() {
         <div className="border-t border-dashed border-ink/18 px-5 py-[70px] md:px-12">
             <div className="mx-auto max-w-[1080px]">
                 <div className="mb-[38px] text-center">
-                    <h2 className="font-display text-4xl font-semibold tracking-[-0.01em] md:text-[44px]">
+                    <h2 className="font-display text-4xl font-extrabold tracking-[-0.03em] md:text-[44px]">
                         From people who would rather be doing anything else…
                     </h2>
                     <CaveatNote rotate={0} className="mt-1">
@@ -808,7 +808,7 @@ function FinalCta() {
             className="border-t border-dashed border-ink/18 px-5 py-16 text-center md:px-12"
             style={gridBg}
         >
-            <h2 className="font-display text-4xl font-semibold tracking-[-0.01em] md:text-[52px]">
+            <h2 className="font-display text-4xl font-extrabold tracking-[-0.03em] md:text-[52px]">
                 Your CPD is already piling up.
             </h2>
             <p className="mt-2 text-base text-stone-600">

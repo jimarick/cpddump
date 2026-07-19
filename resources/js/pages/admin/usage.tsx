@@ -36,7 +36,7 @@ export default function AdminUsage({ daily, byPurpose, topUsers }: Props) {
 
             <div className="mb-5 flex items-end justify-between">
                 <div>
-                    <h1 className="font-display text-[32px] leading-none font-semibold tracking-[-0.01em]">
+                    <h1 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">
                         AI usage
                     </h1>
                     <p className="mt-1 text-[12.5px] font-semibold text-stone-500">
@@ -120,7 +120,9 @@ function Panel({
         <div
             className={`rounded-[14px] border-2 border-ink bg-white p-4 shadow-[5px_5px_0_rgba(28,25,23,.12)] ${className}`}
         >
-            <h2 className="mb-3 font-display text-lg font-semibold">{title}</h2>
+            <h2 className="mb-3 font-display text-lg font-extrabold">
+                {title}
+            </h2>
             {children}
         </div>
     );

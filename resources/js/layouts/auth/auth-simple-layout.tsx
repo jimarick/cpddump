@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { StampLogo } from '@/components/brand/stamp-logo';
+import { Wordmark } from '@/components/brand/wordmark';
 import { useForceLight } from '@/hooks/use-force-light';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
@@ -28,13 +28,13 @@ export default function AuthSimpleLayout({
                         href={home()}
                         className="flex -rotate-1 justify-center"
                     >
-                        <StampLogo size="lg" />
+                        <Wordmark size="lg" />
                         <span className="sr-only">CPD Dump</span>
                     </Link>
 
                     <div className="-rotate-[0.6deg] rounded-[14px] border-2 border-ink bg-white px-6 py-7 shadow-[6px_6px_0_rgba(28,25,23,.12)] md:px-7">
                         <div className="mb-6 space-y-1.5 text-center">
-                            <h1 className="font-display text-[28px] leading-[1.1] font-semibold tracking-[-0.01em]">
+                            <h1 className="font-display text-[28px] leading-[1.1] font-extrabold tracking-[-0.03em]">
                                 {title}
                             </h1>
                             <p className="text-[13.5px] text-pretty text-stone-500">

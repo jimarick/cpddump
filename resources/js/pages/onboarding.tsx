@@ -1,7 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
-import { StampLogo } from '@/components/brand/stamp-logo';
+import { Wordmark } from '@/components/brand/wordmark';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,14 +42,14 @@ export default function Onboarding({ professions, defaults }: Props) {
             >
                 <div className="w-full max-w-md">
                     <div className="mb-7 flex -rotate-1 justify-center">
-                        <StampLogo size="lg" />
+                        <Wordmark size="lg" />
                     </div>
 
                     <form
                         onSubmit={submit}
                         className="-rotate-[0.6deg] rounded-[14px] border-2 border-ink bg-white px-6 py-7 shadow-[6px_6px_0_rgba(28,25,23,.12)] md:px-7"
                     >
-                        <h1 className="text-center font-display text-[28px] leading-[1.1] font-semibold tracking-[-0.01em]">
+                        <h1 className="text-center font-display text-[28px] leading-[1.1] font-extrabold tracking-[-0.03em]">
                             Two questions. Then dump away.
                         </h1>
 

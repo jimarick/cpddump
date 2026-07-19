@@ -69,7 +69,7 @@ export default function ReportsIndex({ reports, period }: Props) {
             <Head title="Reports" />
 
             <div className="mb-5">
-                <h1 className="font-display text-[32px] leading-none font-semibold tracking-[-0.01em]">
+                <h1 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">
                     Reports
                 </h1>
                 <p className="mt-1 text-[12.5px] font-semibold text-stone-500">
@@ -84,7 +84,7 @@ export default function ReportsIndex({ reports, period }: Props) {
             </div>
 
             <div className="mt-7">
-                <h2 className="mb-3 font-display text-xl font-semibold">
+                <h2 className="mb-3 font-display text-xl font-extrabold">
                     Previous answers &amp; reports
                 </h2>
 
@@ -203,7 +203,7 @@ function AskCard() {
         >
             <div className="flex items-center gap-2">
                 <Sparkle size={16} className="text-brand" />
-                <h2 className="font-display text-xl font-semibold">
+                <h2 className="font-display text-xl font-extrabold">
                     Ask your appraisal form's question
                 </h2>
             </div>
@@ -267,7 +267,7 @@ function FullReportCard({
         <div className="rotate-[0.4deg] rounded-[14px] border-2 border-dashed border-stone-400 bg-white p-5">
             <div className="flex items-center gap-2">
                 <FileText className="size-4 text-brand" />
-                <h2 className="font-display text-xl font-semibold">
+                <h2 className="font-display text-xl font-extrabold">
                     The whole year, written up
                 </h2>
             </div>
@@ -346,7 +346,7 @@ function ReportDialog({
         <Dialog open onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle className="pr-8 font-display text-2xl leading-tight font-semibold">
+                    <DialogTitle className="pr-8 font-display text-2xl leading-tight font-extrabold">
                         {report.kind === 'report'
                             ? `Full report — ${report.period}`
                             : report.question}

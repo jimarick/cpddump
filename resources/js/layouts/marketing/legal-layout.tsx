@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
-import { StampLogo } from '@/components/brand/stamp-logo';
+import { Wordmark } from '@/components/brand/wordmark';
 import { useForceLight } from '@/hooks/use-force-light';
 import { home } from '@/routes';
 
@@ -24,7 +24,7 @@ export default function LegalLayout({
             <div className="min-h-screen bg-paper font-sans text-ink">
                 <div className="flex items-center justify-between border-b border-dashed border-ink/18 px-5 py-[18px] md:px-12">
                     <Link href={home()}>
-                        <StampLogo size="md" />
+                        <Wordmark size="md" />
                     </Link>
                     <Link
                         href={home()}
@@ -34,7 +34,7 @@ export default function LegalLayout({
                     </Link>
                 </div>
                 <div className="mx-auto max-w-[720px] px-5 py-14 md:px-0">
-                    <h1 className="font-display text-[44px] leading-[1.05] font-semibold tracking-[-0.01em]">
+                    <h1 className="font-display text-[44px] leading-[1.05] font-extrabold tracking-[-0.03em]">
                         {title}
                     </h1>
                     <p className="mt-2 text-[13px] text-stone-500">
