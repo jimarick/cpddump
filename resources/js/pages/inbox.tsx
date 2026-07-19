@@ -20,7 +20,6 @@ import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
 import { Sparkle } from '@/components/brand/sparkle';
 import { AttachmentLinks } from '@/components/cpd/attachment-links';
-import { InboxDoodles } from '@/components/cpd/inbox-doodles';
 import {
     DictatedInput,
     DictatedTextarea,
@@ -31,6 +30,7 @@ import {
     ReflectionStepFields,
 } from '@/components/cpd/evidence-form-fields';
 import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
+import { InboxDoodles } from '@/components/cpd/inbox-doodles';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
