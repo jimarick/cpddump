@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CPD Dump — Inbox watermark (animated doodle field)</title>
+<style>
+body{margin:0;background:#fdfcfa;font-family:system-ui,sans-serif;padding:40px}
+@keyframes dv-bob{0%,100%{transform:translateY(0) rotate(var(--r,0deg))}50%{transform:translateY(-6px) rotate(var(--r,0deg))}}
+@keyframes dv-sway{0%,100%{transform:rotate(calc(var(--r,0deg) - 3deg))}50%{transform:rotate(calc(var(--r,0deg) + 3deg))}}
+@keyframes dv-twinkle{0%,100%{opacity:.12;transform:scale(1) rotate(0deg)}50%{opacity:.22;transform:scale(1.25) rotate(22deg)}}
+/*
+USAGE: place .cpd-watermark absolutely inside the inbox's empty area
+(position:relative on the parent), behind content (z-index:0, pointer-events:none).
+Icons sit at percentage positions so it stretches with the container.
+Respect prefers-reduced-motion: wrap animations in a media query if needed.
+*/
+.cpd-watermark{position:relative;height:190px;pointer-events:none;user-select:none}
+.cpd-watermark>div{position:absolute}
+</style>
+</head>
+<body>
+<div style="border:2px dashed rgba(28,25,23,.2);border-radius:14px;height:300px;position:relative;overflow:hidden">
+<div class="cpd-watermark" style="position:absolute;left:0;right:0;bottom:14px">
+<div style="left:9%;top:30px;--r:-6deg;animation:dv-bob 4.2s ease-in-out infinite"><svg width="34" height="28" viewBox="0 0 34 28"><g opacity=".12" stroke="#1c1917" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="26" height="18" rx="3"></rect><path d="M2 5 L15 14 L28 5"></path></g></svg></div>
+<div style="left:28%;top:55px;--r:5deg;animation:dv-bob 5.1s ease-in-out .6s infinite"><svg width="26" height="32" viewBox="0 0 26 32"><g opacity=".12" stroke="#1c1917" stroke-width="2.5" fill="none" stroke-linecap="round"><rect x="2" y="2" width="20" height="26" rx="3"></rect><line x1="7" y1="9" x2="17" y2="9"></line><line x1="7" y1="15" x2="17" y2="15"></line><line x1="7" y1="21" x2="13" y2="21"></line></g></svg></div>
+<div style="left:48%;top:28px;--r:-4deg;animation:dv-bob 4.6s ease-in-out 1.2s infinite"><svg width="28" height="28" viewBox="0 0 28 28"><g opacity=".12" stroke="#1c1917" stroke-width="2.5" fill="none" stroke-linecap="round"><circle cx="14" cy="14" r="11"></circle><line x1="14" y1="8" x2="14" y2="14"></line><line x1="14" y1="14" x2="19" y2="17"></line></g></svg></div>
+<div style="left:67%;top:52px;--r:6deg;animation:dv-bob 5.4s ease-in-out .3s infinite"><svg width="30" height="30" viewBox="0 0 30 30"><g opacity=".12" stroke="#1c1917" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="26" height="20" rx="3"></rect><path d="M10 7 v-3 h10 v3"></path></g></svg></div>
+<div style="left:86%;top:30px;--r:-5deg;animation:dv-bob 4.4s ease-in-out .9s infinite"><svg width="26" height="28" viewBox="0 0 26 28"><g opacity=".12" stroke="#1c1917" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2 h12 l6 6 v16 h-18 Z"></path><path d="M17 2 v6 h6"></path></g></svg></div>
+<div style="left:17%;top:120px;--r:4deg;animation:dv-bob 5s ease-in-out 1.5s infinite"><svg width="26" height="26" viewBox="0 0 26 26"><g opacity=".12" stroke="#1c1917" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="13" r="10"></circle><path d="M9 13 l3 3 l6 -6" stroke="#f4590c"></path></g></svg></div>
+<div style="left:38%;top:125px;--r:-5deg;animation:dv-sway 3.8s ease-in-out infinite"><svg width="40" height="24" viewBox="0 0 40 24"><g opacity=".12" stroke="#1c1917" stroke-width="2.5" fill="none" stroke-linecap="round"><rect x="2" y="3" width="24" height="16" rx="8"></rect><line x1="30" y1="7" x2="36" y2="3" stroke="#f4590c"></line><line x1="30" y1="12" x2="37" y2="12" stroke="#f4590c"></line><line x1="30" y1="17" x2="36" y2="21" stroke="#f4590c"></line></g></svg></div>
+<div style="left:58%;top:118px;animation:dv-twinkle 3.2s ease-in-out infinite"><svg width="26" height="26" viewBox="0 0 26 26"><path d="M13 1 L15.7 9.3 L24 12 L15.7 14.7 L13 23 L10.3 14.7 L2 12 L10.3 9.3 Z" fill="#f4590c"></path></svg></div>
+<div style="left:76%;top:122px;--r:-4deg;animation:dv-bob 4.8s ease-in-out .4s infinite"><svg width="30" height="28" viewBox="0 0 30 28"><g opacity=".12" stroke="#1c1917" stroke-width="2.5" fill="none" stroke-linecap="round"><rect x="2" y="2" width="26" height="18" rx="3"></rect><line x1="6" y1="24" x2="24" y2="24"></line><line x1="15" y1="20" x2="15" y2="24"></line></g></svg></div>
+</div>
+</div>
+</body>
+</html>

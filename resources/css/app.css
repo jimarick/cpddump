@@ -157,3 +157,39 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Inbox watermark doodles (docs/design-handoff/inbox-watermark.html) */
+@keyframes dv-bob {
+    0%,
+    100% {
+        transform: translateY(0) rotate(var(--r, 0deg));
+    }
+    50% {
+        transform: translateY(-6px) rotate(var(--r, 0deg));
+    }
+}
+@keyframes dv-sway {
+    0%,
+    100% {
+        transform: rotate(calc(var(--r, 0deg) - 3deg));
+    }
+    50% {
+        transform: rotate(calc(var(--r, 0deg) + 3deg));
+    }
+}
+@keyframes dv-twinkle {
+    0%,
+    100% {
+        opacity: 0.12;
+        transform: scale(1) rotate(0deg);
+    }
+    50% {
+        opacity: 0.22;
+        transform: scale(1.25) rotate(22deg);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .cpd-doodle {
+        animation: none !important;
+    }
+}

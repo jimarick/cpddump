@@ -20,6 +20,7 @@ import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
 import { Sparkle } from '@/components/brand/sparkle';
 import { AttachmentLinks } from '@/components/cpd/attachment-links';
+import { InboxDoodles } from '@/components/cpd/inbox-doodles';
 import {
     DictatedInput,
     DictatedTextarea,
@@ -194,15 +195,7 @@ export default function Inbox({
                     <span className="pointer-events-none absolute -top-7 left-7 rotate-[-3deg] font-hand text-[26px] font-semibold text-ink">
                         waiting for your review ↓
                     </span>
-                    <div className="pointer-events-none absolute inset-x-0 top-10 bottom-14 flex items-center justify-center">
-                        <div className="flex size-52 rotate-[-12deg] items-center justify-center rounded-full border-[5px] border-double border-stone-200 text-center">
-                            <span className="font-display text-[26px] leading-tight font-extrabold tracking-[0.18em] text-stone-200">
-                                CPD
-                                <br />
-                                DUMP
-                            </span>
-                        </div>
-                    </div>
+                    <InboxDoodles />
                     <div className="relative grid min-h-0 min-w-0 flex-1 auto-rows-min grid-cols-[minmax(0,1fr)] gap-2.5 overflow-y-auto px-1 pt-1 pb-2">
                         {items.map((item, i) => (
                             <InboxRow
