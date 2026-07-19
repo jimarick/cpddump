@@ -245,12 +245,22 @@ didn't check. Under UK GDPR that's special-category data we never wanted.
    false positives), DOB patterns, postcode-plus-name proximity. Results merge
    into the same `pii_flags` shape (`detected_by: scanner`). Catches PID even
    when the model misses it or analysis fails, and costs nothing.
-2. **Active PII gate, not a passive banner.** High-severity flags block
-   approve until the user chooses: **"Remove patient info"** (one click:
-   purge attachment file + extracted text, scrub flagged excerpts from the
-   draft — the write-around instruction means the draft is already clean of
-   identifiers) or **"Keep — I've checked"** (affirmation stored). Accidental
-   PID should require a decision, never scroll past.
+2. **Active PII gate — but only when a decision actually exists.** The gate
+   blocks approve ONLY when something persistent still holds the flagged
+   content:
+   - **A stored file** (image/PDF/office attachment) → choose **"Remove
+     patient info"** (purge file + its extracted text) or **"Keep — I've
+     checked"** (affirmation stored).
+   - **User-authored text** (manual/dictated entry) → choose scrub excerpts
+     or keep-affirmed.
+   - **The AI draft itself** — belt-and-braces: the deterministic scanner
+     re-runs on draft fields; a hard hit there (e.g. an NHS number the model
+     copied despite instructions) is **auto-scrubbed**, with a notice.
+   Flags whose source was *already-deleted* text (email body, transcript,
+   spreadsheet rows, page text) get **no decision prompt** — just an
+   informational note on the item: *"patient information was detected in the
+   source and has already been deleted."* Asking the user to delete what no
+   longer exists would train them to ignore the gate.
 3. **We currently store the identifier ourselves — fix it.** `pii_flags`
    excerpts live in `ai_analysis`, which survives resolve/dismiss "for dedupe
    and audit". On resolve, excerpts are redacted down to type + count only.
@@ -279,11 +289,11 @@ reflection) before the item is considered clean; any hit there is scrubbed too.
 | Digital PDF | The PDF file + its extracted text |
 | Scanned PDF (compact rebuild) | The rebuilt PDF file |
 | Office doc | The original file + extracted embedded images + extracted text |
-| Spreadsheet / csv | Nothing left to delete — text scrubbed at analysis; click scrubs flag excerpts + re-checks the draft |
-| Email | Body already scrubbed at analysis; click purges flagged **attachments** per rows above + flag excerpts |
-| Audio | Nothing left — audio died at transcription, transcript at analysis; click scrubs flag excerpts + draft |
-| Manual text / dictation | The flagged excerpts scrubbed from the user's typed text |
-| Link | Nothing left — page text scrubbed at analysis; click scrubs flag excerpts + draft |
+| Spreadsheet / csv | Nothing — already deleted at analysis → **no prompt**, informational note only |
+| Email | Body already gone → no prompt for it; flagged **attachments** get the file prompt per rows above |
+| Audio | Nothing — audio died at transcription, transcript at analysis → **no prompt**, note only |
+| Manual text / dictation | Prompt applies: scrub the flagged excerpts from the user's typed text, or keep-affirmed |
+| Link | Nothing — page text already gone → **no prompt**, note only |
 
 In every case what survives is: the drafted, identifier-free reflection and
 the item's metadata. The user's evidence trail continues; the patient data
