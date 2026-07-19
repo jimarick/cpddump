@@ -3,8 +3,9 @@
 **Status: PLAN — nothing built yet.** Decided 2026-07-19 after confirming production
 Laravel Cloud runs Imagick 7.1.2 with HEIC/HEIF/AVIF/WEBP/TIFF delegates and
 unrestricted `proc_open` (`php artisan cpd:check-image-support`). No Lambda needed
-for any of this. One open probe: whether Ghostscript is present for PDF
-rasterisation (re-run the probe on production after commit `34585a7`).
+for any of this. **Probe re-run on production 2026-07-19: PDF→image render ✔ —
+Ghostscript is present and the policy allows it. Every pipeline below is
+unblocked; no external compute required anywhere.**
 
 ## Principle
 
@@ -146,7 +147,7 @@ their audio (user may want to re-listen while reviewing); dismiss already purges
 
 | Step | What | Size | Depends on |
 |---|---|---|---|
-| 0 | Re-run `cpd:check-image-support` on production (Ghostscript verdict) | 2 min | deployed ✔ |
+| 0 | ~~Re-run `cpd:check-image-support` on production~~ **done — Ghostscript ✔** | — | ✔ |
 | 1 | **ImageNormalizer + wire into all ingest paths** (fixes HEIC bug, biggest win) | evening | — |
 | 2 | Scanned-PDF rasteriser | short evening | step 0 says yes |
 | 3 | Office embedded-media extraction | short evening | step 1 |
