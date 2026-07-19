@@ -71,10 +71,14 @@ export function InboxDoodles() {
 
             state.forEach((s, i) => {
                 s.hx = (DOODLES[i].leftPct / 100) * width;
+
+                // Spread the two design rows across the WHOLE empty zone:
+                // 155 is the deepest design top, so fractions run ~0.18–0.81
+                // and the field fills top to bottom.
                 s.hy =
                     ceiling +
-                    20 +
-                    (DOODLES[i].top / 190) * Math.max(zone - 60, 30);
+                    18 +
+                    (DOODLES[i].top / 155) * Math.max(zone - 36, 30);
 
                 if (!started) {
                     s.x = s.hx;
