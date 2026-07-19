@@ -31,6 +31,39 @@ upload / email attachment / iOS API
   Lifecycle: approve → keep · dismiss → purge · audio → transcript kept, file deleted
 ```
 
+## The full map — every type, today vs. under this plan
+
+| Type | Today | Under this plan | Verdict |
+|---|---|---|---|
+| **Images** | | | |
+| jpg / png / webp | Accepted; stored as-received, full size, EXIF+GPS intact; vision reads them | Normalised: auto-orient → sRGB → 1600px → EXIF stripped → JPEG q80 | Improved |
+| gif | Accepted; stored as-is | First frame → same normaliser | Improved |
+| heic / heif (iPhone default) | **Accepted but broken** — stored, but neither vision API can read it | Imagick decodes → normalised JPEG; AI only ever sees JPEG | **Fixed** |
+| tiff / avif / bmp | Rejected | Accepted → normalised JPEG | **New** |
+| **Documents** | | | |
+| PDF — digital/text | Accepted; pdfparser text; original stored | Unchanged, plus ~10MB sanity cap (bigger = really a scan → scan path) | Unchanged |
+| PDF — scanned | Accepted; 10–30MB stored as-is; sent raw to model (≤20pp gate) | Rasterised 150 DPI → pages normalised → recombined compact PDF (~1–2MB); AI gets page JPEGs | Improved |
+| docx / pptx | Accepted; phpoffice text only — embedded images invisible to AI | Text **+** ZipArchive embedded-media extraction → images through normaliser → vision sees them; 25MB cap | Improved |
+| doc / ppt (legacy OLE) | Accepted; thin extraction, silently | Same extraction, honesty-flagged when thin | Honest now |
+| xlsx / xls | Rejected | PhpSpreadsheet → capped text (audit data, attendance) | **New** |
+| **Text & data** | | | |
+| txt | Accepted; text path | Unchanged | Unchanged |
+| md / rtf | Rejected | Text path (rtf tag-stripped) | **New** |
+| csv | Rejected | Capped text (~1MB / 500 rows), only the text stored | **New** |
+| ics (file upload) | Accepted; sabre/vobject parse | Unchanged | Unchanged |
+| **Audio** | | | |
+| m4a / webm (voice notes) | Accepted; transcribed; audio kept forever | Transcribed; **audio deleted on approval**, transcript kept | Improved |
+| mp3 / wav | Rejected | Accepted → same transcription pipeline | **New** |
+| **Email** | | | |
+| Forwarded email (dump address) | SES → parsed → attachments split → S3 object deleted | Attachments now recurse through all pipelines above | Improved |
+| .eml (dragged from mail client) | Rejected | Parsed by the same MailMimeParser service as SES inbound; attachments recursed; raw .eml not stored | **New** |
+| .msg (Outlook proprietary) | Rejected | Stays rejected — friendly "forward it to your dump address instead" | Rejected |
+| **Other capture routes** | | | |
+| Link / URL paste | readability.php → text | Unchanged | Unchanged |
+| Manual text / dictation | Direct | Unchanged | Unchanged |
+| Web voice recording | Doesn't exist | New capture UI riding the audio pipeline | **New** |
+| zip / video | Rejected | Stays rejected (decided 2026-07-18) | Rejected |
+
 ## Pipeline A — Images
 
 **Types in:** jpg, jpeg, png, webp, gif, heic, heif, tiff, avif, bmp
@@ -128,6 +161,7 @@ their audio (user may want to re-listen while reviewing); dismiss already purges
 |---|---|
 | **.eml** (dragged out of a mail client) | Parse with the same MailMimeParser code path as SES inbound (`ProcessSesInboundEmail`'s parsing extracted into a shared service) — body → text, attachments recursively through these pipelines. Store nothing of the raw .eml. |
 | **.csv** | Treat as text: cap ~1MB / first ~500 rows into `extracted_text`, store the capped text only (attendance exports, audit data). |
+| **.xlsx** | Same idea via PhpSpreadsheet (already a phpoffice sibling): sheets → capped CSV-style text. Audit spreadsheets are common CPD evidence. Legacy .xls: accept, extract what PhpSpreadsheet manages, honesty-flag if thin. |
 | **.md / .rtf** | Text path; rtf via simple tag-strip. |
 | **.msg** (Outlook proprietary) | Skip for v1 — needs another parser dependency; the dump address covers the "it's an email" case. Reject with a friendly "forward it to your dump address instead". |
 | **.zip / video** | Stay rejected (decided 2026-07-18). |
