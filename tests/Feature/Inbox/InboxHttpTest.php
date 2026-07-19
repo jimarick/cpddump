@@ -47,7 +47,6 @@ test('the inbox page renders with items, stats and reference data', function () 
         ->assertInertia(fn ($page) => $page
             ->component('inbox')
             ->has('items', 1)
-            ->has('stats')
             ->has('reference.activityTypes')
             ->has('reference.domains', 4)
             ->has('reference.reflectionPrompts', 3)

@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     ChevronLeft,
@@ -50,7 +50,6 @@ import {
 } from '@/components/ui/select';
 import type {
     InboxItemData,
-    InboxStats,
     PeriodData,
     RecurrenceData,
     ReferenceData,
@@ -58,7 +57,6 @@ import type {
 
 interface Props {
     items: InboxItemData[];
-    stats: InboxStats;
     period: PeriodData | null;
     reference: ReferenceData;
     dumpAddress: string | null;
@@ -67,7 +65,6 @@ interface Props {
 
 export default function Inbox({
     items,
-    stats,
     period,
     reference,
     dumpAddress,
@@ -152,7 +149,7 @@ export default function Inbox({
         }
 
         const timer = setInterval(
-            () => router.reload({ only: ['items', 'stats'] }),
+            () => router.reload({ only: ['items'] }),
             5000,
         );
 
@@ -197,10 +194,16 @@ export default function Inbox({
                     <span className="pointer-events-none absolute -top-7 left-7 rotate-[-3deg] font-hand text-[26px] font-semibold text-ink">
                         waiting for your review ↓
                     </span>
-                    <span className="pointer-events-none absolute right-8 bottom-16 rotate-[8deg] rounded-[10px] border-[3px] border-double border-brand-dark/35 px-3.5 py-1 text-[13px] font-bold tracking-[0.22em] text-brand-dark/35">
-                        INBOX
-                    </span>
-                    <div className="grid min-h-0 min-w-0 flex-1 auto-rows-min grid-cols-[minmax(0,1fr)] gap-2.5 overflow-y-auto px-1 pt-1 pb-2">
+                    <div className="pointer-events-none absolute inset-x-0 top-10 bottom-14 flex items-center justify-center">
+                        <div className="flex size-52 rotate-[-12deg] items-center justify-center rounded-full border-[5px] border-double border-stone-200 text-center">
+                            <span className="font-display text-[26px] leading-tight font-bold tracking-[0.18em] text-stone-200">
+                                CPD
+                                <br />
+                                DUMP
+                            </span>
+                        </div>
+                    </div>
+                    <div className="relative grid min-h-0 min-w-0 flex-1 auto-rows-min grid-cols-[minmax(0,1fr)] gap-2.5 overflow-y-auto px-1 pt-1 pb-2">
                         {items.map((item, i) => (
                             <InboxRow
                                 key={item.id}
@@ -220,17 +223,6 @@ export default function Inbox({
                             />
                         ))}
                     </div>
-                    <div className="mt-3 flex shrink-0 flex-col items-center gap-2 py-2">
-                        <Button
-                            onClick={() => setAdding(true)}
-                            className="rotate-[-1deg] border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
-                        >
-                            <Plus className="size-4" /> Dump something else
-                        </Button>
-                        <span className="text-[12px] text-stone-400">
-                            or drop files anywhere on this page
-                        </span>
-                    </div>
                     <RegularsStrip
                         recurrences={recurrences}
                         onAdd={() => {
@@ -242,36 +234,21 @@ export default function Inbox({
                 </div>
             )}
 
-            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[10px] bg-paper-alt px-4 py-2.5 text-[13px] text-stone-600">
-                <span>
-                    <strong className="text-ink">{stats.activities}</strong>{' '}
-                    activities
-                </span>
-                <span>
-                    <strong className="text-ink">{stats.points}</strong> CPD
-                    points
-                </span>
-                <span>
-                    <strong className="text-brand">{stats.awaiting}</strong>{' '}
-                    awaiting approval
-                </span>
-                <ThinDomainHint stats={stats} />
-                {dumpAddress && (
-                    <span className="ml-auto hidden text-stone-500 lg:inline">
-                        forward anything to{' '}
-                        <button
-                            type="button"
-                            onClick={() =>
-                                navigator.clipboard?.writeText(dumpAddress)
-                            }
-                            title="Click to copy"
-                            className="cursor-pointer rounded bg-brand-tint px-1.5 py-0.5 font-mono text-[11.5px] text-brand-dark"
-                        >
-                            {dumpAddress}
-                        </button>
-                    </span>
-                )}
-            </div>
+            {dumpAddress && (
+                <p className="mt-4 text-center text-[13px] text-stone-500">
+                    forward anything to{' '}
+                    <button
+                        type="button"
+                        onClick={() =>
+                            navigator.clipboard?.writeText(dumpAddress)
+                        }
+                        title="Click to copy"
+                        className="cursor-pointer rounded bg-brand-tint px-1.5 py-0.5 font-mono text-[11.5px] text-brand-dark"
+                    >
+                        {dumpAddress}
+                    </button>
+                </p>
+            )}
 
             {dragging && (
                 <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-paper/85">
@@ -317,27 +294,6 @@ export default function Inbox({
                 />
             )}
         </>
-    );
-}
-
-function ThinDomainHint({ stats }: { stats: InboxStats }) {
-    if (stats.activities === 0) {
-        return null;
-    }
-
-    const thin = stats.gaps.domains.find((d) => d.count === 0);
-
-    if (!thin) {
-        return null;
-    }
-
-    return (
-        <span className="hidden text-stone-500 md:inline">
-            {(thin.code ?? '').replace('D', 'Domain ')} looking thin —{' '}
-            <Link href="/timeline" className="font-semibold text-brand">
-                see gaps
-            </Link>
-        </span>
     );
 }
 

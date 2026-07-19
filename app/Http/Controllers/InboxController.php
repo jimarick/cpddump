@@ -5,14 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\ActivityType;
 use App\Models\Attachment;
 use App\Models\Recurrence;
-use App\Services\StatsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class InboxController extends Controller
 {
-    public function index(Request $request, StatsService $stats): Response
+    public function index(Request $request): Response
     {
         $user = $request->user();
         $profession = $user->profession;
@@ -42,7 +41,6 @@ class InboxController extends Controller
 
         return Inertia::render('inbox', [
             'items' => $items,
-            'stats' => $stats->forPeriod($user, $period),
             'period' => $period?->only(['id', 'label', 'starts_on', 'ends_on']),
             'reference' => [
                 'activityTypes' => ActivityType::availableTo($profession)->get(['id', 'slug', 'name', 'color', 'icon']),
