@@ -197,6 +197,54 @@ retroactive purge in v1 — a separate explicit "delete all my stored files"
 button could come later); turning it **off** starts keeping again from that
 point.
 
+## Data protection — accidental patient data (added 2026-07-19)
+
+Threat model: a user uploads or email-forwards something that unexpectedly
+contains patient-identifiable data (PID) — a screenshot with a PACS banner, an
+audit spreadsheet with patient rows, a quoted email thread, an attachment they
+didn't check. Under UK GDPR that's special-category data we never wanted.
+
+**Already in place (verified in code):**
+
+- The analyst prompt flags identifiers (`pii_flags`: type, excerpt, severity)
+  and is instructed to *never reproduce identifiers in drafted text — write
+  around them* (`InboxAnalystAgent`). `PiiWarningBanner` surfaces flags in
+  the review modal.
+- Dismiss = full purge: file deleted AND attachment row (with
+  `extracted_text`) deleted, payload redacted. SES mail objects delete after
+  ingest. EXIF/GPS stripping and zero-retention mode are in this plan.
+
+**Gaps → new measures:**
+
+1. **Deterministic PID pre-scan (no AI dependency).** Regex + checksum scan of
+   all extracted text at ingest: NHS numbers (10-digit mod-11 — near-zero
+   false positives), DOB patterns, postcode-plus-name proximity. Results merge
+   into the same `pii_flags` shape (`detected_by: scanner`). Catches PID even
+   when the model misses it or analysis fails, and costs nothing.
+2. **Active PII gate, not a passive banner.** High-severity flags block
+   approve until the user chooses: **"Remove patient info"** (one click:
+   purge attachment file + extracted text, scrub flagged excerpts from the
+   draft — the write-around instruction means the draft is already clean of
+   identifiers) or **"Keep — I've checked"** (affirmation stored). Accidental
+   PID should require a decision, never scroll past.
+3. **We currently store the identifier ourselves — fix it.** `pii_flags`
+   excerpts live in `ai_analysis`, which survives resolve/dismiss "for dedupe
+   and audit". On resolve, excerpts are redacted down to type + count only.
+4. **Retention ladder** (extends zero-retention mode): *keep everything* /
+   **auto-delete any file the scan or AI flags** (middle setting — likely the
+   sweet spot for most doctors) / *keep nothing*.
+5. **High-risk types never store originals.** csv/xlsx (the classic PID
+   vector: audit data) already store capped text only under this plan — the
+   PID scan runs on that text before it's written.
+6. **Post-approval remedy.** The same "remove patient info" action on an
+   Activity (user notices weeks later): purge file + scrub, keep the clean
+   reflection. Activity delete already removes files.
+
+Provider note: OpenAI/Anthropic API inputs aren't used for training and are
+retained ~30 days for abuse monitoring; the file itself never goes to a
+provider unless it's analysable (images/PDFs), and under this plan what goes
+is the normalised, smaller artefact.
+
 ## Cross-cutting (unchanged from Tier-1 agreement)
 
 - **Mime sniffing** via `finfo` at ingest — extension renames can't smuggle types.
@@ -217,6 +265,7 @@ point.
 | 2 | Scanned-PDF rasteriser | short evening | step 0 says yes |
 | 3 | Office embedded-media extraction | short evening | step 1 |
 | 4 | New types (.eml, .csv, .md/.rtf) + allowlist/mime-sniff tidy | evening | step 1 |
-| 5 | Audio lifecycle + per-user quota + usage meter + **zero-retention toggle** | evening | — |
+| 5 | Audio lifecycle + per-user quota + usage meter + **retention ladder** (incl. zero-retention) | evening | — |
+| 6 | **PID defence pack**: deterministic scanner, PII approve-gate + one-click scrub, flag-excerpt redaction on resolve, post-approval remedy | evening | — |
 
 Each step is independently shippable; step 1 alone resolves the only live bug.
