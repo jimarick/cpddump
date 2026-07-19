@@ -33,16 +33,48 @@ export function InboxDoodles() {
             bobSpeed: 0.9 + Math.random() * 0.5,
         }));
 
+        // In physics mode the field covers the tray's whole empty region:
+        // from under the label down to the Regulars strip. The items grid
+        // (tagged data-doodle-obstacle) provides a moving ceiling.
+        field.style.top = '24px';
+        field.style.bottom = '52px';
+        field.style.height = 'auto';
+
+        const obstacle =
+            field.parentElement?.querySelector('[data-doodle-obstacle]') ??
+            null;
+
         let width = 0;
         let height = 0;
+        let ceiling = 0;
         let started = false;
 
         const measure = () => {
             width = field.offsetWidth;
             height = field.offsetHeight;
 
+            // The lowest item card's bottom edge, in field coordinates.
+            const lastItem = obstacle?.lastElementChild;
+
+            if (lastItem) {
+                const fieldTop = field.getBoundingClientRect().top;
+                ceiling = Math.max(
+                    0,
+                    lastItem.getBoundingClientRect().bottom - fieldTop + 6,
+                );
+            }
+
+            const zone = height - ceiling;
+
+            // Not enough room to play in: hide rather than squish.
+            field.style.opacity = zone < 80 ? '0' : '1';
+
             state.forEach((s, i) => {
                 s.hx = (DOODLES[i].leftPct / 100) * width;
+                s.hy =
+                    ceiling +
+                    20 +
+                    (DOODLES[i].top / 190) * Math.max(zone - 60, 30);
 
                 if (!started) {
                     s.x = s.hx;
@@ -56,6 +88,10 @@ export function InboxDoodles() {
         measure();
         const resizeObserver = new ResizeObserver(measure);
         resizeObserver.observe(field);
+
+        if (obstacle) {
+            resizeObserver.observe(obstacle);
+        }
 
         // Physics items are absolutely positioned from the origin and
         // driven entirely by transform.
@@ -85,8 +121,15 @@ export function InboxDoodles() {
         const DAMPING = 0.93;
 
         let frame = 0;
+        let ticks = 0;
 
         const tick = (t: number) => {
+            // Items come and go (approve, bin, new arrivals) — re-check the
+            // ceiling every half-second or so.
+            if (++ticks % 30 === 0) {
+                measure();
+            }
+
             for (const s of state) {
                 // Spring home.
                 s.vx += (s.hx - s.x) * HOME_SPRING;
@@ -156,8 +199,10 @@ export function InboxDoodles() {
                     s.vx = -Math.abs(s.vx) * 0.8;
                 }
 
-                if (s.y < s.radius) {
-                    s.y = s.radius;
+                // The lowest inbox item is the ceiling; the tray floor is
+                // the floor.
+                if (s.y < ceiling + s.radius) {
+                    s.y = ceiling + s.radius;
                     s.vy = Math.abs(s.vy) * 0.8;
                 } else if (s.y > height - s.radius) {
                     s.y = height - s.radius;
