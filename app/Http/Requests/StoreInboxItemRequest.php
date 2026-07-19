@@ -14,7 +14,7 @@ class StoreInboxItemRequest extends FormRequest
             'details' => ['nullable', 'string', 'max:20000'],
             'url' => ['nullable', 'url', 'max:2048'],
             'files' => ['nullable', 'array', 'max:5'],
-            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,webp,heic,gif,doc,docx,ppt,pptx,txt'],
+            'files.*' => ['file', 'max:25600', 'mimes:'.implode(',', config('cpd.ingest.allowed_extensions'))],
         ];
     }
 }

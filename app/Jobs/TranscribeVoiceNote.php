@@ -42,6 +42,8 @@ class TranscribeVoiceNote implements ShouldQueue
             app(EvidenceIngestor::class)->refreshContentHash($item);
         }
 
-        AnalyzeInboxItem::dispatch($item);
+        // Back into the pipeline: other attachments (a PDF alongside the
+        // audio) may still need text extraction before analysis.
+        app(EvidenceIngestor::class)->dispatchPipeline($item->fresh() ?? $item);
     }
 }

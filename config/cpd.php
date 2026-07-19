@@ -57,6 +57,7 @@ return [
             'pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif',
             'tiff', 'tif', 'avif', 'bmp',
             'doc', 'docx', 'ppt', 'pptx', 'txt', 'ics',
+            'eml', 'csv', 'xlsx', 'xls', 'md', 'rtf', 'mp3', 'wav', 'm4a',
         ],
     ],
 

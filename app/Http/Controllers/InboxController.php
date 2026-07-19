@@ -27,7 +27,8 @@ class InboxController extends Controller
                 'source' => $item->source->value,
                 'source_label' => $item->source->label(),
                 'status' => $item->status->value,
-                'raw_payload' => $item->raw_payload,
+                // Only what the UI reads — raw source text never ships to the client.
+                'raw_payload' => collect($item->raw_payload)->only(['title', 'subject', 'url'])->all(),
                 'ai_analysis' => $item->ai_analysis,
                 'ai_warnings' => $item->ai_warnings,
                 'failure_reason' => $item->failure_reason,

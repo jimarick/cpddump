@@ -83,10 +83,7 @@ class EvidenceIngestor
     /** Queue the right preparation job, ending in AI analysis. */
     public function dispatchPipeline(InboxItem $item, ?DateTimeInterface $delay = null): void
     {
-        $needsText = $item->attachments()
-            ->whereIn('mime_type', Attachment::EXTRACTABLE_MIMES)
-            ->whereNull('extracted_text')
-            ->exists();
+        $attachments = $item->attachments()->get();
 
         if ($item->source === EvidenceSource::Link || $item->source === EvidenceSource::Article) {
             FetchLinkContent::dispatch($item)->delay($delay);
@@ -94,11 +91,17 @@ class EvidenceIngestor
             return;
         }
 
-        if ($item->source === EvidenceSource::VoiceNote && blank($item->raw_payload['transcript'] ?? null)) {
+        // Any audio — a voice note or an mp3/wav that arrived another way —
+        // is transcribed first; the transcript then re-enters this pipeline.
+        if (blank($item->raw_payload['transcript'] ?? null) && $attachments->contains(fn ($a) => $a->isAudio())) {
             TranscribeVoiceNote::dispatch($item)->delay($delay);
 
             return;
         }
+
+        $needsText = $attachments->contains(
+            fn ($a) => $a->isExtractable() && blank($a->extracted_text) && ! $a->isPurged()
+        );
 
         if ($needsText) {
             ExtractAttachmentText::dispatch($item)->delay($delay);

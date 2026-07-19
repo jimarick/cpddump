@@ -6,14 +6,19 @@ use App\Models\Attachment;
 use App\Models\InboxItem;
 use App\Services\AttachmentStore;
 use App\Services\PdfRasterizer;
+use App\Support\HtmlToText;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PhpOffice\PhpPresentation\IOFactory as PresentationIOFactory;
 use PhpOffice\PhpPresentation\Shape\RichText;
+use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIOFactory;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use Smalot\PdfParser\Parser;
 use Throwable;
+use ZBateson\MailMimeParser\Header\HeaderConsts;
+use ZBateson\MailMimeParser\MailMimeParser;
 use ZipArchive;
 
 class ExtractAttachmentText implements ShouldQueue
@@ -33,7 +38,7 @@ class ExtractAttachmentText implements ShouldQueue
         }
 
         foreach ($item->attachments as $attachment) {
-            if (! $attachment->isExtractable() || filled($attachment->extracted_text)) {
+            if (! $attachment->isExtractable() || filled($attachment->extracted_text) || $attachment->isPurged()) {
                 continue;
             }
 
@@ -44,7 +49,7 @@ class ExtractAttachmentText implements ShouldQueue
                     continue;
                 }
 
-                $text = $this->extract($attachment->mime_type, $contents);
+                $text = $this->extract($attachment, $contents);
 
                 $attachment->update(['extracted_text' => trim($text) ?: null]);
             } catch (Throwable) {
@@ -55,9 +60,15 @@ class ExtractAttachmentText implements ShouldQueue
         }
 
         foreach ($item->attachments as $attachment) {
+            if ($attachment->isPurged()) {
+                continue;
+            }
+
             try {
                 $this->compactScannedPdf($rasterizer, $attachment);
                 $this->extractOfficeMedia($store, $item, $attachment);
+                $this->parseEmlAttachment($store, $item, $attachment);
+                $this->dropTextOnlyFile($attachment);
             } catch (Throwable) {
                 // Best-effort: a failed compaction or media pull never
                 // blocks analysis of the rest of the item.
@@ -65,6 +76,78 @@ class ExtractAttachmentText implements ShouldQueue
         }
 
         AnalyzeInboxItem::dispatch($item);
+    }
+
+    /**
+     * A dragged-in .eml is an email that arrived by hand: parse it with the
+     * same machinery as inbound mail, keep body text + attachments, never
+     * keep the raw email file.
+     */
+    private function parseEmlAttachment(AttachmentStore $store, InboxItem $item, Attachment $attachment): void
+    {
+        if ($attachment->extension() !== 'eml' && $attachment->mime_type !== 'message/rfc822') {
+            return;
+        }
+
+        $contents = Storage::disk($attachment->disk)->get($attachment->path);
+
+        if ($contents === null) {
+            return;
+        }
+
+        $parsed = (new MailMimeParser)->parse($contents, true);
+
+        $body = trim((string) $parsed->getTextContent())
+            ?: HtmlToText::convert((string) $parsed->getHtmlContent());
+
+        $attachment->update(['extracted_text' => Str::limit(implode("\n", [
+            'From: '.trim((string) $parsed->getHeaderValue(HeaderConsts::FROM)),
+            'Subject: '.trim((string) $parsed->getHeaderValue(HeaderConsts::SUBJECT)),
+            '',
+            $body,
+        ]), 30_000, '') ?: null]);
+
+        $marker = "derived:{$attachment->id}:";
+
+        foreach ($parsed->getAllAttachmentParts() as $part) {
+            $filename = (string) ($part->getFilename() ?: 'attachment');
+            $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+            // No nested .eml recursion; everything else follows the allowlist.
+            if ($extension === 'eml' || ! in_array($extension, config('cpd.ingest.allowed_extensions'), true)) {
+                continue;
+            }
+
+            $bytes = (string) $part->getContent();
+
+            if ($bytes === '') {
+                continue;
+            }
+
+            $store->store(
+                item: $item,
+                contents: $bytes,
+                originalFilename: $filename.' (from '.$attachment->original_filename.')',
+                extension: $extension,
+                fallbackMime: (string) ($part->getContentType() ?: 'application/octet-stream'),
+                fingerprint: $marker.$filename.':'.strlen($bytes),
+            );
+        }
+
+        $attachment->purgeToStub();
+    }
+
+    /**
+     * Spreadsheets and plain-text types live on as extracted text only —
+     * the file itself is never kept once read.
+     */
+    private function dropTextOnlyFile(Attachment $attachment): void
+    {
+        $textOnly = ['csv', 'xlsx', 'xls', 'md', 'rtf'];
+
+        if (in_array($attachment->extension(), $textOnly, true) && filled($attachment->extracted_text)) {
+            $attachment->purgeToStub();
+        }
     }
 
     /**
@@ -200,15 +283,69 @@ class ExtractAttachmentText implements ShouldQueue
         $attachment->update(['size' => strlen($compact)]);
     }
 
-    private function extract(string $mime, string $contents): string
+    private function extract(Attachment $attachment, string $contents): string
     {
-        return match ($mime) {
-            'application/pdf' => (new Parser)->parseContent($contents)->getText(),
-            'text/plain' => $contents,
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => $this->wordText($contents),
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation' => $this->presentationText($contents),
-            default => '',
+        return match ($attachment->extension()) {
+            'pdf' => (new Parser)->parseContent($contents)->getText(),
+            'txt', 'md' => $contents,
+            'rtf' => $this->rtfText($contents),
+            'csv' => $this->cappedRows(explode("\n", $contents)),
+            'xlsx', 'xls' => $this->spreadsheetText($contents),
+            'docx' => $this->wordText($contents),
+            'pptx' => $this->presentationText($contents),
+            default => match ($attachment->mime_type) {
+                'application/pdf' => (new Parser)->parseContent($contents)->getText(),
+                'text/plain', 'text/markdown' => $contents,
+                'text/rtf', 'application/rtf' => $this->rtfText($contents),
+                'text/csv' => $this->cappedRows(explode("\n", $contents)),
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-excel' => $this->spreadsheetText($contents),
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => $this->wordText($contents),
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation' => $this->presentationText($contents),
+                default => '',
+            },
         };
+    }
+
+    /** Crude but serviceable: drop RTF control words and groups, keep the prose. */
+    private function rtfText(string $contents): string
+    {
+        $text = preg_replace('/\\\\\'[0-9a-f]{2}/i', ' ', $contents) ?? '';
+        $text = preg_replace('/\\\\[a-z]+-?\d* ?/i', ' ', $text) ?? '';
+
+        return trim(str_replace(['{', '}', '\\'], ' ', $text));
+    }
+
+    /**
+     * @param  array<int, string>  $rows
+     */
+    private function cappedRows(array $rows): string
+    {
+        $capped = implode("\n", array_slice($rows, 0, 500));
+
+        return Str::limit($capped, 1_000_000, "\n[truncated]");
+    }
+
+    private function spreadsheetText(string $contents): string
+    {
+        return $this->withTempFile($contents, function (string $path): string {
+            $workbook = SpreadsheetIOFactory::load($path);
+            $rows = [];
+
+            foreach ($workbook->getAllSheets() as $sheet) {
+                $rows[] = '# '.$sheet->getTitle();
+
+                foreach ($sheet->toArray() as $row) {
+                    $rows[] = implode("\t", array_map(fn ($cell) => (string) $cell, $row));
+
+                    if (count($rows) > 520) {
+                        break 2;
+                    }
+                }
+            }
+
+            return $this->cappedRows($rows);
+        });
     }
 
     private function wordText(string $contents): string
