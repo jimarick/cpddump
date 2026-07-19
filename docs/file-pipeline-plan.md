@@ -192,6 +192,14 @@ the polarity is now flipped.
 - Unkept/purged attachments leave a **metadata stub** (`purged_at`, filename,
   size, mime) so activities and the report zip can honestly show *"file not
   kept"* instead of silently shrinking.
+- **Two clocks — files vs text.** Files follow the rules above. The *text
+  read from* any source (email body, transcript, spreadsheet rows, page
+  text) lives in the DB until the item is resolved — the review modal needs
+  it — then is scrubbed automatically whether or not anything was flagged.
+  The only extracted text that survives resolution is that of files the
+  user explicitly kept (keeps kept certificates content-searchable). The
+  "Remove patient info" click simply brings this scrub forward to now, at
+  flag time, instead of whenever the user gets round to resolving.
 - **PII gate composes with this:** a scan- or AI-flagged file can only be
   kept via the explicit *"Keep — I've checked"* affirmation.
 
