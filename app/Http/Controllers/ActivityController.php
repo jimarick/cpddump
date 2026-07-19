@@ -96,7 +96,7 @@ class ActivityController extends Controller
             'title' => $scrub($activity->title),
             'details' => $scrub($activity->details),
             'reflection' => collect($activity->reflection ?? [])
-                ->map(fn ($answer) => is_string($answer) ? $scrub($answer) : $answer)
+                ->map(fn (string $answer) => $scrub($answer))
                 ->all(),
         ]);
 
