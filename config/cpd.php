@@ -49,6 +49,10 @@ return [
          | outside this list are silently skipped (no .exe in the
          | evidence folder, however it's renamed).
          */
+        // "Text" PDFs above this size are really scan hybrids — route them
+        // through rasterisation like any scanned document.
+        'text_pdf_max_bytes' => env('CPD_TEXT_PDF_MAX_BYTES', 10_485_760),
+
         'allowed_extensions' => [
             'pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif',
             'tiff', 'tif', 'avif', 'bmp',

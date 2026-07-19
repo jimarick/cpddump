@@ -2,7 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Models\Attachment;
 use App\Models\InboxItem;
+use App\Services\PdfRasterizer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +22,7 @@ class ExtractAttachmentText implements ShouldQueue
 
     public function __construct(public InboxItem $item) {}
 
-    public function handle(): void
+    public function handle(PdfRasterizer $rasterizer): void
     {
         $item = $this->item->fresh('attachments');
 
@@ -50,7 +52,46 @@ class ExtractAttachmentText implements ShouldQueue
             }
         }
 
+        foreach ($item->attachments as $attachment) {
+            $this->compactScannedPdf($rasterizer, $attachment);
+        }
+
         AnalyzeInboxItem::dispatch($item);
+    }
+
+    /**
+     * Scanned PDFs (no extractable text) — and outsized "text" PDFs that
+     * are really scan hybrids — are re-rendered as compact JPEG-page PDFs:
+     * ~95% smaller to store and far cheaper to send to the model.
+     */
+    private function compactScannedPdf(PdfRasterizer $rasterizer, Attachment $attachment): void
+    {
+        $maxTextPdfBytes = (int) config('cpd.ingest.text_pdf_max_bytes');
+
+        if (! $attachment->isPdf()) {
+            return;
+        }
+
+        if (filled($attachment->extracted_text) && $attachment->size <= $maxTextPdfBytes) {
+            return;
+        }
+
+        $contents = Storage::disk($attachment->disk)->get($attachment->path);
+
+        if ($contents === null) {
+            return;
+        }
+
+        $compact = $rasterizer->rasterize($contents);
+
+        // Only swap when it actually helps — a well-compressed original
+        // can beat a re-render.
+        if ($compact === null || strlen($compact) >= $attachment->size) {
+            return;
+        }
+
+        Storage::disk($attachment->disk)->put($attachment->path, $compact);
+        $attachment->update(['size' => strlen($compact)]);
     }
 
     private function extract(string $mime, string $contents): string
