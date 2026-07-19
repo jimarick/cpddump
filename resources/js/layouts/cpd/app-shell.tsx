@@ -129,6 +129,8 @@ function TabLink({
     return (
         <Link
             href={href}
+            prefetch
+            cacheFor="30s"
             className={cn(
                 'rounded-[9px] px-3 py-1.5 text-[13.5px] font-semibold whitespace-nowrap transition-colors',
                 active

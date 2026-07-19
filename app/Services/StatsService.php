@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\InboxItemStatus;
 use App\Models\AppraisalPeriod;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Headline numbers and gap analysis for a user's appraisal period —
@@ -41,27 +42,44 @@ class StatsService
             return ['categories' => [], 'domains' => [], 'expectations' => []];
         }
 
+        // One grouped query per pivot instead of a count query per row —
+        // serverless Postgres charges real latency for every round-trip.
+        $activityScope = fn ($join) => $join
+            ->where('activities.user_id', $user->id)
+            ->where('activities.appraisal_period_id', $period->id)
+            ->whereNull('activities.deleted_at');
+
+        $countsByCategory = DB::table('activity_category')
+            ->join('activities', fn ($join) => $activityScope(
+                $join->on('activities.id', '=', 'activity_category.activity_id')
+            ))
+            ->groupBy('activity_category.category_id')
+            ->selectRaw('activity_category.category_id, count(*) as total')
+            ->pluck('total', 'category_id');
+
+        $countsByDomain = DB::table('activity_framework_domain')
+            ->join('activities', fn ($join) => $activityScope(
+                $join->on('activities.id', '=', 'activity_framework_domain.activity_id')
+            ))
+            ->groupBy('activity_framework_domain.framework_domain_id')
+            ->selectRaw('activity_framework_domain.framework_domain_id, count(*) as total')
+            ->pluck('total', 'framework_domain_id');
+
         $categoryCounts = $profession->categories()
             ->get()
-            ->map(function ($category) use ($user, $period) {
-                $count = $user->activities()
-                    ->where('appraisal_period_id', $period->id)
-                    ->whereHas('categories', fn ($q) => $q->where('categories.id', $category->id))
-                    ->count();
-
-                return ['slug' => $category->slug, 'name' => $category->name, 'count' => $count];
-            });
+            ->map(fn ($category) => [
+                'slug' => $category->slug,
+                'name' => $category->name,
+                'count' => (int) ($countsByCategory[$category->id] ?? 0),
+            ]);
 
         $domainCounts = $profession->frameworkDomains()
             ->get()
-            ->map(function ($domain) use ($user, $period) {
-                $count = $user->activities()
-                    ->where('appraisal_period_id', $period->id)
-                    ->whereHas('frameworkDomains', fn ($q) => $q->where('framework_domains.id', $domain->id))
-                    ->count();
-
-                return ['code' => $domain->code, 'name' => $domain->name, 'count' => $count];
-            });
+            ->map(fn ($domain) => [
+                'code' => $domain->code,
+                'name' => $domain->name,
+                'count' => (int) ($countsByDomain[$domain->id] ?? 0),
+            ]);
 
         $expectations = $user->recurrences()
             ->where('is_active', true)
