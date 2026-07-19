@@ -303,17 +303,26 @@ does not.
 
 A new section on the public privacy page: a plain-English table, one row per
 upload type, kept in lockstep with this pipeline (update the page whenever the
-pipeline changes). Draft copy:
+pipeline changes). The table must open by defining the key term:
+
+> **"Your drafted entry"** means the appraisal entry our AI writes from your
+> evidence — the title, dates, CPD details and reflection you review and
+> approve. It is written *without* any names, NHS numbers or other identifying
+> details, even if they appeared in what you uploaded. For most upload types,
+> this drafted entry is the only thing we keep — the original recording,
+> email or data is deleted once it has been read.
+
+Draft copy:
 
 | You give us | What we do with it | Stored while you review? | Stored after you approve? |
 |---|---|---|---|
 | A photo or screenshot | We shrink it, convert it to a standard JPEG and remove all hidden data (including location) before saving anything | Yes — the cleaned copy, until you approve or bin it | Only if you tick "keep this file" — otherwise deleted the moment you approve |
 | A PDF certificate | Small PDFs kept as-is; big scans are rebuilt as compact copies | Yes, until you approve or bin it | Only if you tick "keep this file" |
 | A PowerPoint or Word document | We read the text and key images out of it | Yes, until you approve or bin it | Only if you tick "keep this file" |
-| A spreadsheet (Excel/CSV) | We read the data, draft your entry, then **delete our copy of the data** — the file itself is never saved | No — already gone once read | No — your drafted entry remains |
-| A voice note | We transcribe it, **delete the recording immediately**, draft your entry, then delete the transcript too | No — already gone once read | No — your drafted entry remains |
-| A forwarded email | We **delete the original within seconds of it arriving**, and delete its text as soon as it's been read | No — already gone once read (attachments follow their own rows) | No — your drafted entry remains |
-| A link | We read the page's text to draft your entry, then delete it; the page is never stored | No — already gone once read | No — your drafted entry remains |
+| A spreadsheet (Excel/CSV) | We read the data, write your drafted entry (the AI analysis), then **delete our copy of the data** — the file itself is never saved | No — already gone once read | No — only your drafted entry remains |
+| A voice note | We transcribe it, **delete the recording immediately**, write your drafted entry, then delete the transcript too | No — already gone once read | No — only your drafted entry remains |
+| A forwarded email | We **delete the original within seconds of it arriving**, and delete its text as soon as it's been read and your entry drafted | No — already gone once read (attachments follow their own rows) | No — only your drafted entry remains |
+| A link | We read the page's text to write your drafted entry, then delete it; the page is never stored | No — already gone once read | No — only your drafted entry remains |
 | Anything you bin | — | — | Deleted immediately, including any files |
 
 Plus two sentences on the PID machinery: "We automatically scan everything
