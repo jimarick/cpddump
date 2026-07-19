@@ -40,7 +40,7 @@ export default function LegalLayout({
                     <p className="mt-2 text-[13px] text-stone-500">
                         Last updated: {updated}
                     </p>
-                    <div className="legal-prose mt-8 flex flex-col gap-6 text-[15px] leading-[1.65] text-stone-600 [&_h2]:font-sans [&_h2]:text-[19px] [&_h2]:font-bold [&_h2]:tracking-[-0.01em] [&_h2]:text-ink [&_li]:mt-1.5 [&_ul]:list-disc [&_ul]:pl-5">
+                    <div className="legal-prose mt-8 flex flex-col gap-6 text-[15px] leading-[1.65] text-stone-600 [&_h2]:font-sans [&_h2]:text-[19px] [&_h2]:font-bold [&_h2]:tracking-[-0.01em] [&_h2]:text-ink [&_li]:mt-1.5 [&_section]:flex [&_section]:flex-col [&_section]:gap-3 [&_table]:w-full [&_table]:min-w-[560px] [&_table]:border-collapse [&_table]:text-[13px] [&_table]:leading-[1.5] [&_td]:border-b [&_td]:border-stone-200 [&_td]:px-2.5 [&_td]:py-2 [&_td]:align-top [&_th]:border-b-2 [&_th]:border-ink [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-bold [&_th]:text-ink [&_ul]:list-disc [&_ul]:pl-5">
                         {children}
                     </div>
                 </div>

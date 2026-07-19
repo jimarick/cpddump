@@ -65,12 +65,134 @@ export default function Privacy() {
             </section>
 
             <section>
+                <h2>What happens to your uploads</h2>
+                <p>
+                    <strong>"Your drafted entry"</strong> means the appraisal
+                    entry our AI writes from your evidence — the title, dates,
+                    CPD details and reflection you review and approve. It is
+                    written <em>without</em> any names, NHS numbers or other
+                    identifying details, even if they appeared in what you
+                    uploaded. For most upload types, this drafted entry is the
+                    only thing we keep — the original recording, email or data
+                    is deleted once it has been read.
+                </p>
+                <div style={{ overflowX: 'auto' }}>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>You give us</th>
+                                <th>What we do with it</th>
+                                <th>Stored while you review?</th>
+                                <th>Stored after you approve?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>A photo or screenshot</td>
+                                <td>
+                                    We shrink it, convert it to a standard JPEG
+                                    and remove all hidden data (including
+                                    location) before saving anything
+                                </td>
+                                <td>
+                                    Yes — the cleaned copy, until you approve or
+                                    bin it
+                                </td>
+                                <td>
+                                    Only if you tick "keep this file" —
+                                    otherwise deleted the moment you approve
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>A PDF certificate</td>
+                                <td>
+                                    Small PDFs kept as-is; big scans are rebuilt
+                                    as compact copies
+                                </td>
+                                <td>Yes, until you approve or bin it</td>
+                                <td>Only if you tick "keep this file"</td>
+                            </tr>
+                            <tr>
+                                <td>A PowerPoint or Word document</td>
+                                <td>
+                                    We read the text and key images out of it
+                                </td>
+                                <td>Yes, until you approve or bin it</td>
+                                <td>Only if you tick "keep this file"</td>
+                            </tr>
+                            <tr>
+                                <td>A spreadsheet (Excel/CSV)</td>
+                                <td>
+                                    We read the data, write your drafted entry
+                                    (the AI analysis), then delete our copy of
+                                    the data — the file itself is never saved
+                                </td>
+                                <td>No — already gone once read</td>
+                                <td>No — only your drafted entry remains</td>
+                            </tr>
+                            <tr>
+                                <td>A voice note</td>
+                                <td>
+                                    We transcribe it, delete the recording
+                                    immediately, write your drafted entry, then
+                                    delete the transcript too
+                                </td>
+                                <td>No — already gone once read</td>
+                                <td>No — only your drafted entry remains</td>
+                            </tr>
+                            <tr>
+                                <td>A forwarded email</td>
+                                <td>
+                                    We delete the original within seconds of it
+                                    arriving, and delete its text as soon as
+                                    it's been read and your entry drafted
+                                </td>
+                                <td>
+                                    No — already gone once read (attachments
+                                    follow their own rows above)
+                                </td>
+                                <td>No — only your drafted entry remains</td>
+                            </tr>
+                            <tr>
+                                <td>A link</td>
+                                <td>
+                                    We read the page's text to write your
+                                    drafted entry, then delete it; the page is
+                                    never stored
+                                </td>
+                                <td>No — already gone once read</td>
+                                <td>No — only your drafted entry remains</td>
+                            </tr>
+                            <tr>
+                                <td>Anything you bin</td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td>
+                                    Deleted immediately, including any files
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    We automatically scan everything for patient-identifiable
+                    information (like NHS numbers) and will stop you approving
+                    an item until you've removed it or confirmed it's safe.
+                    Files are never kept unless you explicitly choose to keep
+                    them — and you can switch to "never keep files" in Settings
+                    → Evidence, so CPD Dump stores nothing but your written
+                    entries.
+                </p>
+            </section>
+
+            <section>
                 <h2>Emails you forward</h2>
                 <p>
                     Your personal dump address exists only to receive evidence
-                    from you. We extract the useful content and attachments, and
-                    minimise the raw email we retain. Do not forward emails
-                    containing patient-identifiable information.
+                    from you. The raw email is deleted within seconds of
+                    arriving — we keep only what the table above describes. Do
+                    not forward emails containing patient-identifiable
+                    information.
                 </p>
             </section>
 
