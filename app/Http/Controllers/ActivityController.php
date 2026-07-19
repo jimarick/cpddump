@@ -7,38 +7,9 @@ use App\Models\ActivityType;
 use App\Models\FrameworkAttribute;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class ActivityController extends Controller
 {
-    public function index(Request $request): Response
-    {
-        $user = $request->user();
-        $profession = $user->profession;
-        $period = $user->currentAppraisalPeriod();
-
-        $activities = $user->activities()
-            ->when($period, fn ($q) => $q->where('appraisal_period_id', $period->id))
-            ->with(['type:id,slug,name,color,icon', 'categories:id,slug,name', 'frameworkDomains:id,code,name', 'projects:id,title', 'attachments:id,attachable_type,attachable_id,original_filename,mime_type'])
-            ->orderByDesc('starts_on')
-            ->orderByDesc('id')
-            ->get()
-            ->map(fn ($a) => $this->serialise($a));
-
-        return Inertia::render('activities/index', [
-            'activities' => $activities,
-            'period' => $period?->only(['id', 'label', 'starts_on', 'ends_on']),
-            'reference' => [
-                'activityTypes' => ActivityType::availableTo($profession)->get(['id', 'slug', 'name', 'color', 'icon']),
-                'categories' => $profession?->categories()->get(['id', 'slug', 'name']) ?? [],
-                'domains' => $profession?->frameworkDomains()->with('frameworkAttributes:id,framework_domain_id,code,name')->get(['id', 'code', 'name']) ?? [],
-                'reflectionPrompts' => $profession?->reflectionPrompts() ?? [],
-                'projects' => $user->projects()->get(['id', 'title', 'kind']),
-            ],
-        ]);
-    }
-
     public function update(Request $request, Activity $activity): RedirectResponse
     {
         abort_unless($activity->user_id === $request->user()->id, 403);
@@ -102,30 +73,5 @@ class ActivityController extends Controller
         $activity->delete();
 
         return back()->with('success', 'Activity deleted.');
-    }
-
-    /** @return array<string, mixed> */
-    private function serialise(Activity $a): array
-    {
-        return [
-            'id' => $a->id,
-            'title' => $a->title,
-            'starts_on' => $a->starts_on?->toDateString(),
-            'ends_on' => $a->ends_on?->toDateString(),
-            'cpd_points' => (float) $a->cpd_points,
-            'organisation' => $a->organisation,
-            'details' => $a->details,
-            'reflection' => $a->reflection,
-            'type' => $a->type->only(['slug', 'name', 'color', 'icon']),
-            'categories' => $a->categories->map->only(['slug', 'name'])->all(),
-            'domains' => $a->frameworkDomains->map->only(['code', 'name'])->all(),
-            'attribute_codes' => $a->frameworkAttributes()->pluck('code')->all(),
-            'projects' => $a->projects->map->only(['id', 'title'])->all(),
-            'attachments' => $a->attachments->map(fn ($att) => [
-                'id' => $att->id,
-                'name' => $att->original_filename,
-                'mime_type' => $att->mime_type,
-            ])->all(),
-        ];
     }
 }

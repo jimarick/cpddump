@@ -19,7 +19,6 @@ import { logout } from '@/routes';
 const TABS = [
     { label: 'Inbox', href: '/inbox' },
     { label: 'Timeline', href: '/timeline' },
-    { label: 'Activities', href: '/activities' },
     { label: 'Projects', href: '/projects' },
     { label: 'Reports', href: '/reports' },
 ];

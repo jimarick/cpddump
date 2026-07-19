@@ -124,7 +124,7 @@ export function SearchCommand() {
                                     <button
                                         key={`a${a.id}`}
                                         type="button"
-                                        onClick={() => go('/activities')}
+                                        onClick={() => go('/timeline')}
                                         className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-paper-alt"
                                     >
                                         <span

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Activity;
+use App\Models\ActivityType;
 use App\Services\StatsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,23 +22,16 @@ class TimelineController extends Controller
             ? $periods->firstWhere('id', (int) $request->query('period'))
             : $periods->firstWhere('is_current', true);
 
+        $profession = $user->profession;
+
         $activities = $period
             ? $user->activities()
                 ->where('appraisal_period_id', $period->id)
-                ->whereNotNull('starts_on')
-                ->with(['type:id,slug,name,color,icon', 'frameworkDomains:id,code', 'projects:id,title'])
-                ->orderBy('starts_on')
+                ->with(['type:id,slug,name,color,icon', 'categories:id,slug,name', 'frameworkDomains:id,code,name', 'projects:id,title', 'attachments:id,attachable_type,attachable_id,original_filename,mime_type'])
+                ->orderByDesc('starts_on')
+                ->orderByDesc('id')
                 ->get()
-                ->map(fn (Activity $a) => [
-                    'id' => $a->id,
-                    'title' => $a->title,
-                    'starts_on' => $a->starts_on->toDateString(),
-                    'cpd_points' => (float) $a->cpd_points,
-                    'organisation' => $a->organisation,
-                    'type' => $a->type->only(['slug', 'name', 'color', 'icon']),
-                    'domains' => $a->frameworkDomains->pluck('code')->all(),
-                    'projects' => $a->projects->pluck('title')->all(),
-                ])
+                ->map(fn (Activity $a) => $this->serialise($a))
             : collect();
 
         return Inertia::render('timeline', [
@@ -46,10 +40,43 @@ class TimelineController extends Controller
             'period' => $period?->only(['id', 'label', 'starts_on', 'ends_on', 'is_current']),
             'stats' => $stats->forPeriod($user, $period),
             'legend' => $activities
+                ->filter(fn ($a) => $a['starts_on'] !== null)
                 ->pluck('type')
                 ->unique('slug')
                 ->values(),
+            'reference' => [
+                'activityTypes' => ActivityType::availableTo($profession)->get(['id', 'slug', 'name', 'color', 'icon']),
+                'categories' => $profession?->categories()->get(['id', 'slug', 'name']) ?? [],
+                'domains' => $profession?->frameworkDomains()->with('frameworkAttributes:id,framework_domain_id,code,name')->get(['id', 'code', 'name']) ?? [],
+                'reflectionPrompts' => $profession?->reflectionPrompts() ?? [],
+                'projects' => $user->projects()->get(['id', 'title', 'kind']),
+            ],
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function serialise(Activity $a): array
+    {
+        return [
+            'id' => $a->id,
+            'title' => $a->title,
+            'starts_on' => $a->starts_on?->toDateString(),
+            'ends_on' => $a->ends_on?->toDateString(),
+            'cpd_points' => (float) $a->cpd_points,
+            'organisation' => $a->organisation,
+            'details' => $a->details,
+            'reflection' => $a->reflection,
+            'type' => $a->type->only(['slug', 'name', 'color', 'icon']),
+            'categories' => $a->categories->map->only(['slug', 'name'])->all(),
+            'domains' => $a->frameworkDomains->map->only(['code', 'name'])->all(),
+            'attribute_codes' => $a->frameworkAttributes()->pluck('code')->all(),
+            'projects' => $a->projects->map->only(['id', 'title'])->all(),
+            'attachments' => $a->attachments->map(fn ($att) => [
+                'id' => $att->id,
+                'name' => $att->original_filename,
+                'mime_type' => $att->mime_type,
+            ])->all(),
+        ];
     }
 
     /** Close the current window and open the next appraisal year. */

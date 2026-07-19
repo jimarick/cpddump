@@ -48,7 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('inbox/{item}/retry', [InboxItemController::class, 'retry'])->name('inbox.retry');
         Route::delete('inbox/{item}', [InboxItemController::class, 'dismiss'])->name('inbox.dismiss');
 
-        Route::get('activities', [ActivityController::class, 'index'])->name('activities.index');
+        Route::redirect('activities', '/timeline')->name('activities.index');
         Route::put('activities/{activity}', [ActivityController::class, 'update'])->name('activities.update');
         Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->name('activities.destroy');
 
