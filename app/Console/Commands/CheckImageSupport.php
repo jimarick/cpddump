@@ -39,6 +39,33 @@ class CheckImageSupport extends Command
             $supported = \Imagick::queryFormats($format) !== [];
             $this->line(sprintf('  %-5s %s', $format, $supported ? '✔ supported' : '✘ not supported'));
         }
+
+        $this->reportPdfRender();
+    }
+
+    /**
+     * queryFormats('PDF') only proves the delegate is registered; actually
+     * rasterising needs the Ghostscript binary present AND the ImageMagick
+     * security policy to permit PDF coders (commonly disabled in policy.xml).
+     */
+    private function reportPdfRender(): void
+    {
+        $pdf = "%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+            ."2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+            ."3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 72 72]>>endobj\n"
+            ."trailer<</Root 1 0 R>>\n%%EOF";
+
+        try {
+            $im = new \Imagick;
+            $im->setResolution(72, 72);
+            $im->readImageBlob($pdf);
+            $im->setImageFormat('jpeg');
+            $rendered = strlen($im->getImageBlob()) > 0;
+            $im->clear();
+            $this->line('  PDF→image render '.($rendered ? '✔ works (Ghostscript present, policy allows)' : '✘ produced empty output'));
+        } catch (\Throwable $e) {
+            $this->line('  PDF→image render ✘ FAILED: '.$e->getMessage());
+        }
     }
 
     private function reportGd(): void
