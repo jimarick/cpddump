@@ -40,6 +40,10 @@ class TranscribeVoiceNote implements ShouldQueue
             // The transcript IS the content — the hash must reflect it, or
             // the analysis cache will treat all voice notes as identical.
             app(EvidenceIngestor::class)->refreshContentHash($item);
+
+            // The recording has served its purpose: transcript kept (until
+            // analysis), audio gone — before the user even sees the draft.
+            $item->attachments->filter(fn ($a) => $a->isAudio())->each->purgeToStub();
         }
 
         // Back into the pipeline: other attachments (a PDF alongside the

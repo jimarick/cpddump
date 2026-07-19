@@ -27,7 +27,7 @@ class TimelineController extends Controller
         $activities = $period
             ? $user->activities()
                 ->where('appraisal_period_id', $period->id)
-                ->with(['type:id,slug,name,color,icon', 'categories:id,slug,name', 'frameworkDomains:id,code,name', 'projects:id,title', 'attachments:id,attachable_type,attachable_id,original_filename,mime_type'])
+                ->with(['type:id,slug,name,color,icon', 'categories:id,slug,name', 'frameworkDomains:id,code,name', 'projects:id,title', 'attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at'])
                 ->orderByDesc('starts_on')
                 ->orderByDesc('id')
                 ->get()
@@ -75,6 +75,7 @@ class TimelineController extends Controller
                 'id' => $att->id,
                 'name' => $att->original_filename,
                 'mime_type' => $att->mime_type,
+                'purged' => $att->isPurged(),
             ])->all(),
         ];
     }

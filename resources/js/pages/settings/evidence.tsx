@@ -20,12 +20,52 @@ interface Props {
     dumpAddress: string | null;
     weeklyEmailEnabled: boolean;
     ignoreRules: IgnoreRuleData[];
+    attachmentRetention: 'ask' | 'always' | 'never';
+    storageUsedBytes: number;
+    storageQuotaBytes: number;
+}
+
+const RETENTION_OPTIONS: {
+    value: 'ask' | 'always' | 'never';
+    label: string;
+    hint: string;
+}[] = [
+    {
+        value: 'ask',
+        label: 'Ask me for each file',
+        hint: 'At approval you choose per file. Unkept files are deleted; your written entry always remains.',
+    },
+    {
+        value: 'always',
+        label: 'Always keep my files',
+        hint: 'Files stay attached to activities without asking. Only keep files free of personal or sensitive information.',
+    },
+    {
+        value: 'never',
+        label: 'Never keep files',
+        hint: 'Everything is deleted once read — CPD Dump stores only your written entries.',
+    },
+];
+
+function formatBytes(bytes: number): string {
+    if (bytes >= 1_073_741_824) {
+        return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
+    }
+
+    if (bytes >= 1_048_576) {
+        return `${(bytes / 1_048_576).toFixed(1)} MB`;
+    }
+
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 export default function EvidenceSettings({
     dumpAddress,
     weeklyEmailEnabled,
     ignoreRules,
+    attachmentRetention,
+    storageUsedBytes,
+    storageQuotaBytes,
 }: Props) {
     const [copied, setCopied] = useState(false);
 
@@ -118,6 +158,66 @@ export default function EvidenceSettings({
                         />
                         <Label>Send me the weekly review</Label>
                     </label>
+                </div>
+
+                <div>
+                    <HeadingSmall
+                        title="Keeping your files"
+                        description="What happens to uploaded files after the AI has read them and you approve."
+                    />
+                    <div className="mt-3 grid gap-2">
+                        {RETENTION_OPTIONS.map((option) => (
+                            <label
+                                key={option.value}
+                                className={`flex cursor-pointer items-start gap-2.5 rounded-[10px] border-2 p-3 transition-colors ${
+                                    attachmentRetention === option.value
+                                        ? 'border-ink bg-white'
+                                        : 'border-stone-200 bg-stone-50 hover:border-stone-300'
+                                }`}
+                            >
+                                <input
+                                    type="radio"
+                                    name="attachment_retention"
+                                    checked={
+                                        attachmentRetention === option.value
+                                    }
+                                    onChange={() =>
+                                        router.patch('/settings/evidence', {
+                                            attachment_retention: option.value,
+                                        })
+                                    }
+                                    className="mt-1 accent-brand"
+                                />
+                                <span>
+                                    <span className="block text-[13.5px] font-semibold text-ink">
+                                        {option.label}
+                                    </span>
+                                    <span className="block text-[12.5px] text-stone-500">
+                                        {option.hint}
+                                    </span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="mt-4">
+                        <div className="flex items-baseline justify-between text-[12.5px]">
+                            <span className="font-semibold text-stone-600">
+                                Storage used
+                            </span>
+                            <span className="text-stone-400">
+                                {formatBytes(storageUsedBytes)} of{' '}
+                                {formatBytes(storageQuotaBytes)}
+                            </span>
+                        </div>
+                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-stone-200">
+                            <div
+                                className="h-full rounded-full bg-brand"
+                                style={{
+                                    width: `${Math.min(100, Math.max(1, (storageUsedBytes / storageQuotaBytes) * 100))}%`,
+                                }}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div>

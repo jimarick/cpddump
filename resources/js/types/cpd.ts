@@ -50,6 +50,8 @@ export interface AttachmentRef {
     id: number;
     name: string;
     mime_type: string;
+    /** File deliberately not kept — row is an honest metadata stub. */
+    purged?: boolean;
 }
 
 export interface PiiFlag {

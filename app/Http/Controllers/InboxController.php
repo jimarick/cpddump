@@ -19,7 +19,7 @@ class InboxController extends Controller
 
         $items = $user->inboxItems()
             ->open()
-            ->with('attachments:id,attachable_type,attachable_id,original_filename,mime_type')
+            ->with('attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at')
             ->latest()
             ->get()
             ->map(fn ($item) => [
@@ -37,11 +37,13 @@ class InboxController extends Controller
                     'id' => $a->id,
                     'name' => $a->original_filename,
                     'mime_type' => $a->mime_type,
+                    'purged' => $a->isPurged(),
                 ])->all(),
             ]);
 
         return Inertia::render('inbox', [
             'items' => $items,
+            'attachmentRetention' => $user->attachment_retention,
             'period' => $period?->only(['id', 'label', 'starts_on', 'ends_on']),
             'reference' => [
                 'activityTypes' => ActivityType::availableTo($profession)->get(['id', 'slug', 'name', 'color', 'icon']),

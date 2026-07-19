@@ -147,6 +147,11 @@ class InboxItem extends Model
                 $user->activities()->whereIn('id', $payload['linked_activity_ids'] ?? [])->pluck('id')
             );
 
+            // Retention first (delete-by-default), then hand the survivors
+            // and stubs to the activity — after the re-point this item's
+            // attachments() relation is empty.
+            $this->applyRetention($payload['keep_attachment_ids'] ?? []);
+
             $this->attachments()->update([
                 'attachable_type' => $activity->getMorphClass(),
                 'attachable_id' => $activity->id,
@@ -206,5 +211,47 @@ class InboxItem extends Model
                 ->put('redacted_at', now()->toIso8601String())
                 ->all(),
         ]);
+    }
+
+    /**
+     * Delete-by-default: files survive approval only if the user kept them.
+     * "ask" honours the per-file choices from the approve form; "always"
+     * and "never" skip the question entirely. Purged files leave stubs.
+     *
+     * @param  array<int, int|string>  $keepIds
+     */
+    private function applyRetention(array $keepIds): void
+    {
+        $retention = $this->user->attachment_retention ?? 'ask';
+        $keepIds = array_map('intval', $keepIds);
+
+        foreach ($this->attachments()->whereNull('purged_at')->get() as $attachment) {
+            $keep = match ($retention) {
+                'always' => true,
+                'never' => false,
+                default => in_array($attachment->id, $keepIds, true),
+            };
+
+            if (! $keep) {
+                $attachment->purgeToStub();
+            }
+        }
+    }
+
+    /**
+     * Once analysis has succeeded, the raw source text has served its
+     * purpose: the drafted entry is the evidence. Scrub free-floating text
+     * (email bodies, transcripts, fetched pages) and the extracted text of
+     * already-purged files (spreadsheets, parsed emails). Text belonging to
+     * still-stored files stays until the file's own fate is decided.
+     */
+    public function scrubSourceText(): void
+    {
+        $this->redactPayload();
+
+        $this->attachments()
+            ->whereNotNull('purged_at')
+            ->whereNotNull('extracted_text')
+            ->update(['extracted_text' => null]);
     }
 }

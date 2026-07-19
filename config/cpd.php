@@ -53,6 +53,10 @@ return [
         // through rasterisation like any scanned document.
         'text_pdf_max_bytes' => env('CPD_TEXT_PDF_MAX_BYTES', 10_485_760),
 
+        // Per-user cap on stored attachment bytes (500MB). Post-normalisation
+        // files are small, so an honest user never gets near this.
+        'user_storage_quota_bytes' => env('CPD_USER_STORAGE_QUOTA_BYTES', 524_288_000),
+
         'allowed_extensions' => [
             'pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif',
             'tiff', 'tif', 'avif', 'bmp',

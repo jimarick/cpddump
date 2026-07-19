@@ -81,6 +81,8 @@ class AnalyzeInboxItem implements ShouldQueue
                 'failure_reason' => null,
             ]);
 
+            $item->scrubSourceText();
+
             return;
         }
 
@@ -108,6 +110,10 @@ class AnalyzeInboxItem implements ShouldQueue
             'analysed_at' => now(),
             'failure_reason' => null,
         ]);
+
+        // The drafted entry now carries the evidence — the raw source text
+        // (email body, transcript, spreadsheet rows) has done its job.
+        $item->scrubSourceText();
 
         $this->reconcileRecurrence($item, $analysis);
     }

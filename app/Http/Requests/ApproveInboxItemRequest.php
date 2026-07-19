@@ -37,6 +37,8 @@ class ApproveInboxItemRequest extends FormRequest
             'project_ids.*' => ['integer'],
             'linked_activity_ids' => ['nullable', 'array'],
             'linked_activity_ids.*' => ['integer'],
+            'keep_attachment_ids' => ['nullable', 'array'],
+            'keep_attachment_ids.*' => ['integer'],
         ];
     }
 }

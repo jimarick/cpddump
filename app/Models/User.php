@@ -39,11 +39,12 @@ use Laravel\Sanctum\HasApiTokens;
  * @property AiProvider|null $ai_provider
  * @property string|null $ai_api_key
  * @property bool $weekly_email_enabled
+ * @property string $attachment_retention
  * @property Carbon|null $onboarded_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'profession_id', 'timezone', 'ai_provider', 'ai_api_key', 'weekly_email_enabled', 'onboarded_at'])]
+#[Fillable(['name', 'email', 'password', 'profession_id', 'timezone', 'ai_provider', 'ai_api_key', 'weekly_email_enabled', 'attachment_retention', 'onboarded_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'ai_api_key'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -105,6 +106,12 @@ class User extends Authenticatable implements PasskeyUser
     public function inboxItems(): HasMany
     {
         return $this->hasMany(InboxItem::class);
+    }
+
+    /** @return HasMany<Attachment, $this> */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(Attachment::class);
     }
 
     /** @return HasMany<Activity, $this> */

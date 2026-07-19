@@ -80,6 +80,14 @@ class AttachmentStore
             }
         }
 
+        // Per-user storage quota: full users stop accumulating files but
+        // keep the text pipeline (extraction still ran on $contents upstream).
+        $used = (int) Attachment::where('user_id', $item->user_id)->whereNull('purged_at')->sum('size');
+
+        if ($used + strlen($contents) > (int) config('cpd.ingest.user_storage_quota_bytes')) {
+            return null;
+        }
+
         $disk = config('filesystems.default');
         $path = "evidence/{$item->user_id}/".Str::uuid().($extension !== '' ? ".{$extension}" : '');
 

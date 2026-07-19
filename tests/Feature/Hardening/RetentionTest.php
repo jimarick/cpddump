@@ -35,7 +35,7 @@ test('binning an inbox item deletes its stored files immediately', function () {
         ->and($item->fresh()->status->value)->toBe('dismissed');
 });
 
-test('approved evidence keeps its files until the activity is deleted', function () {
+test('approved evidence keeps kept files until the activity is deleted', function () {
     Storage::fake('local');
 
     $user = ukDoctor();
@@ -50,9 +50,11 @@ test('approved evidence keeps its files until the activity is deleted', function
         'category_slugs' => [],
         'domain_codes' => [],
         'attribute_codes' => [],
+        // Delete-by-default: the file survives only because it was kept.
+        'keep_attachment_ids' => [$item->attachments()->sole()->id],
     ]);
 
-    // Approval re-points the file to the activity — nothing deleted.
+    // Approval re-points the kept file to the activity — nothing deleted.
     Storage::disk('local')->assertExists($path);
     expect($activity->attachments()->count())->toBe(1);
 

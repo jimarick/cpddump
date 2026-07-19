@@ -62,6 +62,7 @@ interface Props {
     reference: ReferenceData;
     dumpAddress: string | null;
     recurrences: RecurrenceData[];
+    attachmentRetention: 'ask' | 'always' | 'never';
 }
 
 export default function Inbox({
@@ -70,6 +71,7 @@ export default function Inbox({
     reference,
     dumpAddress,
     recurrences,
+    attachmentRetention,
 }: Props) {
     const [reviewing, setReviewing] = useState<InboxItemData | null>(null);
     const [adding, setAdding] = useState(false);
@@ -286,6 +288,7 @@ export default function Inbox({
                     key={reviewing.id}
                     item={reviewing}
                     reference={reference}
+                    retention={attachmentRetention}
                     onClose={() => setReviewing(null)}
                 />
             )}
@@ -778,10 +781,12 @@ function stepForErrors(errors: Record<string, string>): number {
 function ReviewDialog({
     item,
     reference,
+    retention,
     onClose,
 }: {
     item: InboxItemData;
     reference: ReferenceData;
+    retention: 'ask' | 'always' | 'never';
     onClose: () => void;
 }) {
     const analysis = item.ai_analysis;
@@ -806,6 +811,9 @@ function ReviewDialog({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
     const [neverAgain, setNeverAgain] = useState(false);
+    const [keepIds, setKeepIds] = useState<number[]>([]);
+
+    const keepableFiles = item.attachments.filter((a) => !a.purged);
 
     const piiFlags = item.ai_warnings?.pii_flags ?? [];
     const missingEvidence = item.ai_warnings?.missing_evidence ?? [];
@@ -825,6 +833,7 @@ function ReviewDialog({
                 starts_on: values.starts_on || null,
                 ends_on: values.ends_on || null,
                 reflection_draft: values.reflection,
+                keep_attachment_ids: keepIds,
             },
             {
                 onSuccess: onClose,
@@ -993,6 +1002,61 @@ function ReviewDialog({
                         )}
 
                         <div className="mt-2 grid gap-3 border-t border-dashed border-stone-300 pt-4">
+                            {lastStep &&
+                                retention === 'ask' &&
+                                keepableFiles.length > 0 && (
+                                    <div className="rounded-lg border-[1.5px] border-dashed border-stone-300 bg-stone-50 p-3">
+                                        <p className="text-[13px] font-semibold text-ink">
+                                            Keep the file
+                                            {keepableFiles.length > 1
+                                                ? 's'
+                                                : ''}{' '}
+                                            with this activity?
+                                        </p>
+                                        <p className="mt-0.5 text-[12px] text-stone-500">
+                                            Unticked files are deleted when you
+                                            approve — your written entry is
+                                            kept either way. Only keep a file
+                                            if you're sure it contains no
+                                            personal or sensitive information.
+                                        </p>
+                                        <div className="mt-2 grid gap-1.5">
+                                            {keepableFiles.map((file) => (
+                                                <label
+                                                    key={file.id}
+                                                    className="flex items-start gap-2 text-[13px] text-stone-700"
+                                                >
+                                                    <Checkbox
+                                                        checked={keepIds.includes(
+                                                            file.id,
+                                                        )}
+                                                        onCheckedChange={(v) =>
+                                                            setKeepIds(
+                                                                (ids) =>
+                                                                    v === true
+                                                                        ? [
+                                                                              ...ids,
+                                                                              file.id,
+                                                                          ]
+                                                                        : ids.filter(
+                                                                              (
+                                                                                  id,
+                                                                              ) =>
+                                                                                  id !==
+                                                                                  file.id,
+                                                                          ),
+                                                            )
+                                                        }
+                                                        className="mt-0.5"
+                                                    />
+                                                    <span className="truncate">
+                                                        {file.name}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             {canIgnore && lastStep && (
                                 <label className="flex items-start gap-2 text-[13px] text-stone-600">
                                     <Checkbox
