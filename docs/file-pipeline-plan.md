@@ -150,10 +150,14 @@ when extraction comes back thin — do not silently pretend we read them.
 
 ## Pipeline D — Audio (m4a, webm, mp3, wav — add mp3/wav to allowlist)
 
-Unchanged transcription (OpenAI, works well). Lifecycle change per Tier-1
-decision: **the audio file is deleted on approval** — the transcript is the
-evidence and is already kept in the payload/extracted text. Pending items keep
-their audio (user may want to re-listen while reviewing); dismiss already purges.
+Unchanged transcription (OpenAI, works well). Lifecycle (revised 2026-07-19,
+stricter than the original "delete on approval"): **the audio file is deleted
+immediately after successful transcription** — before approval, before the user
+even sees the draft. The transcript is the evidence; it stays in the payload for
+review, then is redacted at resolve like all payload text (the approved
+activity's reflection/details are what remain). Failed transcription keeps the
+file for retry until the item is resolved. Audio is never offered for keeping —
+no re-listen after transcription.
 
 ## Pipeline E — New types worth accepting
 
@@ -166,36 +170,42 @@ their audio (user may want to re-listen while reviewing); dismiss already purges
 | **.msg** (Outlook proprietary) | Skip for v1 — needs another parser dependency; the dump address covers the "it's an email" case. Reject with a friendly "forward it to your dump address instead". |
 | **.zip / video** | Stay rejected (decided 2026-07-18). |
 
-## User option — zero-retention mode (added 2026-07-19)
+## Retention model — delete by default, keep by choice (revised 2026-07-19)
 
-A per-user toggle in **Settings → Evidence**: *"Don't keep my files after AI
-analysis."* Default **off** (normal lifecycle applies).
+**Nothing survives resolution unless the user explicitly asks.** This replaces
+the earlier "zero-retention toggle on an otherwise keep-everything default" —
+the polarity is now flipped.
 
-When on:
+- **During review** (pending/ready): the file remains in storage so the user
+  can view what they're approving.
+- **At approval**, for keepable types only — **PDFs, office documents,
+  images** — the review modal asks: *"Keep this file with your activity?"*
+  with the warning *"only keep it if you're sure it contains no personal or
+  sensitive information."* **Default: No.** Unkept files are purged at
+  approval; extracted text and the drafted reflection remain (DB rows, the
+  actual evidence trail).
+- **Never offered for keeping** (deleted before the question can arise):
+  audio (gone straight after transcription — Pipeline D), raw emails (S3
+  object deleted at ingest, body redacted at resolve), spreadsheets/text
+  types (never stored as files at all).
+- **Dismiss** purges everything, as today.
+- Unkept/purged attachments leave a **metadata stub** (`purged_at`, filename,
+  size, mime) so activities and the report zip can honestly show *"file not
+  kept"* instead of silently shrinking.
+- **PII gate composes with this:** a scan- or AI-flagged file can only be
+  kept via the explicit *"Keep — I've checked"* affirmation.
 
-- Every attachment/upload is deleted from storage **as soon as analysis
-  completes** (status → ready). The AI needs the file to analyse it, so
-  deletion is post-analysis, not pre. Extracted text, transcripts, and the
-  AI draft are kept — they're DB rows, not files, and they *are* the evidence
-  trail.
-- The attachment row survives as a **metadata stub** (`purged_at`, filename,
-  size, mime) so the UI can say honestly: *"file discarded after analysis —
-  your retention setting"* in the review modal and on activities, and the
-  report zip export can list what's absent instead of silently shrinking.
-- Failed analyses keep their file until the item is resolved (retry needs the
-  bytes); resolution then purges as usual.
-- Voice notes behave the same as everything else here (transcript kept, audio
-  gone immediately rather than at approval).
+**Settings refinements** (Settings → Evidence), for users who don't want the
+per-file question:
 
-**Settings copy must carry a real warning:** appraisal panels often want the
-actual certificate. With this on, CPD Dump holds only text — the user is
-choosing to keep originals themselves. Possible later refinement: a per-item
-"keep this one" override at review time; not in v1 of this.
+- *Always keep my files, don't ask* — old behaviour, for those who want CPD
+  Dump to hold their originals for appraisal.
+- *Never keep files, don't ask* — zero-retention; the question is skipped and
+  everything purges at analysis-complete.
 
-Toggle mid-stream: turning it **on** applies to new uploads only (no
-retroactive purge in v1 — a separate explicit "delete all my stored files"
-button could come later); turning it **off** starts keeping again from that
-point.
+No retroactive changes when settings flip — applies to new items only; a
+separate explicit "delete all my stored files" button is a possible later
+addition.
 
 ## Data protection — accidental patient data (added 2026-07-19)
 
@@ -230,9 +240,10 @@ didn't check. Under UK GDPR that's special-category data we never wanted.
 3. **We currently store the identifier ourselves — fix it.** `pii_flags`
    excerpts live in `ai_analysis`, which survives resolve/dismiss "for dedupe
    and audit". On resolve, excerpts are redacted down to type + count only.
-4. **Retention ladder** (extends zero-retention mode): *keep everything* /
-   **auto-delete any file the scan or AI flags** (middle setting — likely the
-   sweet spot for most doctors) / *keep nothing*.
+4. **Delete-by-default retention** (see Retention model above): keeping a
+   file is now an explicit per-file opt-in at approval, with a
+   check-for-sensitive-information warning — accidental PID in a kept file
+   requires the user to have actively said "keep" past two prompts.
 5. **High-risk types never store originals.** csv/xlsx (the classic PID
    vector: audit data) already store capped text only under this plan — the
    PID scan runs on that text before it's written.
@@ -265,7 +276,7 @@ is the normalised, smaller artefact.
 | 2 | Scanned-PDF rasteriser | short evening | step 0 says yes |
 | 3 | Office embedded-media extraction | short evening | step 1 |
 | 4 | New types (.eml, .csv, .md/.rtf) + allowlist/mime-sniff tidy | evening | step 1 |
-| 5 | Audio lifecycle + per-user quota + usage meter + **retention ladder** (incl. zero-retention) | evening | — |
+| 5 | **Delete-by-default retention** (keep-file prompt at approval, settings overrides) + audio delete-post-transcription + per-user quota + usage meter | evening | — |
 | 6 | **PID defence pack**: deterministic scanner, PII approve-gate + one-click scrub, flag-excerpt redaction on resolve, post-approval remedy | evening | — |
 
 Each step is independently shippable; step 1 alone resolves the only live bug.
