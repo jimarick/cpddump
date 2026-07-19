@@ -32,7 +32,7 @@ class CheckImageSupport extends Command
             return;
         }
 
-        $version = \Imagick::getVersion()['versionString'] ?? 'unknown';
+        $version = \Imagick::getVersion()['versionString'];
         $this->info('Imagick: loaded ('.$version.')');
 
         foreach (['HEIC', 'HEIF', 'AVIF', 'WEBP', 'TIFF', 'PDF'] as $format) {

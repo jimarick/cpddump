@@ -4,6 +4,7 @@ use App\Jobs\ExtractAttachmentText;
 use App\Jobs\ProcessSesInboundEmail;
 use App\Mail\ForwardedInboundEmail;
 use App\Models\InboxItem;
+use App\Services\AttachmentStore;
 use App\Services\EvidenceIngestor;
 use App\Services\SesObjectStore;
 use Illuminate\Support\Facades\Http;
@@ -130,7 +131,7 @@ test('a forwarded email becomes an inbox item and the raw copy is deleted', func
     $store = fakeSesStore(['landing/inbound/mid-1' => rawEmail('u_testtoken@cpddump.com')]);
 
     (new ProcessSesInboundEmail('landing', 'inbound/mid-1', ['u_testtoken@cpddump.com'], 'mid-1'))
-        ->handle($store, app(EvidenceIngestor::class));
+        ->handle($store, app(EvidenceIngestor::class), app(AttachmentStore::class));
 
     $item = $user->inboxItems()->firstOrFail();
 
@@ -161,7 +162,7 @@ test('disallowed attachment types are never stored from SES email', function () 
     ]);
 
     (new ProcessSesInboundEmail('landing', 'inbound/mid-2', ['u_testtoken@cpddump.com'], 'mid-2'))
-        ->handle($store, app(EvidenceIngestor::class));
+        ->handle($store, app(EvidenceIngestor::class), app(AttachmentStore::class));
 
     $item = $user->inboxItems()->firstOrFail();
 
@@ -175,7 +176,7 @@ test('unknown recipients are dropped silently and the object still deleted', fun
     $store = fakeSesStore(['landing/inbound/mid-3' => rawEmail('u_nobody@cpddump.com')]);
 
     (new ProcessSesInboundEmail('landing', 'inbound/mid-3', ['u_nobody@cpddump.com'], 'mid-3'))
-        ->handle($store, app(EvidenceIngestor::class));
+        ->handle($store, app(EvidenceIngestor::class), app(AttachmentStore::class));
 
     expect(InboxItem::count())->toBe(0)
         ->and($store->deleted)->toBe(['landing/inbound/mid-3']);
@@ -188,7 +189,7 @@ test('mail to a human alias is relayed to the contact address, not ingested', fu
     $store = fakeSesStore(['landing/inbound/mid-4' => rawEmail('hello@cpddump.com')]);
 
     (new ProcessSesInboundEmail('landing', 'inbound/mid-4', ['hello@cpddump.com'], 'mid-4'))
-        ->handle($store, app(EvidenceIngestor::class));
+        ->handle($store, app(EvidenceIngestor::class), app(AttachmentStore::class));
 
     Mail::assertQueued(ForwardedInboundEmail::class, function (ForwardedInboundEmail $mail) {
         return $mail->originalSubject === 'Your ALS certificate'

@@ -5,12 +5,12 @@ namespace App\Jobs;
 use App\Enums\EvidenceSource;
 use App\Models\InboxItem;
 use App\Models\User;
+use App\Services\AttachmentStore;
 use App\Services\EvidenceIngestor;
 use App\Services\ResendInbound;
 use App\Support\HtmlToText;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProcessInboundEmail implements ShouldQueue
@@ -93,19 +93,14 @@ class ProcessInboundEmail implements ShouldQueue
         }
 
         $contents = $resend->download((string) $downloadUrl);
-        $disk = config('filesystems.default');
-        $path = "evidence/{$item->user_id}/".Str::uuid().'.'.$extension;
 
-        Storage::disk($disk)->put($path, $contents);
-
-        $item->attachments()->create([
-            'user_id' => $item->user_id,
-            'disk' => $disk,
-            'path' => $path,
-            'original_filename' => $filename,
-            'mime_type' => (string) ($attachment['content_type'] ?? 'application/octet-stream'),
-            'size' => $size ?: strlen($contents),
-        ]);
+        app(AttachmentStore::class)->store(
+            item: $item,
+            contents: $contents,
+            originalFilename: $filename,
+            extension: $extension,
+            fallbackMime: (string) ($attachment['content_type'] ?? 'application/octet-stream'),
+        );
     }
 
     private function htmlToText(string $html): string

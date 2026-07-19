@@ -50,7 +50,8 @@ return [
          | evidence folder, however it's renamed).
          */
         'allowed_extensions' => [
-            'pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic', 'gif',
+            'pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif',
+            'tiff', 'tif', 'avif', 'bmp',
             'doc', 'docx', 'ppt', 'pptx', 'txt', 'ics',
         ],
     ],

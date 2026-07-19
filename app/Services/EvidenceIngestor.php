@@ -21,6 +21,8 @@ use Illuminate\Http\UploadedFile;
  */
 class EvidenceIngestor
 {
+    public function __construct(private AttachmentStore $attachments) {}
+
     /**
      * @param  array<string, mixed>  $rawPayload  Source-specific truth, stored immutably.
      * @param  array<int, UploadedFile>  $files
@@ -135,17 +137,19 @@ class EvidenceIngestor
 
     private function storeAttachment(InboxItem $item, UploadedFile $file): void
     {
-        $disk = config('filesystems.default');
-        $path = $file->store("evidence/{$item->user_id}", $disk);
+        $contents = $file->get();
 
-        $item->attachments()->create([
-            'user_id' => $item->user_id,
-            'disk' => $disk,
-            'path' => $path,
-            'original_filename' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
-            'size' => $file->getSize() ?: 0,
-        ]);
+        if ($contents === false) {
+            return;
+        }
+
+        $this->attachments->store(
+            item: $item,
+            contents: $contents,
+            originalFilename: $file->getClientOriginalName(),
+            extension: strtolower($file->getClientOriginalExtension()) ?: (string) $file->guessExtension(),
+            fallbackMime: $file->getMimeType() ?? 'application/octet-stream',
+        );
     }
 
     /**
@@ -159,7 +163,7 @@ class EvidenceIngestor
     {
         $fingerprints = $item->attachments()
             ->get()
-            ->map(fn ($a) => "{$a->original_filename}:{$a->size}")
+            ->map(fn ($a) => $a->source_fingerprint ?? "{$a->original_filename}:{$a->size}")
             ->sort()
             ->values()
             ->all();

@@ -6,13 +6,13 @@ use App\Enums\EvidenceSource;
 use App\Mail\ForwardedInboundEmail;
 use App\Models\InboxItem;
 use App\Models\User;
+use App\Services\AttachmentStore;
 use App\Services\EvidenceIngestor;
 use App\Services\SesObjectStore;
 use App\Support\HtmlToText;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use ZBateson\MailMimeParser\Header\HeaderConsts;
 use ZBateson\MailMimeParser\IMessage;
@@ -30,6 +30,8 @@ class ProcessSesInboundEmail implements ShouldQueue
 
     private const MAX_ATTACHMENT_BYTES = 26_214_400; // 25 MB
 
+    private AttachmentStore $attachments;
+
     /** @param array<int, string> $recipients */
     public function __construct(
         public string $bucket,
@@ -38,8 +40,10 @@ class ProcessSesInboundEmail implements ShouldQueue
         public string $messageId,
     ) {}
 
-    public function handle(SesObjectStore $store, EvidenceIngestor $ingestor): void
+    public function handle(SesObjectStore $store, EvidenceIngestor $ingestor, AttachmentStore $attachments): void
     {
+        $this->attachments = $attachments;
+
         $raw = $store->get($this->bucket, $this->key);
 
         if ($raw === null) {
@@ -118,19 +122,13 @@ class ProcessSesInboundEmail implements ShouldQueue
             return;
         }
 
-        $disk = config('filesystems.default');
-        $path = "evidence/{$item->user_id}/".Str::uuid().'.'.$extension;
-
-        Storage::disk($disk)->put($path, $contents);
-
-        $item->attachments()->create([
-            'user_id' => $item->user_id,
-            'disk' => $disk,
-            'path' => $path,
-            'original_filename' => $filename,
-            'mime_type' => (string) ($part->getContentType() ?: 'application/octet-stream'),
-            'size' => strlen($contents),
-        ]);
+        $this->attachments->store(
+            item: $item,
+            contents: $contents,
+            originalFilename: $filename,
+            extension: $extension,
+            fallbackMime: (string) ($part->getContentType() ?: 'application/octet-stream'),
+        );
     }
 
     /**
