@@ -166,6 +166,37 @@ their audio (user may want to re-listen while reviewing); dismiss already purges
 | **.msg** (Outlook proprietary) | Skip for v1 — needs another parser dependency; the dump address covers the "it's an email" case. Reject with a friendly "forward it to your dump address instead". |
 | **.zip / video** | Stay rejected (decided 2026-07-18). |
 
+## User option — zero-retention mode (added 2026-07-19)
+
+A per-user toggle in **Settings → Evidence**: *"Don't keep my files after AI
+analysis."* Default **off** (normal lifecycle applies).
+
+When on:
+
+- Every attachment/upload is deleted from storage **as soon as analysis
+  completes** (status → ready). The AI needs the file to analyse it, so
+  deletion is post-analysis, not pre. Extracted text, transcripts, and the
+  AI draft are kept — they're DB rows, not files, and they *are* the evidence
+  trail.
+- The attachment row survives as a **metadata stub** (`purged_at`, filename,
+  size, mime) so the UI can say honestly: *"file discarded after analysis —
+  your retention setting"* in the review modal and on activities, and the
+  report zip export can list what's absent instead of silently shrinking.
+- Failed analyses keep their file until the item is resolved (retry needs the
+  bytes); resolution then purges as usual.
+- Voice notes behave the same as everything else here (transcript kept, audio
+  gone immediately rather than at approval).
+
+**Settings copy must carry a real warning:** appraisal panels often want the
+actual certificate. With this on, CPD Dump holds only text — the user is
+choosing to keep originals themselves. Possible later refinement: a per-item
+"keep this one" override at review time; not in v1 of this.
+
+Toggle mid-stream: turning it **on** applies to new uploads only (no
+retroactive purge in v1 — a separate explicit "delete all my stored files"
+button could come later); turning it **off** starts keeping again from that
+point.
+
 ## Cross-cutting (unchanged from Tier-1 agreement)
 
 - **Mime sniffing** via `finfo` at ingest — extension renames can't smuggle types.
@@ -186,6 +217,6 @@ their audio (user may want to re-listen while reviewing); dismiss already purges
 | 2 | Scanned-PDF rasteriser | short evening | step 0 says yes |
 | 3 | Office embedded-media extraction | short evening | step 1 |
 | 4 | New types (.eml, .csv, .md/.rtf) + allowlist/mime-sniff tidy | evening | step 1 |
-| 5 | Audio lifecycle + per-user quota + usage meter | evening | — |
+| 5 | Audio lifecycle + per-user quota + usage meter + **zero-retention toggle** | evening | — |
 
 Each step is independently shippable; step 1 alone resolves the only live bug.
