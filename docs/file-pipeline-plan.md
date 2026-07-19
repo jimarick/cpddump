@@ -335,6 +335,41 @@ retained ~30 days for abuse monitoring; the file itself never goes to a
 provider unless it's analysable (images/PDFs), and under this plan what goes
 is the normalised, smaller artefact.
 
+## Deletion semantics — delete means delete (decided 2026-07-19)
+
+Current state (verified): dismissed inbox items keep their full `ai_analysis`
+forever; deleted activities are soft-deleted ghosts (reflection and all) with
+no undo UI; account deletion is a bare `$user->delete()` relying on DB
+cascades that skip file-purge hooks. All replaced:
+
+- **Dismissed inbox items: hard-deleted.** Attachment purge (exists) + row
+  gone. No skeletons. Consequence accepted: re-forwarding a previously
+  binned email re-ingests and re-bills pennies (daily cap + ignore rules
+  still guard).
+- **Calendar carve-out** — the one dedupe that must survive: a dedicated
+  `dismissed_calendar_events` table (user_id, calendar UID, dismissed_at)
+  written on dismissal of calendar-sourced items, checked by the weekly
+  sync so binned events never resurrect. Self-prunes rows older than the
+  current sync window.
+- **Deleted activities: hard delete, no bin.** SoftDeletes trait removed;
+  pivots cascade; file purge stays. The confirm is a **proper named modal**,
+  not a browser confirm: *"Delete '\{title\}'? This permanently deletes it,
+  including your reflection. This cannot be undone."* (It carries the full
+  weight of the absent undo.)
+- **Live-item dedupe unchanged**: `content_hash`/`external_id` still work
+  across existing (non-deleted) items; the uniqueness check scopes to live
+  rows.
+- **`ai_generations` cost rows survive deletion** (they hold tokens/cost,
+  no content) — budget caps and admin usage must not reset when a user
+  bins items; morph reference nulls out.
+- **Account deletion becomes an explicit cascade job**: purge every stored
+  file, hard-delete items/activities/recurrences/reports/feeds/calendar
+  dismissals, drop the Paddle customer, then the user row.
+- **One-time backfill**: purge existing soft-deleted activity ghosts and
+  strip/delete historic dismissed items in production.
+- Privacy page gains the matching row: *"Anything you bin or delete —
+  deleted immediately and permanently, including our AI's notes about it."*
+
 ## Cross-cutting (unchanged from Tier-1 agreement)
 
 - **Mime sniffing** via `finfo` at ingest — extension renames can't smuggle types.
@@ -358,5 +393,6 @@ is the normalised, smaller artefact.
 | 5 | **Delete-by-default retention** (keep-file prompt at approval, settings overrides) + audio delete-post-transcription + per-user quota + usage meter | evening | — |
 | 6 | **PID defence pack**: deterministic scanner, PII approve-gate + per-type one-click scrub, flag-excerpt redaction on resolve, post-approval remedy | evening | — |
 | 7 | **Privacy page**: "What happens to your uploads" plain-English table (copy drafted above) | short | steps 1–6 shipped |
+| 8 | **Deletion semantics**: hard-delete dismissed items + activities, calendar-dismissal table, named confirm modal, account-deletion cascade, one-time ghost purge | evening | — |
 
 Each step is independently shippable; step 1 alone resolves the only live bug.
