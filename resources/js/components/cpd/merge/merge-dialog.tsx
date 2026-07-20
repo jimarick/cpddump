@@ -93,6 +93,8 @@ export function MergeDialog({
                     const values = valuesFromPreview(data);
 
                     // The AI combine already landed — apply it on arrival.
+                    // AI answers layer OVER the stitched defaults: a key the
+                    // AI left empty keeps its concatenated sources.
                     if (f.aiState === 'pending' && f.aiReflection) {
                         return {
                             ...f,
@@ -100,7 +102,10 @@ export function MergeDialog({
                             preAiReflection: values.reflection,
                             values: {
                                 ...values,
-                                reflection: f.aiReflection,
+                                reflection: {
+                                    ...values.reflection,
+                                    ...f.aiReflection,
+                                },
                             },
                         };
                     }
@@ -142,7 +147,13 @@ export function MergeDialog({
                             aiState: 'applied',
                             aiReflection: reflection,
                             preAiReflection: f.values.reflection,
-                            values: { ...f.values, reflection },
+                            values: {
+                                ...f.values,
+                                reflection: {
+                                    ...f.values.reflection,
+                                    ...reflection,
+                                },
+                            },
                         };
                     }
 
@@ -209,7 +220,13 @@ export function MergeDialog({
                       ...f,
                       aiState: 'applied',
                       values: f.values
-                          ? { ...f.values, reflection: f.aiReflection }
+                          ? {
+                                ...f.values,
+                                reflection: {
+                                    ...(f.preAiReflection ?? {}),
+                                    ...f.aiReflection,
+                                },
+                            }
                           : f.values,
                   }
                 : f,
@@ -271,7 +288,7 @@ export function MergeDialog({
 
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
-            <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl">
+            <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-x-hidden overflow-y-auto sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 font-display text-2xl font-extrabold">
                         Merge {sourceCount > 0 ? sourceCount : ''} into one
@@ -419,7 +436,7 @@ export function MergeDialog({
                                     {keepableFiles.map((file) => (
                                         <label
                                             key={file.id}
-                                            className="flex items-start gap-2 text-[13px] text-stone-700"
+                                            className="flex min-w-0 items-start gap-2 text-[13px] text-stone-700"
                                         >
                                             <Checkbox
                                                 checked={keepIds.includes(
@@ -438,7 +455,9 @@ export function MergeDialog({
                                                 }
                                                 className="mt-0.5"
                                             />
-                                            <span className="truncate">
+                                            {/* min-w-0 so long filenames truncate
+                                                instead of inflating the dialog. */}
+                                            <span className="min-w-0 flex-1 truncate">
                                                 {file.name}
                                                 <span className="ml-1.5 text-stone-400">
                                                     from “{file.from}”

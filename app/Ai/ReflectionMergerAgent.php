@@ -45,6 +45,8 @@ class ReflectionMergerAgent implements Agent, HasStructuredOutput
 
         For each prompt key, weave the sources' answers into ONE combined answer:
         - First person, natural and human — a busy clinician writing honestly.
+        - The combined answer must draw on EVERY source that answered the prompt —
+          never restate just one source's answer when several have content.
         - Merge overlapping points instead of repeating them; keep every distinct
           specific (names of courses, changes made, learning points).
         - Answers written by the user take precedence over AI drafts — preserve
