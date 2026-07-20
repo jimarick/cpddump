@@ -8,6 +8,7 @@ use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\GeneratedReportController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InboxItemController;
+use App\Http\Controllers\MergeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RecurrenceController;
@@ -53,6 +54,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('activities/{activity}', [ActivityController::class, 'update'])->name('activities.update');
         Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->name('activities.destroy');
         Route::post('activities/{activity}/remove-pii', [ActivityController::class, 'removePii'])->name('activities.remove-pii');
+
+        Route::get('merges/candidates', [MergeController::class, 'candidates'])->name('merges.candidates');
+        Route::post('merges/preview', [MergeController::class, 'preview'])->name('merges.preview');
+        Route::post('merges/reflection', [MergeController::class, 'reflection'])->middleware('throttle:20,1')->name('merges.reflection');
+        Route::post('merges', [MergeController::class, 'store'])->name('merges.store');
+        Route::post('activities/{activity}/unmerge', [MergeController::class, 'unmerge'])->name('merges.unmerge');
 
         Route::get('timeline', [TimelineController::class, 'index'])->name('timeline');
         Route::post('timeline/reset', [TimelineController::class, 'reset'])->name('timeline.reset');

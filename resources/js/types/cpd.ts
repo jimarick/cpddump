@@ -52,6 +52,8 @@ export interface AttachmentRef {
     mime_type: string;
     /** File deliberately not kept — row is an honest metadata stub. */
     purged?: boolean;
+    /** On a merged entry: which absorbed source this file belongs to. */
+    from?: string;
 }
 
 export interface PiiFlag {
@@ -168,4 +170,80 @@ export interface ActivityData {
     attribute_codes: string[];
     projects: { id: number; title: string }[];
     attachments: AttachmentRef[];
+    /** Non-empty when this is a merged entry hiding absorbed sources. */
+    merged_from?: MergedSourceRef[];
+    /** Was once inside a merged entry, later split back out. */
+    formerly_merged?: boolean;
+    /** Promoted straight from the inbox during a merge — never individually reviewed. */
+    merge_unreviewed?: boolean;
+}
+
+export interface MergedSourceRef {
+    id: number;
+    title: string;
+    starts_on: string | null;
+    cpd_points: number;
+}
+
+export interface MergeSeed {
+    activity_ids: number[];
+    inbox_item_ids: number[];
+    into_activity_id?: number | null;
+}
+
+export interface MergeSourceSummary {
+    kind: 'activity' | 'inbox_item';
+    id: number;
+    title: string;
+    starts_on: string | null;
+    cpd_points: number;
+    source: string | null;
+    pii_gate: boolean;
+    is_target: boolean;
+    pii_flags?: { type: string; severity: string }[];
+    attachments: {
+        id: number;
+        name: string;
+        purged: boolean;
+        keepable: boolean;
+    }[];
+}
+
+export interface MergePreview {
+    defaults: {
+        title: string;
+        activity_type_slug: string | null;
+        starts_on: string | null;
+        ends_on: string | null;
+        cpd_points: number;
+        points_breakdown: number[];
+        organisation: string | null;
+        details: string;
+        reflection: Record<string, string>;
+        category_slugs: string[];
+        domain_codes: string[];
+        attribute_codes: string[];
+        project_ids: number[];
+    };
+    sources: MergeSourceSummary[];
+    blocking: { pii_item_ids: number[] };
+    retention: 'ask' | 'always' | 'never';
+}
+
+export interface MergeCandidates {
+    activities: {
+        id: number;
+        title: string;
+        starts_on: string | null;
+        cpd_points: number;
+        type: { name: string; color: string };
+        merged: boolean;
+    }[];
+    inbox_items: {
+        id: number;
+        title: string;
+        starts_on: string | null;
+        cpd_points: number;
+        source_label: string;
+    }[];
 }

@@ -36,6 +36,11 @@ export function AttachmentLinks({
                         href={`/attachments/${attachment.id}`}
                         target="_blank"
                         rel="noopener"
+                        title={
+                            attachment.from
+                                ? `From “${attachment.from}”`
+                                : undefined
+                        }
                         className="flex max-w-full items-center gap-1.5 rounded-full border-[1.5px] border-ink/20 bg-white px-2.5 py-1 text-[12px] font-semibold text-stone-600 transition-colors hover:border-ink hover:text-ink"
                     >
                         <Paperclip className="size-3 shrink-0 text-stone-400" />

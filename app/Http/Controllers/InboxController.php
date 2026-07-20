@@ -68,7 +68,10 @@ class InboxController extends Controller
                     'reminder' => $r->reminder,
                     'is_active' => $r->is_active,
                     'captured' => $r->kind === 'expectation' && $period
-                        ? $r->activities()->where('appraisal_period_id', $period->id)->count()
+                        ? $r->activities()
+                            ->withoutGlobalScope('unmerged')
+                            ->where('appraisal_period_id', $period->id)
+                            ->count()
                         : null,
                 ]),
         ]);

@@ -44,9 +44,13 @@ class StatsService
 
         // One grouped query per pivot instead of a count query per row —
         // serverless Postgres charges real latency for every round-trip.
+        // Raw joins bypass Eloquent's `unmerged` scope, so absorbed merge
+        // children are excluded here by hand (their parent carries the
+        // combined entry's categories/domains).
         $activityScope = fn ($join) => $join
             ->where('activities.user_id', $user->id)
-            ->where('activities.appraisal_period_id', $period->id);
+            ->where('activities.appraisal_period_id', $period->id)
+            ->whereNull('activities.merged_into_activity_id');
 
         $countsByCategory = DB::table('activity_category')
             ->join('activities', fn ($join) => $activityScope(
@@ -88,7 +92,12 @@ class StatsService
                 'id' => $r->id,
                 'title' => $r->title,
                 'expected' => (int) $r->expected_per_year,
-                'captured' => $r->activities()->where('appraisal_period_id', $period->id)->count(),
+                // Absorbed merge children still count: three audit meetings
+                // combined into one entry remain three captures.
+                'captured' => $r->activities()
+                    ->withoutGlobalScope('unmerged')
+                    ->where('appraisal_period_id', $period->id)
+                    ->count(),
             ]);
 
         return [

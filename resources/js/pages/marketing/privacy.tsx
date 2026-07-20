@@ -164,6 +164,23 @@ export default function Privacy() {
                                 <td>No — only your drafted entry remains</td>
                             </tr>
                             <tr>
+                                <td>Entries you combine (merge)</td>
+                                <td>
+                                    The original entries and their files are
+                                    kept underneath the combined entry, exactly
+                                    as they were — un-combining restores them.
+                                    The patient-information check still applies
+                                    before anything can be combined
+                                </td>
+                                <td>—</td>
+                                <td>
+                                    Yes, hidden inside the combined entry.
+                                    Deleting a combined entry permanently
+                                    deletes everything inside it, including
+                                    files
+                                </td>
+                            </tr>
+                            <tr>
                                 <td>Anything you bin</td>
                                 <td>—</td>
                                 <td>—</td>

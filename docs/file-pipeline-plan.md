@@ -375,6 +375,36 @@ cascades that skip file-purge hooks. All replaced:
 - Privacy page gains the matching row: *"Anything you bin or delete —
   deleted immediately and permanently, including our AI's notes about it."*
 
+## Merged entries (added 2026-07-20)
+
+Users can combine several activities and/or Ready inbox items into one
+portfolio entry ("merge"), reversibly. The privacy-relevant mechanics:
+
+- **Files never move on merge.** Each file stays owned by its source entry;
+  the combined entry shows the union at read time. For inbox items joining a
+  merge, the ordinary retention question ("keep this file?") is asked once
+  per source file inside the merge modal — delete-by-default, exactly as at
+  approval. Already-approved activities' files had their retention moment
+  and are not re-questioned.
+- **The PII gate composes per source.** Any Ready item with an active gate
+  blocks the merge (server-enforced, same 422 shape as approve) until the
+  user removes the patient info or explicitly affirms they checked it, per
+  item, inside the merge flow.
+- **Merging an inbox item promotes it through the ordinary `approve()`
+  path** — payload redaction, flag-excerpt collapse and source-text scrub
+  all happen exactly as on a normal approval. Nothing extra is retained.
+- **Un-merge restores the originals exactly** — their own fields, pivots
+  and files were never touched. Entries that were merged straight from the
+  inbox come back as activities built from their AI drafts (marked as
+  such), never back into the inbox; their raw source text was already
+  redacted at merge time, so un-merge resurrects nothing that was deleted.
+- **Deleting a merged entry deletes every entry inside it** — children,
+  their files, and their originating inbox rows, via the same hard-delete
+  cascade as any activity. The confirm modal names the count ("…and the N
+  entries merged into it") and offers "Split apart instead" as the
+  non-destructive escape.
+- Privacy page carries the matching row: *"Entries you combine (merge)"*.
+
 ## Cross-cutting (unchanged from Tier-1 agreement)
 
 - **Mime sniffing** via `finfo` at ingest — extension renames can't smuggle types.

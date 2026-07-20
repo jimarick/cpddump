@@ -4,6 +4,7 @@ use App\Http\Controllers\AiAssistController;
 use App\Http\Controllers\Api\ActivityApiController;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\InboxItemApiController;
+use App\Http\Controllers\Api\MergeApiController;
 use App\Http\Controllers\Api\PushTokenApiController;
 use App\Http\Controllers\Api\ReferenceApiController;
 use App\Http\Controllers\AttachmentController;
@@ -30,6 +31,12 @@ Route::prefix('v1')->group(function () {
 
         Route::get('activities', [ActivityApiController::class, 'index'])->name('api.activities.index');
         Route::get('activities/{activity}', [ActivityApiController::class, 'show'])->name('api.activities.show');
+
+        Route::get('merges/candidates', [MergeApiController::class, 'candidates'])->name('api.merges.candidates');
+        Route::post('merges/preview', [MergeApiController::class, 'preview'])->name('api.merges.preview');
+        Route::post('merges/reflection', [MergeApiController::class, 'reflection'])->middleware('throttle:20,1')->name('api.merges.reflection');
+        Route::post('merges', [MergeApiController::class, 'store'])->name('api.merges.store');
+        Route::post('activities/{activity}/unmerge', [MergeApiController::class, 'unmerge'])->name('api.merges.unmerge');
 
         Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('api.attachments.show');
 

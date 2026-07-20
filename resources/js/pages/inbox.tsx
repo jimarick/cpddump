@@ -6,6 +6,7 @@ import {
     FileUp,
     Link2,
     Loader2,
+    Merge,
     Paperclip,
     PenLine,
     Plus,
@@ -31,6 +32,8 @@ import {
 } from '@/components/cpd/evidence-form-fields';
 import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
 import { InboxDoodles } from '@/components/cpd/inbox-doodles';
+import { MergeDialog } from '@/components/cpd/merge/merge-dialog';
+import { MergePickerDialog } from '@/components/cpd/merge/merge-picker';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -51,6 +54,7 @@ import {
 } from '@/components/ui/select';
 import type {
     InboxItemData,
+    MergeSeed,
     PeriodData,
     RecurrenceData,
     ReferenceData,
@@ -74,6 +78,8 @@ export default function Inbox({
     attachmentRetention,
 }: Props) {
     const [reviewing, setReviewing] = useState<InboxItemData | null>(null);
+    const [pickingFor, setPickingFor] = useState<InboxItemData | null>(null);
+    const [mergeSeed, setMergeSeed] = useState<MergeSeed | null>(null);
     const [adding, setAdding] = useState(false);
     const [addMode, setAddMode] = useState<DumpMode | null>(null);
     const [managing, setManaging] = useState<RecurrenceData | null>(null);
@@ -290,6 +296,40 @@ export default function Inbox({
                     reference={reference}
                     retention={attachmentRetention}
                     onClose={() => setReviewing(null)}
+                    onMergeWith={() => {
+                        setPickingFor(reviewing);
+                        setReviewing(null);
+                    }}
+                />
+            )}
+
+            {pickingFor && (
+                <MergePickerDialog
+                    baseLabel={
+                        pickingFor.ai_analysis?.title ??
+                        (pickingFor.raw_payload.title as string | undefined) ??
+                        'this item'
+                    }
+                    exclude={{ activityIds: [], itemIds: [pickingFor.id] }}
+                    onClose={() => setPickingFor(null)}
+                    onConfirm={(selection) => {
+                        setMergeSeed({
+                            ...selection,
+                            inbox_item_ids: [
+                                pickingFor.id,
+                                ...selection.inbox_item_ids,
+                            ],
+                        });
+                        setPickingFor(null);
+                    }}
+                />
+            )}
+
+            {mergeSeed && (
+                <MergeDialog
+                    seed={mergeSeed}
+                    reference={reference}
+                    onClose={() => setMergeSeed(null)}
                 />
             )}
         </>
@@ -783,11 +823,13 @@ function ReviewDialog({
     reference,
     retention,
     onClose,
+    onMergeWith,
 }: {
     item: InboxItemData;
     reference: ReferenceData;
     retention: 'ask' | 'always' | 'never';
     onClose: () => void;
+    onMergeWith: () => void;
 }) {
     const analysis = item.ai_analysis;
 
@@ -1182,6 +1224,14 @@ function ReviewDialog({
                                     className="text-stone-500"
                                 >
                                     Bin it
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    onClick={onMergeWith}
+                                    disabled={processing}
+                                    className="text-stone-500"
+                                >
+                                    <Merge className="size-4" /> Merge with…
                                 </Button>
                                 <span className="ml-auto text-[11.5px] text-stone-400">
                                     {analysis &&

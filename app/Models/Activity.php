@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Database\Factories\ActivityFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -24,6 +26,10 @@ use Illuminate\Support\Collection;
  * @property string|null $organisation
  * @property string|null $details
  * @property array<string, string> $reflection
+ * @property int|null $merged_into_activity_id
+ * @property Carbon|null $merged_at
+ * @property bool $merge_unreviewed
+ * @property Carbon|null $unmerged_at
  */
 class Activity extends Model
 {
@@ -34,13 +40,27 @@ class Activity extends Model
 
     protected static function booted(): void
     {
+        // Activities absorbed into a merged entry vanish from every query —
+        // lists, stats, serialisers, route binding — until un-merge nulls
+        // the pointer. Table-qualified so joined queries stay unambiguous.
+        static::addGlobalScope('unmerged', function (Builder $query): void {
+            $query->whereNull('activities.merged_into_activity_id');
+        });
+
         // Deleting an activity is permanent (no soft-delete bin — the
         // confirm modal carries that weight): its files go, and so does
         // the originating inbox item row, which holds a copy of the AI
         // analysis. Pivots cascade at the database level. Runs on
         // `deleting` — the FK nulls inbox_items.activity_id once the row
         // is actually gone, so the lookup must happen first.
+        //
+        // A merged entry takes its absorbed sources with it: orphaning them
+        // back would resurrect content the user just asked to destroy.
+        // Un-merge releases children before deleting the parent shell, so
+        // this cascade never fires during a split.
         static::deleting(function (Activity $activity): void {
+            $activity->mergedChildren()->get()->each->delete();
+
             $activity->attachments()->get()->each->purge();
 
             InboxItem::where('activity_id', $activity->id)->get()->each(function (InboxItem $item) {
@@ -136,5 +156,60 @@ class Activity extends Model
     public function allLinkedActivities(): Collection
     {
         return $this->linkedActivities->merge($this->linkedFromActivities)->unique('id')->values();
+    }
+
+    /**
+     * The activities absorbed into this merged entry. Children are hidden
+     * by the `unmerged` scope, so the relation must look past it.
+     *
+     * @return HasMany<Activity, $this>
+     */
+    public function mergedChildren(): HasMany
+    {
+        return $this->hasMany(Activity::class, 'merged_into_activity_id')
+            ->withoutGlobalScope('unmerged');
+    }
+
+    /** @return BelongsTo<Activity, $this> */
+    public function mergedParent(): BelongsTo
+    {
+        return $this->belongsTo(Activity::class, 'merged_into_activity_id');
+    }
+
+    public function isMergedParent(): bool
+    {
+        return $this->mergedChildren()->exists();
+    }
+
+    /**
+     * @param  Builder<$this>  $query
+     * @return Builder<$this>
+     */
+    public function scopeWithMerged(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('unmerged');
+    }
+
+    /**
+     * This entry's attachments plus its absorbed children's, for display
+     * and export. Files never move on merge — each stays owned by its
+     * source entry — so a merged parent shows the union at read time.
+     *
+     * @return Collection<int, Attachment>
+     */
+    public function allAttachments(): Collection
+    {
+        $own = $this->attachments()->get();
+
+        if (! $this->isMergedParent()) {
+            return $own;
+        }
+
+        $childAttachments = Attachment::query()
+            ->where('attachable_type', $this->getMorphClass())
+            ->whereIn('attachable_id', $this->mergedChildren()->pluck('id'))
+            ->get();
+
+        return $own->concat($childAttachments)->unique('id')->values();
     }
 }

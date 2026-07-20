@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Activity;
 use App\Models\ActivityType;
+use App\Models\Attachment;
 use App\Services\StatsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,7 @@ class TimelineController extends Controller
         $activities = $period
             ? $user->activities()
                 ->where('appraisal_period_id', $period->id)
-                ->with(['type:id,slug,name,color,icon', 'categories:id,slug,name', 'frameworkDomains:id,code,name', 'projects:id,title', 'attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at'])
+                ->with(['type:id,slug,name,color,icon', 'categories:id,slug,name', 'frameworkDomains:id,code,name', 'projects:id,title', 'attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at', 'mergedChildren:id,merged_into_activity_id,title,starts_on,cpd_points', 'mergedChildren.attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at'])
                 ->orderByDesc('starts_on')
                 ->orderByDesc('id')
                 ->get()
@@ -71,13 +72,32 @@ class TimelineController extends Controller
             'domains' => $a->frameworkDomains->map->only(['code', 'name'])->all(),
             'attribute_codes' => $a->frameworkAttributes()->pluck('code')->all(),
             'projects' => $a->projects->map->only(['id', 'title'])->all(),
-            'attachments' => $a->attachments->map(fn ($att) => [
-                'id' => $att->id,
-                'name' => $att->original_filename,
-                'mime_type' => $att->mime_type,
-                'purged' => $att->isPurged(),
+            // A merged parent shows the union of its own files and its
+            // absorbed children's — files never move on merge.
+            'attachments' => $a->attachments->map(fn ($att) => $this->attachment($att))
+                ->concat($a->mergedChildren->flatMap(
+                    fn (Activity $child) => $child->attachments->map(fn ($att) => $this->attachment($att, $child->title))
+                ))->values()->all(),
+            'merged_from' => $a->mergedChildren->map(fn (Activity $child) => [
+                'id' => $child->id,
+                'title' => $child->title,
+                'starts_on' => $child->starts_on?->toDateString(),
+                'cpd_points' => (float) $child->cpd_points,
             ])->all(),
+            'formerly_merged' => $a->unmerged_at !== null,
+            'merge_unreviewed' => (bool) $a->merge_unreviewed,
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function attachment(Attachment $att, ?string $from = null): array
+    {
+        return [
+            'id' => $att->id,
+            'name' => $att->original_filename,
+            'mime_type' => $att->mime_type,
+            'purged' => $att->isPurged(),
+        ] + ($from !== null ? ['from' => $from] : []);
     }
 
     /** Close the current window and open the next appraisal year. */

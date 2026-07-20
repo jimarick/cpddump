@@ -1,10 +1,13 @@
 import { Head, router } from '@inertiajs/react';
-import { Loader2, Paperclip, Trash2 } from 'lucide-react';
+import { Layers, Loader2, Merge, Paperclip, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
+import { Chip } from '@/components/brand/chip';
 import { AttachmentLinks } from '@/components/cpd/attachment-links';
 import { EvidenceFormFields } from '@/components/cpd/evidence-form-fields';
 import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
+import { MergeDialog } from '@/components/cpd/merge/merge-dialog';
+import { MergePickerDialog } from '@/components/cpd/merge/merge-picker';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -22,6 +25,7 @@ import {
 import type {
     ActivityData,
     InboxStats,
+    MergeSeed,
     PeriodData,
     ReferenceData,
 } from '@/types/cpd';
@@ -53,6 +57,8 @@ export default function Timeline({
     const [hovered, setHovered] = useState<DatedActivity | null>(null);
     const [editing, setEditing] = useState<ActivityData | null>(null);
     const [resetting, setResetting] = useState(false);
+    const [pickingFor, setPickingFor] = useState<ActivityData | null>(null);
+    const [mergeSeed, setMergeSeed] = useState<MergeSeed | null>(null);
 
     const dated = useMemo(
         () =>
@@ -328,6 +334,22 @@ export default function Timeline({
                                     {activity.attachments.length > 0 && (
                                         <Paperclip className="size-3.5 shrink-0 text-stone-400" />
                                     )}
+                                    {(activity.merged_from?.length ?? 0) >
+                                        0 && (
+                                        <>
+                                            <Layers
+                                                className="size-3.5 shrink-0 text-stone-400"
+                                                aria-label={`Merged from ${activity.merged_from!.length} entries`}
+                                            />
+                                            <Chip
+                                                variant="dashed"
+                                                className="hidden shrink-0 sm:inline-block"
+                                            >
+                                                merged ×
+                                                {activity.merged_from!.length}
+                                            </Chip>
+                                        </>
+                                    )}
                                     <span className="hidden text-xs whitespace-nowrap text-stone-500 sm:inline">
                                         {activity.starts_on ?? '—'}
                                     </span>
@@ -347,6 +369,48 @@ export default function Timeline({
                     activity={editing}
                     reference={reference}
                     onClose={() => setEditing(null)}
+                    onMergeWith={() => {
+                        setPickingFor(editing);
+                        setEditing(null);
+                    }}
+                />
+            )}
+
+            {pickingFor && (
+                <MergePickerDialog
+                    baseLabel={pickingFor.title}
+                    baseIsMerged={(pickingFor.merged_from?.length ?? 0) > 0}
+                    exclude={{ activityIds: [pickingFor.id], itemIds: [] }}
+                    periodId={period?.id}
+                    onClose={() => setPickingFor(null)}
+                    onConfirm={(selection) => {
+                        const baseIsMerged =
+                            (pickingFor.merged_from?.length ?? 0) > 0;
+
+                        setMergeSeed(
+                            baseIsMerged
+                                ? {
+                                      ...selection,
+                                      into_activity_id: pickingFor.id,
+                                  }
+                                : {
+                                      ...selection,
+                                      activity_ids: [
+                                          pickingFor.id,
+                                          ...selection.activity_ids,
+                                      ],
+                                  },
+                        );
+                        setPickingFor(null);
+                    }}
+                />
+            )}
+
+            {mergeSeed && (
+                <MergeDialog
+                    seed={mergeSeed}
+                    reference={reference}
+                    onClose={() => setMergeSeed(null)}
                 />
             )}
 
@@ -459,10 +523,12 @@ function EditActivityDialog({
     activity,
     reference,
     onClose,
+    onMergeWith,
 }: {
     activity: ActivityData;
     reference: ReferenceData;
     onClose: () => void;
+    onMergeWith: () => void;
 }) {
     const [values, setValues] = useState<EvidenceFormValues>({
         title: activity.title,
@@ -482,6 +548,22 @@ function EditActivityDialog({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [confirmingSplit, setConfirmingSplit] = useState(false);
+
+    const mergedFrom = activity.merged_from ?? [];
+    const isMergedParent = mergedFrom.length > 0;
+
+    const split = () => {
+        setProcessing(true);
+        router.post(
+            `/activities/${activity.id}/unmerge`,
+            {},
+            {
+                onSuccess: onClose,
+                onFinish: () => setProcessing(false),
+            },
+        );
+    };
 
     const save = () => {
         setProcessing(true);
@@ -518,6 +600,32 @@ function EditActivityDialog({
                         Edit activity
                     </DialogTitle>
                 </DialogHeader>
+
+                {isMergedParent && (
+                    <div className="rounded-[10px] border border-dashed border-stone-400 px-4 py-2.5 text-[13px] text-stone-600">
+                        <Layers className="mr-1.5 inline size-3.5 text-stone-400" />
+                        <span className="font-semibold">Merged from:</span>{' '}
+                        {mergedFrom.map((c) => c.title).join(' · ')}{' '}
+                        <button
+                            type="button"
+                            onClick={() => setConfirmingSplit(true)}
+                            className="cursor-pointer font-semibold text-ink underline decoration-dashed underline-offset-4 hover:text-brand-dark"
+                        >
+                            Split apart
+                        </button>
+                    </div>
+                )}
+
+                {!isMergedParent && activity.formerly_merged && (
+                    <p className="text-[12px] text-stone-400">
+                        <Layers className="mr-1 inline size-3" />
+                        This entry was previously part of a merged entry
+                        {activity.merge_unreviewed
+                            ? ' — it was created from the AI analysis during that merge, so give its details a once-over'
+                            : ''}
+                        .
+                    </p>
+                )}
 
                 <AttachmentLinks attachments={activity.attachments} />
 
@@ -572,6 +680,14 @@ function EditActivityDialog({
                     </Button>
                     <Button
                         variant="ghost"
+                        onClick={onMergeWith}
+                        disabled={processing}
+                        className="text-stone-500"
+                    >
+                        <Merge className="size-4" /> Merge with…
+                    </Button>
+                    <Button
+                        variant="ghost"
                         onClick={() => setConfirmingDelete(true)}
                         disabled={processing}
                         className="ml-auto text-red-600 hover:text-red-700"
@@ -579,6 +695,48 @@ function EditActivityDialog({
                         <Trash2 className="size-4" /> Delete
                     </Button>
                 </div>
+
+                {confirmingSplit && (
+                    <Dialog
+                        open
+                        onOpenChange={(o) => !o && setConfirmingSplit(false)}
+                    >
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle className="font-display text-xl font-extrabold">
+                                    Split “{activity.title}” back into{' '}
+                                    {mergedFrom.length} activities?
+                                </DialogTitle>
+                            </DialogHeader>
+                            <p className="text-sm text-stone-600">
+                                The original entries come back exactly as they
+                                were — their own points, dates, reflections and
+                                files. Nothing is deleted; only this combined
+                                entry goes away.
+                            </p>
+                            <div className="flex items-center gap-2 pt-1">
+                                <Button
+                                    onClick={split}
+                                    disabled={processing}
+                                    className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+                                >
+                                    {processing && (
+                                        <Loader2 className="size-4 animate-spin" />
+                                    )}{' '}
+                                    Split it
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setConfirmingSplit(false)}
+                                    disabled={processing}
+                                    className="border-2 border-ink"
+                                >
+                                    Keep merged
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                )}
 
                 {confirmingDelete && (
                     <Dialog
@@ -592,13 +750,27 @@ function EditActivityDialog({
                                 </DialogTitle>
                             </DialogHeader>
                             <p className="text-sm text-stone-600">
-                                This permanently deletes it — including your
-                                reflection and any kept files.{' '}
+                                {isMergedParent ? (
+                                    <>
+                                        This permanently deletes it{' '}
+                                        <span className="font-semibold text-ink">
+                                            and the {mergedFrom.length} entries
+                                            merged into it
+                                        </span>
+                                        , including their reflections and any
+                                        kept files.{' '}
+                                    </>
+                                ) : (
+                                    <>
+                                        This permanently deletes it — including
+                                        your reflection and any kept files.{' '}
+                                    </>
+                                )}
                                 <span className="font-semibold text-ink">
                                     This cannot be undone.
                                 </span>
                             </p>
-                            <div className="flex items-center gap-2 pt-1">
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
                                 <Button
                                     onClick={remove}
                                     disabled={processing}
@@ -609,6 +781,16 @@ function EditActivityDialog({
                                     )}{' '}
                                     Delete forever
                                 </Button>
+                                {isMergedParent && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={split}
+                                        disabled={processing}
+                                        className="border-2 border-ink font-semibold"
+                                    >
+                                        Split apart instead
+                                    </Button>
+                                )}
                                 <Button
                                     variant="outline"
                                     onClick={() => setConfirmingDelete(false)}
