@@ -89,8 +89,19 @@ export interface AiWarnings {
     missing_evidence?: string[];
     possible_duplicate_activity_ids?: number[];
     possible_duplicate_inbox_item_ids?: number[];
+    possible_related_inbox_item_ids?: number[];
+    possible_related_activity_ids?: number[];
+    related_reason?: string | null;
     pii_resolved?: 'removed' | 'affirmed';
     pii_resolved_at?: string;
+}
+
+export interface MergeSuggestionRef {
+    kind: 'activity' | 'inbox';
+    id: number;
+    title: string;
+    merged: boolean;
+    reason: 'recurrence' | 'duplicate' | 'related';
 }
 
 export type InboxItemStatus =
@@ -109,6 +120,8 @@ export interface InboxItemData {
     attachments: AttachmentRef[];
     /** True when flagged content still exists in a file or the user's own text. */
     pii_gate: boolean;
+    /** Titled, current-period matches worth merging into — never enforced. */
+    merge_suggestions?: MergeSuggestionRef[];
 }
 
 export interface GapEntry {

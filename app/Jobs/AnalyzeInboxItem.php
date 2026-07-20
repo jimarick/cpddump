@@ -93,7 +93,7 @@ class AnalyzeInboxItem implements ShouldQueue
         $item->update(['status' => InboxItemStatus::Analysing, 'failure_reason' => null]);
 
         $response = $ai->structuredPrompt(
-            agent: InboxAnalystAgent::for($user),
+            agent: InboxAnalystAgent::for($user, $item->id),
             user: $user,
             purpose: AiPurpose::InboxAnalysis,
             prompt: $this->buildEvidencePrompt($item),
@@ -115,6 +115,9 @@ class AnalyzeInboxItem implements ShouldQueue
                 'pii_flags' => $this->mergedFlags($analysis['pii_flags'] ?? [], $scannerFlags),
                 'missing_evidence' => $analysis['missing_evidence'] ?? [],
                 'possible_duplicate_activity_ids' => $analysis['possible_duplicate_activity_ids'] ?? [],
+                'possible_related_inbox_item_ids' => $analysis['possible_related_inbox_item_ids'] ?? [],
+                'possible_related_activity_ids' => $analysis['possible_related_activity_ids'] ?? [],
+                'related_reason' => $analysis['related_reason'] ?? null,
             ],
             'analysed_at' => now(),
             'failure_reason' => null,
@@ -125,6 +128,38 @@ class AnalyzeInboxItem implements ShouldQueue
         $item->scrubSourceText();
 
         $this->reconcileRecurrence($item, $analysis);
+        $this->reciprocateRelations($item, $analysis);
+    }
+
+    /**
+     * If this item names waiting inbox items as related, write this item's
+     * id onto each of them too — both cards badge without a second AI call.
+     *
+     * @param  array<string, mixed>  $analysis
+     */
+    private function reciprocateRelations(InboxItem $item, array $analysis): void
+    {
+        $relatedIds = array_map('intval', (array) ($analysis['possible_related_inbox_item_ids'] ?? []));
+
+        if ($relatedIds === []) {
+            return;
+        }
+
+        $item->user->inboxItems()
+            ->whereIn('id', $relatedIds)
+            ->where('status', InboxItemStatus::Ready)
+            ->get()
+            ->each(function (InboxItem $other) use ($item) {
+                $warnings = $other->ai_warnings ?? [];
+                $existing = array_map('intval', (array) ($warnings['possible_related_inbox_item_ids'] ?? []));
+
+                if (in_array($item->id, $existing, true)) {
+                    return;
+                }
+
+                $warnings['possible_related_inbox_item_ids'] = [...$existing, $item->id];
+                $other->update(['ai_warnings' => $warnings]);
+            });
     }
 
     /**

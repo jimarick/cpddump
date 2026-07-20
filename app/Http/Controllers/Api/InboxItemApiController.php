@@ -9,6 +9,7 @@ use App\Http\Requests\ApproveInboxItemRequest;
 use App\Models\Attachment;
 use App\Models\InboxItem;
 use App\Services\EvidenceIngestor;
+use App\Services\MergeSuggester;
 use App\Services\PidScanner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -72,12 +73,19 @@ class InboxItemApiController extends Controller
     /** The open pile, newest first — the app's tray. */
     public function index(Request $request): JsonResponse
     {
-        $items = $request->user()->inboxItems()
+        $user = $request->user();
+
+        $openItems = $user->inboxItems()
             ->open()
             ->with('attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at')
             ->latest()
-            ->get()
-            ->map(fn (InboxItem $item) => $this->serialise($item));
+            ->get();
+
+        $suggestions = app(MergeSuggester::class)->forItems($user, $openItems);
+
+        $items = $openItems->map(
+            fn (InboxItem $item) => $this->serialise($item, suggestions: $suggestions[$item->id] ?? [])
+        );
 
         return response()->json(['items' => $items]);
     }
@@ -86,7 +94,13 @@ class InboxItemApiController extends Controller
     {
         $this->authorizeItem($request, $item);
 
-        return response()->json(['item' => $this->serialise($item, detailed: true)]);
+        $suggestions = app(MergeSuggester::class)->forItems($request->user(), collect([$item]));
+
+        return response()->json(['item' => $this->serialise(
+            $item,
+            detailed: true,
+            suggestions: $suggestions[$item->id] ?? [],
+        )]);
     }
 
     public function approve(ApproveInboxItemRequest $request, InboxItem $item): JsonResponse
@@ -187,8 +201,11 @@ class InboxItemApiController extends Controller
         abort_unless($item->user_id === $request->user()->id, 403);
     }
 
-    /** @return array<string, mixed> */
-    private function serialise(InboxItem $item, bool $detailed = false): array
+    /**
+     * @param  array<int, array<string, mixed>>  $suggestions
+     * @return array<string, mixed>
+     */
+    private function serialise(InboxItem $item, bool $detailed = false, array $suggestions = []): array
     {
         return [
             'id' => $item->id,
@@ -199,6 +216,7 @@ class InboxItemApiController extends Controller
             // transcripts) never ships; it is scrubbed post-analysis anyway.
             'raw_payload' => collect($item->raw_payload)->only(['title', 'subject', 'url', 'details'])->all(),
             'pii_gate' => $item->piiGateActive(),
+            'merge_suggestions' => $suggestions,
             'ai_analysis' => $item->ai_analysis,
             'ai_warnings' => $item->ai_warnings,
             'failure_reason' => $item->failure_reason,

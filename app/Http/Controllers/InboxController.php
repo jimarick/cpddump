@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityType;
 use App\Models\Attachment;
 use App\Models\Recurrence;
+use App\Services\MergeSuggester;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,11 +18,15 @@ class InboxController extends Controller
         $profession = $user->profession;
         $period = $user->currentAppraisalPeriod();
 
-        $items = $user->inboxItems()
+        $openItems = $user->inboxItems()
             ->open()
             ->with('attachments:id,attachable_type,attachable_id,original_filename,mime_type,purged_at')
             ->latest()
-            ->get()
+            ->get();
+
+        $mergeSuggestions = app(MergeSuggester::class)->forItems($user, $openItems);
+
+        $items = $openItems
             ->map(fn ($item) => [
                 'id' => $item->id,
                 'source' => $item->source->value,
@@ -32,6 +37,7 @@ class InboxController extends Controller
                 'ai_analysis' => $item->ai_analysis,
                 'ai_warnings' => $item->ai_warnings,
                 'pii_gate' => $item->piiGateActive(),
+                'merge_suggestions' => $mergeSuggestions[$item->id] ?? [],
                 'failure_reason' => $item->failure_reason,
                 'created_at' => $item->created_at->toIso8601String(),
                 'attachments' => $item->attachments->map(fn (Attachment $a) => [

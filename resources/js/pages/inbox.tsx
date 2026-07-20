@@ -96,6 +96,9 @@ export default function Inbox({
     const [pickingFor, setPickingFor] = useState<InboxItemData | null>(null);
     const [mergeSeed, setMergeSeed] = useState<MergeSeed | null>(null);
     const [draggingId, setDraggingId] = useState<number | null>(null);
+    const [relatedHighlight, setRelatedHighlight] = useState<number[] | null>(
+        null,
+    );
     const { stack, start, add, remove: unstack, clear } = usePendingStack();
     const [adding, setAdding] = useState(false);
     const [addMode, setAddMode] = useState<DumpMode | null>(null);
@@ -324,6 +327,14 @@ export default function Inbox({
                                         <InboxRow
                                             item={item}
                                             index={i}
+                                            highlighted={
+                                                relatedHighlight?.includes(
+                                                    item.id,
+                                                ) ?? false
+                                            }
+                                            onHoverRelated={
+                                                setRelatedHighlight
+                                            }
                                             onOpen={() =>
                                                 item.status === 'ready' ||
                                                 item.status === 'failed'
@@ -428,6 +439,28 @@ export default function Inbox({
                         setPickingFor(reviewing);
                         setReviewing(null);
                     }}
+                    onMergeInstead={() => {
+                        const suggestions = reviewing.merge_suggestions ?? [];
+                        const activities = suggestions.filter(
+                            (s) => s.kind === 'activity',
+                        );
+                        const target =
+                            activities.find((s) => s.merged) ?? null;
+
+                        setMergeSeed({
+                            activity_ids: activities
+                                .filter((s) => s.id !== target?.id)
+                                .map((s) => s.id),
+                            inbox_item_ids: [
+                                reviewing.id,
+                                ...suggestions
+                                    .filter((s) => s.kind === 'inbox')
+                                    .map((s) => s.id),
+                            ],
+                            into_activity_id: target?.id ?? null,
+                        });
+                        setReviewing(null);
+                    }}
                 />
             )}
 
@@ -503,27 +536,45 @@ function InboxRow({
     index,
     onOpen,
     onDelete,
+    highlighted = false,
+    onHoverRelated,
 }: {
     item: InboxItemData;
     index: number;
     onOpen?: () => void;
     onDelete: () => void;
+    highlighted?: boolean;
+    onHoverRelated?: (ids: number[] | null) => void;
 }) {
     const title = itemTitle(item);
 
     const busy = item.status === 'pending' || item.status === 'analysing';
     const failed = item.status === 'failed';
     const warnings = (item.ai_warnings?.pii_flags?.length ?? 0) > 0;
+    const relatedIds = [
+        ...(item.ai_warnings?.possible_related_inbox_item_ids ?? []),
+        ...(item.ai_warnings?.possible_duplicate_inbox_item_ids ?? []),
+    ];
 
     return (
         <div
             onClick={busy ? undefined : onOpen}
+            onMouseEnter={
+                relatedIds.length > 0 && onHoverRelated
+                    ? () => onHoverRelated([item.id, ...relatedIds])
+                    : undefined
+            }
+            onMouseLeave={
+                relatedIds.length > 0 && onHoverRelated
+                    ? () => onHoverRelated(null)
+                    : undefined
+            }
             style={{ rotate: ROW_TILTS[index % ROW_TILTS.length] }}
             className={`flex w-full min-w-0 items-center gap-3 rounded-[12px] border-2 border-ink bg-white px-4 py-3 text-left shadow-[3px_3px_0_rgba(28,25,23,.12)] transition-transform md:px-5 ${
                 busy
                     ? 'cursor-default opacity-70'
                     : 'cursor-pointer hover:-translate-y-0.5 hover:bg-[#fffbf8]'
-            }`}
+            } ${highlighted ? 'ring-2 ring-brand/40' : ''}`}
         >
             <span className="w-[58px] shrink-0 text-[9.5px] font-bold tracking-[0.08em] text-stone-500 uppercase">
                 {item.source_label}
@@ -553,6 +604,12 @@ function InboxRow({
 
             {item.attachments.length > 0 && (
                 <Paperclip className="size-3.5 shrink-0 text-stone-400" />
+            )}
+            {relatedIds.length > 0 && (
+                <Link2
+                    className="size-3.5 shrink-0 text-brand"
+                    aria-label="Possibly related to other evidence"
+                />
             )}
             {warnings && (
                 <AlertTriangle className="size-4 shrink-0 text-brand" />
@@ -953,12 +1010,14 @@ function ReviewDialog({
     retention,
     onClose,
     onMergeWith,
+    onMergeInstead,
 }: {
     item: InboxItemData;
     reference: ReferenceData;
     retention: 'ask' | 'always' | 'never';
     onClose: () => void;
     onMergeWith: () => void;
+    onMergeInstead: () => void;
 }) {
     const analysis = item.ai_analysis;
 
@@ -1105,6 +1164,47 @@ function ReviewDialog({
                         ))}
                     </div>
                 )}
+
+                {item.status === 'ready' &&
+                    (item.merge_suggestions?.length ?? 0) > 0 && (
+                        <div className="rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-4 py-3 text-sm">
+                            <div className="flex items-center gap-2 font-bold">
+                                <Sparkle size={14} className="text-brand" />
+                                Looks like something you already have
+                            </div>
+                            <ul className="mt-1 list-disc pl-5 text-[13px] text-stone-600">
+                                {item.merge_suggestions!.map((s) => (
+                                    <li key={`${s.kind}-${s.id}`}>
+                                        “{s.title}”{' '}
+                                        <span className="text-stone-400">
+                                            (
+                                            {s.kind === 'activity'
+                                                ? 'on your timeline'
+                                                : 'in your inbox'}
+                                            )
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="mt-1 text-[12.5px] text-stone-500">
+                                Merging means you reflect once, on the combined
+                                entry — any existing reflection comes with it.
+                                Or just carry on reviewing this on its own.
+                            </p>
+                            <Button
+                                size="sm"
+                                onClick={onMergeInstead}
+                                disabled={processing}
+                                className="mt-2 border-2 border-ink font-bold shadow-[2px_2px_0_#1c1917]"
+                            >
+                                <Merge className="size-3.5" /> Merge into{' '}
+                                {item.merge_suggestions!.length === 1
+                                    ? 'it'
+                                    : 'these'}{' '}
+                                instead…
+                            </Button>
+                        </div>
+                    )}
 
                 {piiFlags.length > 0 && (
                     <div className="rounded-[10px] border-2 border-brand bg-brand-pale px-4 py-3 text-sm">

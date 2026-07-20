@@ -2,6 +2,7 @@
 
 namespace App\Ai;
 
+use App\Enums\InboxItemStatus;
 use App\Models\ActivityType;
 use App\Models\Profession;
 use App\Models\User;
@@ -30,6 +31,7 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
      * @param  array<int, array{id: int, title: string, date: ?string, type: string}>  $recentActivities
      * @param  array<int, array{id: int, title: string}>  $openProjects
      * @param  array<int, array{id: int, title: string}>  $recurrences
+     * @param  array<int, array{id: int, title: string, date: ?string, source: string, type: ?string}>  $openInboxItems
      */
     public function __construct(
         public readonly Profession $profession,
@@ -41,9 +43,10 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
         public readonly array $recentActivities = [],
         public readonly array $openProjects = [],
         public readonly array $recurrences = [],
+        public readonly array $openInboxItems = [],
     ) {}
 
-    public static function for(User $user): self
+    public static function for(User $user, ?int $excludeInboxItemId = null): self
     {
         $profession = $user->profession;
 
@@ -78,6 +81,25 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
                 ->get()
                 ->map(fn ($r) => ['id' => $r->id, 'title' => $r->title])
                 ->all(),
+            // Compact one-liners only (~15 tokens each, capped at 25) —
+            // enough for "same MDT?" matching without shipping content.
+            openInboxItems: $user->inboxItems()
+                ->where('status', InboxItemStatus::Ready)
+                ->when($excludeInboxItemId !== null, fn ($q) => $q->whereKeyNot($excludeInboxItemId))
+                ->latest()
+                ->limit(25)
+                ->get()
+                ->map(fn ($i) => [
+                    'id' => $i->id,
+                    'title' => $i->ai_analysis['title']
+                        ?? $i->raw_payload['title']
+                        ?? $i->raw_payload['subject']
+                        ?? 'untitled',
+                    'date' => $i->ai_analysis['starts_on'] ?? $i->created_at->toDateString(),
+                    'source' => $i->source->value,
+                    'type' => $i->ai_analysis['activity_type_slug'] ?? null,
+                ])
+                ->all(),
         );
     }
 
@@ -108,6 +130,10 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
 
         $regulars = collect($this->recurrences)
             ->map(fn ($r) => "- id {$r['id']}: {$r['title']}")
+            ->implode("\n") ?: '(none)';
+
+        $waiting = collect($this->openInboxItems)
+            ->map(fn ($i) => "- id {$i['id']}: {$i['title']} ({$i['source']}, ".($i['type'] ?? '?').", {$i['date']})")
             ->implode("\n") ?: '(none)';
 
         return <<<PROMPT
@@ -157,6 +183,18 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
         evidence IS an occurrence of one of them (e.g. an email about that very meeting), set
         matched_recurrence_id to its id — otherwise null. An email merely mentioning it does not count.
         {$regulars}
+
+        Other evidence currently waiting in the user's inbox:
+        {$waiting}
+
+        Related evidence: if this evidence appears to be part of the SAME event, course, meeting or
+        project as any waiting inbox item or recent activity above — same title stem, same
+        organisation, or dates within about a week of each other — list those ids in
+        possible_related_inbox_item_ids / possible_related_activity_ids and give a one-line
+        related_reason. "Related" means the user could sensibly combine them into one portfolio
+        entry; it is NOT the same as a duplicate (exact duplicates of an activity still go in
+        possible_duplicate_activity_ids). Items captured within a day or two of each other are more
+        likely related than ones months apart. Leave the lists empty when nothing genuinely matches.
         PROMPT;
     }
 
@@ -181,6 +219,9 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
             'attribute_codes' => $schema->array()->items($schema->string()->enum(array_keys($this->attributes)))->required(),
             'suggested_project_ids' => $schema->array()->items($schema->integer())->required(),
             'possible_duplicate_activity_ids' => $schema->array()->items($schema->integer())->required(),
+            'possible_related_inbox_item_ids' => $schema->array()->items($schema->integer())->description('Waiting inbox items that appear to be about the same event/course/project')->required(),
+            'possible_related_activity_ids' => $schema->array()->items($schema->integer())->description('Recent activities that appear to be about the same event/course/project (not exact duplicates)')->required(),
+            'related_reason' => $schema->string()->description('One line on why the related ids match, or null')->nullable(),
             'matched_recurrence_id' => $schema->integer()->description('Id of the regular activity this evidence is an occurrence of, or null')->nullable(),
             'confidence' => $schema->number()->description('Between 0 and 1: overall confidence in this extraction')->required(),
             'pii_flags' => $schema->array()->items($schema->object([
