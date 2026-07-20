@@ -148,10 +148,25 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
         - CPD points: {$pointsHeuristic} Estimate conservatively from the evidence; use 0 if genuinely
           no learning time is evidenced.
         - Dates must come from the evidence, not be invented. Use null when unknown.
-        - Summarise what happened and extract genuine learning points.
-        - Draft the reflection answers in the first person, natural and human-sounding — like a busy
-          clinician writing honestly, not a chatbot. Ground every claim in the evidence. Keep each
-          answer to 2-5 sentences.
+        - summary: write it in the first person, as if the user wrote it themselves — "I attended…",
+          "I completed…". Natural and human, 2-4 sentences: what it was, what it covered, what it
+          involved. Never write meta-commentary: no "the evidence indicates/suggests", no remarks
+          about missing information, unreadable files, sources, or what the evidence shows. Anything
+          missing or unreadable belongs ONLY in missing_evidence, never in the summary.
+        - Reflections are NOT like the summary: they are the user's personal reflection, and you
+          must never write them from nothing. Search the evidence for the user's OWN reflective
+          words — commentary they typed above a forwarded email ("really useful day…", "I'll start
+          doing X"), musings in a voice note, notes they added alongside a file. When you find
+          some, shape THOSE words into the matching reflection answers: first person, natural and
+          human — like a busy clinician writing honestly — 2-5 sentences, keeping their specifics
+          and meaning. Fill ONLY the answers their words actually support and set the rest to
+          null. If the evidence contains no reflection from the user (a bare certificate, an
+          agenda, a voice note that only states facts like "there was an MDT on Tuesday"), set
+          EVERY reflection answer to null — the app invites the user to reflect in their own
+          words instead. Factual statements about an event are not reflection.
+        - reflection_source: when you filled any reflection answer, one short line saying where
+          the user's reflection came from, quoting a few of their own words — e.g. "From your
+          forwarded email — 'really useful day…'". Null when every reflection answer is null.
         - Categorise against {$frameworkName} using ONLY the provided codes. Choose the few that
           genuinely fit; do not scattergun.
         - Patient safety: if the evidence contains anything that could identify a patient, colleague
@@ -201,7 +216,9 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
     public function schema(JsonSchema $schema): array
     {
         $reflectionProperties = collect($this->reflectionPrompts)
-            ->mapWithKeys(fn ($p) => [$p['key'] => $schema->string()->description($p['question'])->required()])
+            ->mapWithKeys(fn ($p) => [$p['key'] => $schema->string()
+                ->description("{$p['question']} Only from the user's own reflective words in the evidence; null when their words don't answer it.")
+                ->nullable()])
             ->all();
 
         return [
@@ -211,9 +228,10 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
             'ends_on' => $schema->string()->description('ISO date YYYY-MM-DD')->nullable(),
             'organisation' => $schema->string()->nullable(),
             'cpd_points' => $schema->number()->description('Estimated CPD points, ~1 per hour')->required(),
-            'summary' => $schema->string()->description('2-4 sentence factual summary of the activity')->required(),
+            'summary' => $schema->string()->description('First-person summary (2-4 sentences) written as the user — "I attended…" — describing the activity itself, with no meta-commentary about the evidence or missing information')->required(),
             'suggested_learning_points' => $schema->array()->items($schema->string())->required(),
             'reflection_draft' => $schema->object($reflectionProperties)->required(),
+            'reflection_source' => $schema->string()->description('Where the user\'s reflection came from, quoting a few of their words — null when every reflection answer is null')->nullable(),
             'category_slugs' => $schema->array()->items($schema->string()->enum($this->categorySlugs))->required(),
             'domain_codes' => $schema->array()->items($schema->string()->enum(array_keys($this->domains)))->required(),
             'attribute_codes' => $schema->array()->items($schema->string()->enum(array_keys($this->attributes)))->required(),

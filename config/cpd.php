@@ -81,6 +81,7 @@ return [
             'anthropic' => [
                 'inbox_analysis' => env('AI_ANTHROPIC_MODEL', 'claude-sonnet-5'),
                 'text_assist' => env('AI_ANTHROPIC_MODEL_FAST', 'claude-haiku-4-5-20251001'),
+                'reflection_draft' => env('AI_ANTHROPIC_MODEL_FAST', 'claude-haiku-4-5-20251001'),
                 'merge_reflection' => env('AI_ANTHROPIC_MODEL_FAST', 'claude-haiku-4-5-20251001'),
                 'question_answer' => env('AI_ANTHROPIC_MODEL', 'claude-sonnet-5'),
                 'report' => env('AI_ANTHROPIC_MODEL', 'claude-sonnet-5'),
@@ -89,6 +90,7 @@ return [
             'openai' => [
                 'inbox_analysis' => env('AI_OPENAI_MODEL', 'gpt-5.4'),
                 'text_assist' => env('AI_OPENAI_MODEL_FAST', 'gpt-5.4-mini'),
+                'reflection_draft' => env('AI_OPENAI_MODEL_FAST', 'gpt-5.4-mini'),
                 'merge_reflection' => env('AI_OPENAI_MODEL_FAST', 'gpt-5.4-mini'),
                 'question_answer' => env('AI_OPENAI_MODEL', 'gpt-5.4'),
                 'report' => env('AI_OPENAI_MODEL', 'gpt-5.4'),

@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { LogOut, Settings, ShieldCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Wordmark } from '@/components/brand/wordmark';
+import { AppFooter } from '@/components/cpd/app-footer';
 import { SearchCommand } from '@/components/cpd/search-command';
 import {
     DropdownMenu,
@@ -34,7 +35,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     const currentPath = page.url;
 
     return (
-        <div className="min-h-svh bg-paper font-sans text-ink">
+        <div className="flex min-h-svh flex-col bg-paper font-sans text-ink">
             <header className="border-b border-dashed border-ink/18 bg-paper">
                 <div className="mx-auto flex max-w-[1080px] items-center justify-between px-4 pt-4 pb-2 md:px-6">
                     <Link href="/inbox">
@@ -108,9 +109,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 </nav>
             </header>
 
-            <main className="mx-auto max-w-[1080px] px-4 py-6 md:px-6">
+            <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-6 md:px-6">
                 {children}
             </main>
+
+            <AppFooter />
         </div>
     );
 }

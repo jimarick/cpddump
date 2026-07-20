@@ -169,8 +169,8 @@ export default function Privacy() {
                                     The original entries and their files are
                                     kept underneath the combined entry, exactly
                                     as they were — un-combining restores them.
-                                    The patient-information check still applies
-                                    before anything can be combined
+                                    The sensitive-information check still
+                                    applies before anything can be combined
                                 </td>
                                 <td>—</td>
                                 <td>

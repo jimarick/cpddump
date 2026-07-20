@@ -55,3 +55,7 @@ Rules for keeping the two in step:
   deletes, PII gate. `docs/file-pipeline-plan.md` is the canonical record —
   keep the privacy page's "What happens to your uploads" table in lockstep
   with any pipeline change.
+- The public "How we use AI" page (`/ai`, `marketing/ai.tsx`) is the
+  plain-English register of every AI scenario — any change to AI behaviour
+  (new agent, new endpoint, changed rules like "reflections never written
+  from nothing") must update that page in the same commit.

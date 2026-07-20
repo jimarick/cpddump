@@ -8,7 +8,16 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Head, router } from '@inertiajs/react';
-import { Layers, Loader2, Merge, Paperclip, Trash2 } from 'lucide-react';
+import {
+    Check,
+    Copy,
+    Layers,
+    Loader2,
+    Merge,
+    Paperclip,
+    PenLine,
+    Trash2,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
@@ -680,6 +689,44 @@ function GapStrip({ stats }: { stats: InboxStats }) {
     );
 }
 
+/** Long-form UK date for the read-only activity view. */
+function formatViewDate(date: string): string {
+    return new Date(date).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
+}
+
+/** A small copy-to-clipboard button with brief "copied" feedback. */
+function CopyButton({ text, label }: { text: string; label: string }) {
+    const [copied, setCopied] = useState(false);
+
+    return (
+        <button
+            type="button"
+            aria-label={`Copy ${label}`}
+            title="Copy"
+            onClick={() => {
+                void navigator.clipboard.writeText(text);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+            }}
+            className={
+                copied
+                    ? 'cursor-pointer text-green-700'
+                    : 'cursor-pointer text-stone-400 hover:text-ink'
+            }
+        >
+            {copied ? (
+                <Check className="size-3.5" />
+            ) : (
+                <Copy className="size-3.5" />
+            )}
+        </button>
+    );
+}
+
 function EditActivityDialog({
     activity,
     reference,
@@ -691,7 +738,7 @@ function EditActivityDialog({
     onClose: () => void;
     onMergeWith: () => void;
 }) {
-    const [values, setValues] = useState<EvidenceFormValues>({
+    const initialValues = (): EvidenceFormValues => ({
         title: activity.title,
         activity_type_slug: activity.type.slug,
         starts_on: activity.starts_on ?? '',
@@ -705,6 +752,9 @@ function EditActivityDialog({
         attribute_codes: activity.attribute_codes,
         project_ids: activity.projects.map((p) => p.id),
     });
+
+    const [mode, setMode] = useState<'view' | 'edit'>('view');
+    const [values, setValues] = useState<EvidenceFormValues>(initialValues);
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
@@ -753,109 +803,232 @@ function EditActivityDialog({
         });
     };
 
+    const reflectionBlocks = reference.reflectionPrompts
+        .map((prompt) => ({
+            key: prompt.key,
+            label: prompt.label,
+            text: activity.reflection?.[prompt.key] ?? '',
+        }))
+        .filter((block) => block.text.trim() !== '');
+
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle className="font-display text-2xl font-extrabold">
-                        Edit activity
-                    </DialogTitle>
-                </DialogHeader>
+                {mode === 'view' ? (
+                    <>
+                        <div className="flex items-start justify-between gap-3">
+                            <DialogHeader>
+                                <DialogTitle className="font-display text-2xl font-extrabold">
+                                    {activity.title}
+                                </DialogTitle>
+                            </DialogHeader>
+                            <Button
+                                size="sm"
+                                onClick={() => setMode('edit')}
+                                className="mr-6 shrink-0 border-2 border-ink font-bold shadow-[2px_2px_0_#1c1917]"
+                            >
+                                <PenLine className="size-3.5" /> Edit
+                            </Button>
+                        </div>
 
-                {isMergedParent && (
-                    <div className="rounded-[10px] border border-dashed border-stone-400 px-4 py-2.5 text-[13px] text-stone-600">
-                        <Layers className="mr-1.5 inline size-3.5 text-stone-400" />
-                        <span className="font-semibold">Merged from:</span>{' '}
-                        {mergedFrom.map((c) => c.title).join(' · ')}{' '}
-                        <button
-                            type="button"
-                            onClick={() => setConfirmingSplit(true)}
-                            className="cursor-pointer font-semibold text-ink underline decoration-dashed underline-offset-4 hover:text-brand-dark"
-                        >
-                            Split apart
-                        </button>
-                    </div>
-                )}
+                        {activity.starts_on && (
+                            <p className="-mt-2 text-[13px] text-stone-500">
+                                {formatViewDate(activity.starts_on)}
+                                {activity.ends_on &&
+                                    activity.ends_on !== activity.starts_on &&
+                                    ` – ${formatViewDate(activity.ends_on)}`}
+                            </p>
+                        )}
 
-                {!isMergedParent && activity.formerly_merged && (
-                    <p className="text-[12px] text-stone-400">
-                        <Layers className="mr-1 inline size-3" />
-                        This entry was previously part of a merged entry
-                        {activity.merge_unreviewed
-                            ? ' — it was created from the AI analysis during that merge, so give its details a once-over'
-                            : ''}
-                        .
-                    </p>
-                )}
+                        <AttachmentLinks
+                            attachments={activity.attachments}
+                            onDelete={(attachment) => {
+                                if (
+                                    confirm(
+                                        `Delete “${attachment.name}”? The file is permanently deleted — your written entry is kept.`,
+                                    )
+                                ) {
+                                    router.delete(
+                                        `/attachments/${attachment.id}`,
+                                        { preserveScroll: true },
+                                    );
+                                }
+                            }}
+                        />
 
-                <AttachmentLinks attachments={activity.attachments} />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="flex items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-white px-2.5 py-0.5 text-xs font-semibold">
+                                <span
+                                    className="size-2 rounded-full"
+                                    style={{
+                                        backgroundColor: activity.type.color,
+                                    }}
+                                />
+                                {activity.type.name}
+                            </span>
+                            <span className="rounded-full border-[1.5px] border-ink bg-brand-tint px-2.5 py-0.5 text-xs font-semibold text-brand-dark">
+                                {activity.cpd_points} points
+                            </span>
+                            {activity.categories.map((c) => (
+                                <span
+                                    key={c.slug}
+                                    className="rounded-full border border-stone-300 px-2.5 py-0.5 text-xs text-stone-600"
+                                >
+                                    {c.name}
+                                </span>
+                            ))}
+                            {activity.domains.map((d) => (
+                                <span
+                                    key={d.code}
+                                    className="rounded-full border border-stone-300 px-2.5 py-0.5 text-xs text-stone-600"
+                                >
+                                    {d.code.replace('D', 'Domain ')}
+                                </span>
+                            ))}
+                        </div>
 
-                {(activity.attachments.some((a) => !a.purged) ||
-                    activity.reflection) && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (
-                                confirm(
-                                    'Remove patient information? Stored files are deleted and NHS numbers scrubbed from the text — your entry itself is kept.',
-                                )
-                            ) {
-                                router.post(
-                                    `/activities/${activity.id}/remove-pii`,
-                                    {},
-                                    { onSuccess: onClose },
-                                );
+                        {activity.projects.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[11px] font-bold tracking-wide text-stone-400 uppercase">
+                                    Projects:
+                                </span>
+                                {activity.projects.map((p) => (
+                                    <span
+                                        key={p.id}
+                                        className="rounded-full border border-dashed border-stone-400 px-2.5 py-0.5 text-xs text-stone-600"
+                                    >
+                                        {p.title}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+
+                        {isMergedParent && (
+                            <div className="rounded-[10px] border border-dashed border-stone-400 px-4 py-2.5 text-[13px] text-stone-600">
+                                <Layers className="mr-1.5 inline size-3.5 text-stone-400" />
+                                <span className="font-semibold">
+                                    Merged from:
+                                </span>{' '}
+                                {mergedFrom.map((c) => c.title).join(' · ')}{' '}
+                                <button
+                                    type="button"
+                                    onClick={() => setConfirmingSplit(true)}
+                                    className="cursor-pointer font-semibold text-ink underline decoration-dashed underline-offset-4 hover:text-brand-dark"
+                                >
+                                    Split apart
+                                </button>
+                            </div>
+                        )}
+
+                        {!isMergedParent && activity.formerly_merged && (
+                            <p className="text-[12px] text-stone-400">
+                                <Layers className="mr-1 inline size-3" />
+                                This entry was previously part of a merged
+                                entry
+                                {activity.merge_unreviewed
+                                    ? ' — it was created from the AI analysis during that merge, so give its details a once-over'
+                                    : ''}
+                                .
+                            </p>
+                        )}
+
+                        {activity.details && (
+                            <div className="grid gap-1">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-bold">
+                                        Details
+                                    </span>
+                                    <CopyButton
+                                        text={activity.details}
+                                        label="details"
+                                    />
+                                </div>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700">
+                                    {activity.details}
+                                </p>
+                            </div>
+                        )}
+
+                        {reflectionBlocks.map((block) => (
+                            <div key={block.key} className="grid gap-1">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-bold">
+                                        {block.label}
+                                    </span>
+                                    <CopyButton
+                                        text={block.text}
+                                        label={block.label}
+                                    />
+                                </div>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700">
+                                    {block.text}
+                                </p>
+                            </div>
+                        ))}
+
+                        <div className="mt-2 flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
+                            <Button
+                                variant="ghost"
+                                onClick={onMergeWith}
+                                disabled={processing}
+                                className="text-stone-500"
+                            >
+                                <Merge className="size-4" /> Merge with…
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => setConfirmingDelete(true)}
+                                disabled={processing}
+                                className="ml-auto text-red-600 hover:text-red-700"
+                            >
+                                <Trash2 className="size-4" /> Delete
+                            </Button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle className="font-display text-2xl font-extrabold">
+                                Edit activity
+                            </DialogTitle>
+                        </DialogHeader>
+
+                        <EvidenceFormFields
+                            values={values}
+                            onChange={(patch) =>
+                                setValues((v) => ({ ...v, ...patch }))
                             }
-                        }}
-                        className="w-fit cursor-pointer text-[12px] font-semibold text-stone-400 underline decoration-dashed underline-offset-4 hover:text-ink"
-                    >
-                        Spotted patient info in this activity? Remove it
-                    </button>
+                            reference={reference}
+                            errors={errors}
+                        />
+
+                        <div className="mt-2 flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
+                            <Button
+                                onClick={save}
+                                disabled={processing}
+                                className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+                            >
+                                {processing && (
+                                    <Loader2 className="size-4 animate-spin" />
+                                )}{' '}
+                                Save
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setValues(initialValues());
+                                    setErrors({});
+                                    setMode('view');
+                                }}
+                                disabled={processing}
+                                className="border-2 border-ink"
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </>
                 )}
-
-                <EvidenceFormFields
-                    values={values}
-                    onChange={(patch) => setValues((v) => ({ ...v, ...patch }))}
-                    reference={reference}
-                    errors={errors}
-                />
-
-                <div className="mt-2 flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
-                    <Button
-                        onClick={save}
-                        disabled={processing}
-                        className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
-                    >
-                        {processing && (
-                            <Loader2 className="size-4 animate-spin" />
-                        )}{' '}
-                        Save
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={processing}
-                        className="border-2 border-ink"
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        onClick={onMergeWith}
-                        disabled={processing}
-                        className="text-stone-500"
-                    >
-                        <Merge className="size-4" /> Merge with…
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        onClick={() => setConfirmingDelete(true)}
-                        disabled={processing}
-                        className="ml-auto text-red-600 hover:text-red-700"
-                    >
-                        <Trash2 className="size-4" /> Delete
-                    </Button>
-                </div>
 
                 {confirmingSplit && (
                     <Dialog

@@ -33,6 +33,42 @@ test('owners can view their attachment inline; strangers get a 404', function ()
         ->assertNotFound();
 });
 
+test('owners can delete a kept file to a stub; strangers get a 404', function () {
+    Storage::fake('local');
+
+    $user = ukDoctor();
+    $stranger = ukDoctor();
+    $activity = Activity::factory()->for($user)->create();
+
+    Storage::disk('local')->put("evidence/{$user->id}/cert.pdf", '%PDF-1.4 fake');
+
+    $attachment = $activity->attachments()->create([
+        'user_id' => $user->id,
+        'disk' => 'local',
+        'path' => "evidence/{$user->id}/cert.pdf",
+        'original_filename' => 'certificate.pdf',
+        'mime_type' => 'application/pdf',
+        'size' => 14,
+        'extracted_text' => 'Certificate for Dr Example',
+    ]);
+
+    $this->actingAs($stranger)
+        ->delete("/attachments/{$attachment->id}")
+        ->assertNotFound();
+
+    $this->actingAs($user)
+        ->delete("/attachments/{$attachment->id}")
+        ->assertRedirect();
+
+    $attachment->refresh();
+
+    // The file is gone; the row survives as an honest stub with no text copy.
+    Storage::disk('local')->assertMissing("evidence/{$user->id}/cert.pdf");
+    expect($attachment->purged_at)->not->toBeNull()
+        ->and($attachment->extracted_text)->toBeNull()
+        ->and($activity->fresh())->not->toBeNull();
+});
+
 test('the evidence export bundles a period\'s files into a downloadable zip', function () {
     Storage::fake('local');
 

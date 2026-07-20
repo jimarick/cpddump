@@ -1,5 +1,11 @@
+import { Info, Loader2, Mic, Square } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Sparkle } from '@/components/brand/sparkle';
 import { AiTextarea } from '@/components/cpd/ai-textarea';
 import { DictatedInput } from '@/components/cpd/dictated-fields';
+import { DictationButton } from '@/components/cpd/dictation-button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -9,14 +15,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDictation } from '@/hooks/use-dictation';
+import { postJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { ReferenceData, ReflectionPrompt } from '@/types/cpd';
 
 /**
- * The editable draft-activity fields shared by the inbox review modal and
- * the activity edit dialog. Purely controlled: parent owns the values.
- * Exposed as three step sections (details / reflection / categorisation)
- * so the review modal can paginate; EvidenceFormFields stacks all three.
+ * The editable draft-activity fields shared by the inbox review modal, the
+ * merge dialog and the activity edit dialog. Purely controlled: parent owns
+ * the values. Exposed as three step sections (details / reflection /
+ * categorisation) for the EvidenceWizard; EvidenceFormFields stacks them
+ * for the single-scroll edit form.
+ *
+ * `organisation` has no input any more but MUST stay in the values and in
+ * every submit payload: ActivityController@update nulls the column when the
+ * key is absent, and the AI-extracted value still feeds exports and merges.
  */
 export interface EvidenceFormValues {
     title: string;
@@ -53,27 +66,106 @@ function aiContext(values: EvidenceFormValues): string {
         .join('\n');
 }
 
+const NO_PROJECT = 'none';
+
+/**
+ * Quiet field labels: every field arrives AI-prefilled, so the values carry
+ * the meaning — labels whisper rather than head their fields.
+ */
+const LABEL_QUIET = 'text-[11px] font-bold tracking-wide text-stone-400 uppercase';
+
 export function DetailsStepFields({
     values,
     onChange,
     reference,
     errors = {},
-}: StepProps) {
+    hideTitle = false,
+}: StepProps & {
+    /** The review modal shows the title in its header instead. */
+    hideTitle?: boolean;
+}) {
+    const [showEnd, setShowEnd] = useState(
+        () => Boolean(values.ends_on) && values.ends_on !== values.starts_on,
+    );
+    const endVisible = showEnd || Boolean(errors.ends_on);
+
     return (
         <div className="grid gap-5">
-            <div className="grid gap-1.5">
-                <Label htmlFor="title">Title</Label>
-                <DictatedInput
-                    id="title"
-                    value={values.title}
-                    onValueChange={(title) => onChange({ title })}
-                />
-                <FieldError message={errors.title} />
+            {!hideTitle && (
+                <div className="grid gap-1.5">
+                    <Label className={LABEL_QUIET} htmlFor="title">
+                        Title
+                    </Label>
+                    <DictatedInput
+                        id="title"
+                        value={values.title}
+                        onValueChange={(title) => onChange({ title })}
+                    />
+                    <FieldError message={errors.title} />
+                </div>
+            )}
+
+            <div className="grid grid-cols-[1fr_6rem] gap-4">
+                <div className="grid gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                        <Label className={LABEL_QUIET} htmlFor="starts_on">
+                            {endVisible ? 'Dates' : 'Date'}
+                        </Label>
+                        {!endVisible && (
+                            <button
+                                type="button"
+                                onClick={() => setShowEnd(true)}
+                                className="cursor-pointer text-xs text-stone-500 underline decoration-dashed underline-offset-3 hover:text-ink"
+                            >
+                                · + end
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Input
+                            id="starts_on"
+                            type="date"
+                            value={values.starts_on}
+                            onChange={(e) =>
+                                onChange({ starts_on: e.target.value })
+                            }
+                        />
+                        {endVisible && (
+                            <>
+                                <span className="text-stone-400">→</span>
+                                <Input
+                                    id="ends_on"
+                                    type="date"
+                                    aria-label="End date"
+                                    value={values.ends_on}
+                                    onChange={(e) =>
+                                        onChange({ ends_on: e.target.value })
+                                    }
+                                />
+                            </>
+                        )}
+                    </div>
+                    <FieldError message={errors.starts_on ?? errors.ends_on} />
+                </div>
+                <div className="grid gap-1.5">
+                    <Label className={LABEL_QUIET} htmlFor="cpd_points">Points</Label>
+                    <Input
+                        id="cpd_points"
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={values.cpd_points}
+                        onChange={(e) =>
+                            onChange({ cpd_points: e.target.value })
+                        }
+                    />
+                    <FieldError message={errors.cpd_points} />
+                </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-1.5">
-                    <Label>Type</Label>
+                    <Label className={LABEL_QUIET}>Type</Label>
                     <Select
                         value={values.activity_type_slug}
                         onValueChange={(v) =>
@@ -100,64 +192,46 @@ export function DetailsStepFields({
                     <FieldError message={errors.activity_type_slug} />
                 </div>
                 <div className="grid gap-1.5">
-                    <Label htmlFor="cpd_points">CPD points</Label>
-                    <Input
-                        id="cpd_points"
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        value={values.cpd_points}
-                        onChange={(e) =>
-                            onChange({ cpd_points: e.target.value })
+                    <Label className={LABEL_QUIET}>Project / learning goal</Label>
+                    <Select
+                        value={
+                            values.project_ids[0] !== undefined
+                                ? String(values.project_ids[0])
+                                : NO_PROJECT
                         }
-                    />
-                    <FieldError message={errors.cpd_points} />
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
-                    <Label htmlFor="starts_on">Start date</Label>
-                    <Input
-                        id="starts_on"
-                        type="date"
-                        value={values.starts_on}
-                        onChange={(e) =>
-                            onChange({ starts_on: e.target.value })
+                        onValueChange={(v) =>
+                            onChange({
+                                project_ids:
+                                    v === NO_PROJECT ? [] : [Number(v)],
+                            })
                         }
-                    />
-                    <FieldError message={errors.starts_on} />
-                </div>
-                <div className="grid gap-1.5">
-                    <Label htmlFor="ends_on">End date</Label>
-                    <Input
-                        id="ends_on"
-                        type="date"
-                        value={values.ends_on}
-                        onChange={(e) => onChange({ ends_on: e.target.value })}
-                    />
-                    <FieldError message={errors.ends_on} />
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={NO_PROJECT}>
+                                <span className="text-stone-500">None</span>
+                            </SelectItem>
+                            {reference.projects.map((p) => (
+                                <SelectItem key={p.id} value={String(p.id)}>
+                                    {p.title}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <FieldError message={errors.project_ids} />
                 </div>
             </div>
 
             <div className="grid gap-1.5">
-                <Label htmlFor="organisation">Organisation</Label>
-                <DictatedInput
-                    id="organisation"
-                    value={values.organisation}
-                    onValueChange={(organisation) => onChange({ organisation })}
-                    placeholder="e.g. Royal College of Radiologists"
-                />
-            </div>
-
-            <div className="grid gap-1.5">
-                <Label htmlFor="summary">Details</Label>
+                <Label className={LABEL_QUIET} htmlFor="summary">Details</Label>
                 <AiTextarea
                     id="summary"
                     value={values.summary}
-                    rows={4}
+                    rows={7}
                     onChange={(v) => onChange({ summary: v })}
-                    field="Details — a factual summary of what this activity was"
+                    field="Details — a first-person account of what this activity was, as if the user wrote it"
                     context={aiContext({ ...values, summary: '' })}
                 />
             </div>
@@ -165,25 +239,138 @@ export function DetailsStepFields({
     );
 }
 
+/**
+ * Cross-step state for the talk-first reflection capture. Owned by the
+ * wizard / stacked wrapper (which stays mounted across step changes),
+ * never by the step itself — a dictated ramble must survive Back/Next.
+ */
+export interface ReflectionTalkState {
+    /** talk = the single capture box; boxes = the per-prompt fields. */
+    mode: 'talk' | 'boxes';
+    ramble: string;
+    /** True once the ramble has been AI-shaped into the boxes. */
+    shaped: boolean;
+}
+
+/** Talk-first when the AI (honestly) left every reflection empty. */
+export function initialTalkState(
+    values: EvidenceFormValues,
+    reference: ReferenceData,
+): ReflectionTalkState {
+    const prompts = reference.reflectionPrompts;
+    const allEmpty =
+        prompts.length > 0 &&
+        prompts.every((p) => !(values.reflection[p.key] ?? '').trim());
+
+    return { mode: allEmpty ? 'talk' : 'boxes', ramble: '', shaped: false };
+}
+
 export function ReflectionStepFields({
     values,
     onChange,
     reference,
-}: StepProps) {
+    talk,
+    onTalk,
+    reflectionSource,
+}: StepProps & {
+    talk?: ReflectionTalkState;
+    onTalk?: (patch: Partial<ReflectionTalkState>) => void;
+    /** The analyst's note on where a pre-filled reflection came from. */
+    reflectionSource?: string | null;
+}) {
+    const [openInfo, setOpenInfo] = useState<Record<string, boolean>>({});
+
+    if (
+        talk &&
+        onTalk &&
+        talk.mode === 'talk' &&
+        reference.reflectionPrompts.length > 0
+    ) {
+        return (
+            <TalkFirstCapture
+                values={values}
+                onChange={onChange}
+                reference={reference}
+                talk={talk}
+                onTalk={onTalk}
+            />
+        );
+    }
+
+    /**
+     * Grounding for a per-box sparkle redraft: the activity details, the
+     * other boxes' answers, and the original ramble — so a regenerate
+     * stays consistent with (and true to) the rest of the reflection.
+     */
+    const boxContext = (currentKey: string) =>
+        [
+            aiContext(values),
+            ...reference.reflectionPrompts
+                .filter(
+                    (p) =>
+                        p.key !== currentKey &&
+                        (values.reflection[p.key] ?? '').trim(),
+                )
+                .map((p) => `${p.label}: ${values.reflection[p.key]}`),
+            talk?.ramble.trim()
+                ? `The user's own reflection notes:\n${talk.ramble.trim()}`
+                : '',
+        ]
+            .filter(Boolean)
+            .join('\n')
+            .slice(0, 4000);
+
+    const provenance = talk?.shaped
+        ? 'Shaped from your dictation — edit anything, or tap a sparkle to redo one box.'
+        : reflectionSource;
+
     return (
         <div className="grid gap-5">
+            {provenance &&
+                reference.reflectionPrompts.some((p) =>
+                    (values.reflection[p.key] ?? '').trim(),
+                ) && (
+                    <div className="flex items-start gap-2 rounded-[8px] border border-dashed border-brand bg-brand-pale px-3 py-2 text-xs text-brand-dark">
+                        <Sparkle size={11} className="mt-0.5 shrink-0" />
+                        <span>{provenance}</span>
+                    </div>
+                )}
             {reference.reflectionPrompts.map((prompt: ReflectionPrompt) => (
                 <div key={prompt.key} className="grid gap-1.5">
-                    <Label htmlFor={`reflection-${prompt.key}`}>
-                        {prompt.label}
-                    </Label>
-                    <p className="text-xs text-pretty text-stone-500">
-                        {prompt.question}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                        <Label className={LABEL_QUIET} htmlFor={`reflection-${prompt.key}`}>
+                            {prompt.label}
+                        </Label>
+                        <button
+                            type="button"
+                            aria-label={`What "${prompt.label}" means`}
+                            aria-expanded={Boolean(openInfo[prompt.key])}
+                            onClick={() =>
+                                setOpenInfo((open) => ({
+                                    ...open,
+                                    [prompt.key]: !open[prompt.key],
+                                }))
+                            }
+                            className={cn(
+                                'cursor-pointer',
+                                openInfo[prompt.key]
+                                    ? 'text-brand'
+                                    : 'text-stone-400 hover:text-ink',
+                            )}
+                        >
+                            <Info className="size-3.5" />
+                        </button>
+                    </div>
+                    {openInfo[prompt.key] && (
+                        <p className="rounded-lg bg-paper px-3 py-2 text-xs text-pretty text-stone-500">
+                            {prompt.question}
+                        </p>
+                    )}
                     <AiTextarea
                         id={`reflection-${prompt.key}`}
                         value={values.reflection[prompt.key] ?? ''}
                         rows={5}
+                        placeholder="Not covered yet — dictate, type, or tap the sparkle to draft it."
                         onChange={(v) =>
                             onChange({
                                 reflection: {
@@ -193,7 +380,7 @@ export function ReflectionStepFields({
                             })
                         }
                         field={`Appraisal reflection — ${prompt.label}: ${prompt.question}`}
-                        context={aiContext(values)}
+                        context={boxContext(prompt.key)}
                     />
                 </div>
             ))}
@@ -202,6 +389,178 @@ export function ReflectionStepFields({
                     No reflection prompts for your profession.
                 </p>
             )}
+        </div>
+    );
+}
+
+/**
+ * The talk-first capture: one box, the profession's questions stated up
+ * front, a big mic. Once there's a ramble, "shape into reflections" sends
+ * it (plus activity context) to /ai/reflection-draft and flips the step
+ * to the per-prompt boxes, filled only where the ramble supports them.
+ */
+function TalkFirstCapture({
+    values,
+    onChange,
+    reference,
+    talk,
+    onTalk,
+}: {
+    values: EvidenceFormValues;
+    onChange: (patch: Partial<EvidenceFormValues>) => void;
+    reference: ReferenceData;
+    talk: ReflectionTalkState;
+    onTalk: (patch: Partial<ReflectionTalkState>) => void;
+}) {
+    const prompts = reference.reflectionPrompts;
+    const [typing, setTyping] = useState(false);
+    const [shaping, setShaping] = useState(false);
+
+    const appendTranscript = (text: string) =>
+        onTalk({
+            ramble: talk.ramble.trim() ? `${talk.ramble.trim()} ${text}` : text,
+        });
+
+    const dictation = useDictation(appendTranscript);
+
+    const hasText = talk.ramble.trim() !== '';
+    const boxVisible = hasText || typing;
+
+    const shape = async () => {
+        setShaping(true);
+
+        try {
+            const result = await postJson<{
+                reflection: Record<string, string | null>;
+            }>('/ai/reflection-draft', {
+                text: talk.ramble,
+                context: aiContext(values).slice(0, 4000),
+            });
+
+            const reflection = { ...values.reflection };
+
+            for (const prompt of prompts) {
+                reflection[prompt.key] = result.reflection[prompt.key] ?? '';
+            }
+
+            onChange({ reflection });
+            onTalk({ mode: 'boxes', shaped: true });
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'The AI could not help just now.',
+            );
+        } finally {
+            setShaping(false);
+        }
+    };
+
+    return (
+        <div className="grid gap-4">
+            <div className="grid gap-1.5">
+                <Label className={LABEL_QUIET}>Reflection</Label>
+                <h3 className="font-display text-[22px] font-extrabold tracking-[-0.015em]">
+                    Talk it through.
+                </h3>
+                <ul className="grid gap-1">
+                    {prompts.map((prompt, i) => (
+                        <li
+                            key={prompt.key}
+                            className="flex gap-2 text-[13.5px] text-stone-600"
+                        >
+                            <span className="font-display font-extrabold text-brand">
+                                {i + 1}
+                            </span>
+                            {prompt.label}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+
+            {!boxVisible ? (
+                <div className="grid min-h-[190px] place-content-center justify-items-center gap-3 rounded-[14px] border-2 border-dashed border-stone-400 bg-paper p-6 text-center">
+                    <button
+                        type="button"
+                        onClick={dictation.toggle}
+                        disabled={dictation.transcribing}
+                        title={
+                            dictation.recording
+                                ? 'Stop and transcribe'
+                                : 'Dictate'
+                        }
+                        className={cn(
+                            'flex size-16 cursor-pointer items-center justify-center rounded-full border-2 border-ink text-white shadow-[3px_3px_0_#1c1917] transition-colors disabled:opacity-60',
+                            dictation.recording
+                                ? 'animate-pulse bg-red-500'
+                                : 'bg-brand hover:bg-brand-dark',
+                        )}
+                    >
+                        {dictation.transcribing ? (
+                            <Loader2 className="size-6 animate-spin" />
+                        ) : dictation.recording ? (
+                            <Square className="size-5" />
+                        ) : (
+                            <Mic className="size-6" />
+                        )}
+                    </button>
+                    {dictation.recording || dictation.transcribing ? (
+                        <p className="max-w-[38ch] text-[12.5px] text-stone-500">
+                            {dictation.transcribing
+                                ? 'Tidying up…'
+                                : dictation.preview || 'Listening…'}
+                        </p>
+                    ) : (
+                        <p className="max-w-[34ch] text-[13px] text-pretty text-stone-500">
+                            <span className="font-semibold text-ink">
+                                Tap to talk
+                            </span>{' '}
+                            — a minute of honest rambling is plenty.{' '}
+                            <button
+                                type="button"
+                                onClick={() => setTyping(true)}
+                                className="cursor-pointer underline decoration-dashed underline-offset-3 hover:text-ink"
+                            >
+                                Typing works too
+                            </button>
+                            .
+                        </p>
+                    )}
+                </div>
+            ) : (
+                <div className="grid gap-3 rounded-[14px] border-2 border-ink bg-white p-4">
+                    <textarea
+                        value={talk.ramble}
+                        rows={7}
+                        placeholder="Why you picked it, what you took away, what might change…"
+                        onChange={(e) => onTalk({ ramble: e.target.value })}
+                        className="w-full resize-none border-none bg-transparent text-sm leading-relaxed focus-visible:outline-none"
+                    />
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <Button
+                            onClick={shape}
+                            disabled={shaping || !hasText}
+                            className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
+                        >
+                            {shaping ? (
+                                <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                                <Sparkle size={13} />
+                            )}{' '}
+                            Shape into {prompts.length} reflections
+                        </Button>
+                        <DictationButton onTranscript={appendTranscript} />
+                    </div>
+                </div>
+            )}
+
+            <button
+                type="button"
+                onClick={() => onTalk({ mode: 'boxes' })}
+                className="justify-self-start cursor-pointer text-xs text-stone-500 underline decoration-dashed underline-offset-3 hover:text-ink"
+            >
+                or fill in the {prompts.length} boxes yourself
+            </button>
         </div>
     );
 }
@@ -216,15 +575,10 @@ export function CategorisationStepFields({
             ? list.filter((v) => v !== value)
             : [...list, value];
 
-    const toggleNumber = (list: number[], value: number) =>
-        list.includes(value)
-            ? list.filter((v) => v !== value)
-            : [...list, value];
-
     return (
         <div className="grid gap-5">
             <div className="grid gap-2">
-                <Label>Categories</Label>
+                <Label className={LABEL_QUIET}>Categories</Label>
                 <div className="flex flex-wrap gap-1.5">
                     {reference.categories.map((c) => (
                         <TogglePill
@@ -245,7 +599,7 @@ export function CategorisationStepFields({
             </div>
 
             <div className="grid gap-2">
-                <Label>GMC domains &amp; attributes</Label>
+                <Label className={LABEL_QUIET}>GMC domains &amp; attributes</Label>
                 <div className="grid gap-2.5">
                     {reference.domains.map((domain) => {
                         const domainActive = values.domain_codes.includes(
@@ -299,44 +653,112 @@ export function CategorisationStepFields({
                     })}
                 </div>
             </div>
-
-            {reference.projects.length > 0 && (
-                <div className="grid gap-2">
-                    <Label>Projects &amp; objectives</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                        {reference.projects.map((p) => (
-                            <TogglePill
-                                key={p.id}
-                                label={p.title}
-                                active={values.project_ids.includes(p.id)}
-                                onClick={() =>
-                                    onChange({
-                                        project_ids: toggleNumber(
-                                            values.project_ids,
-                                            p.id,
-                                        ),
-                                    })
-                                }
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
 
-/** All three step sections stacked — used by the activity edit dialog. */
+/** True when any server error belongs to the categorisation pickers. */
+function hasCategorisationErrors(errors: Record<string, string>): boolean {
+    return Object.keys(errors).some(
+        (key) =>
+            key.startsWith('category_slugs') ||
+            key.startsWith('domain_codes') ||
+            key.startsWith('attribute_codes'),
+    );
+}
+
+/**
+ * Condensed categorisation for the single-scroll edit form: the selected
+ * chips on one row with an "edit" link that unfolds the full pickers.
+ */
+export function CategorisationSummary(props: StepProps) {
+    const { values, reference, errors = {} } = props;
+    const [open, setOpen] = useState(false);
+
+    // Server errors on the pickers force the section open so they're seen.
+    const expanded = open || hasCategorisationErrors(errors);
+
+    const chips = [
+        ...reference.categories
+            .filter((c) => values.category_slugs.includes(c.slug))
+            .map((c) => c.name),
+        ...reference.domains
+            .filter((d) => values.domain_codes.includes(d.code))
+            .map((d) => {
+                const attrCount = d.framework_attributes.filter((a) =>
+                    values.attribute_codes.includes(a.code),
+                ).length;
+                const label = d.code.replace('D', 'Domain ');
+
+                return attrCount > 0 ? `${label} · ${attrCount}` : label;
+            }),
+    ];
+
+    if (expanded) {
+        return (
+            <div className="grid gap-3">
+                <CategorisationStepFields {...props} />
+                <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="justify-self-start text-xs text-stone-500 underline decoration-dashed underline-offset-3 hover:text-ink"
+                >
+                    done
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="grid gap-2">
+            <Label className={LABEL_QUIET}>Categorisation</Label>
+            <div className="flex flex-wrap items-center gap-1.5">
+                {chips.map((chip) => (
+                    <span
+                        key={chip}
+                        className="rounded-full border border-brand bg-brand-tint px-2.5 py-1 text-xs font-semibold text-brand-dark"
+                    >
+                        {chip}
+                    </span>
+                ))}
+                {chips.length === 0 && (
+                    <span className="text-xs text-stone-400">
+                        Nothing picked yet
+                    </span>
+                )}
+                <button
+                    type="button"
+                    onClick={() => setOpen(true)}
+                    className="text-xs text-stone-500 underline decoration-dashed underline-offset-3 hover:text-ink"
+                >
+                    edit
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/** Stacked single-scroll form — used by the activity edit dialog. */
 export function EvidenceFormFields(props: StepProps) {
+    const [talk, setTalk] = useState<ReflectionTalkState>(() =>
+        initialTalkState(props.values, props.reference),
+    );
+
     return (
         <div className="grid gap-6">
             <DetailsStepFields {...props} />
             <div className="border-t border-dashed border-stone-300 pt-5">
-                <div className="mb-3 text-sm font-bold">Reflection</div>
-                <ReflectionStepFields {...props} />
+                <CategorisationSummary {...props} />
             </div>
             <div className="border-t border-dashed border-stone-300 pt-5">
-                <CategorisationStepFields {...props} />
+                {talk.mode !== 'talk' && (
+                    <div className="mb-3 text-sm font-bold">Reflection</div>
+                )}
+                <ReflectionStepFields
+                    {...props}
+                    talk={talk}
+                    onTalk={(patch) => setTalk((t) => ({ ...t, ...patch }))}
+                />
             </div>
         </div>
     );

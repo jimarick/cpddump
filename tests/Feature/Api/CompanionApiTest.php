@@ -1,10 +1,12 @@
 <?php
 
+use App\Ai\ReflectionDraftAgent;
 use App\Ai\TextAssistAgent;
 use App\Enums\EvidenceSource;
 use App\Enums\InboxItemStatus;
 use App\Jobs\AnalyzeInboxItem;
 use App\Jobs\FetchLinkContent;
+use App\Models\Activity;
 use App\Models\Attachment;
 use App\Models\InboxItem;
 use Illuminate\Http\UploadedFile;
@@ -114,6 +116,26 @@ test('the item detail includes analysis and attachment urls', function () {
         ->assertJsonPath('item.ai_analysis.title', $item->ai_analysis['title'])
         ->assertJsonPath('item.attachments.0.purged', false)
         ->assertJsonPath('item.attachments.0.url', "/api/v1/attachments/{$attachment->id}");
+});
+
+test('a kept file can be deleted over the API, leaving a stub', function () {
+    $user = ukDoctor();
+    $activity = Activity::factory()->for($user)->create();
+    $attachment = Attachment::factory()->for($user)->create([
+        'attachable_type' => $activity->getMorphClass(),
+        'attachable_id' => $activity->id,
+    ]);
+
+    Sanctum::actingAs(ukDoctor());
+    $this->deleteJson("/api/v1/attachments/{$attachment->id}")->assertNotFound();
+
+    Sanctum::actingAs($user);
+    $this->deleteJson("/api/v1/attachments/{$attachment->id}")
+        ->assertOk()
+        ->assertJsonPath('status', 'deleted');
+
+    expect($attachment->fresh()->purged_at)->not->toBeNull()
+        ->and($attachment->fresh()->extracted_text)->toBeNull();
 });
 
 test('purged attachments are flagged and carry no download url', function () {
@@ -297,6 +319,24 @@ test('the sparkle button works over the API', function () {
         'field' => 'Reflection — what was learned',
         'text' => 'learned sepsis stuff',
     ])->assertOk()->assertJsonPath('text', 'A polished reflection.');
+});
+
+test('the reflection-draft shaping works over the API', function () {
+    Ai::fakeAgent(ReflectionDraftAgent::class, [
+        ['reflection' => [
+            'why_selected' => 'I picked this after a tricky sepsis case.',
+            'learning_need' => null,
+            'practice_change' => null,
+        ]],
+    ]);
+
+    Sanctum::actingAs(ukDoctor());
+
+    $this->postJson('/api/v1/ai/reflection-draft', [
+        'text' => 'picked this because of that tricky sepsis case on take',
+    ])->assertOk()
+        ->assertJsonPath('reflection.why_selected', 'I picked this after a tricky sepsis case.')
+        ->assertJsonPath('reflection.learning_need', null);
 });
 
 test('dictation transcribes over the API', function () {

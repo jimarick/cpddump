@@ -51,9 +51,12 @@ class MergeDraftAgent implements Agent, HasStructuredOutput
         - activity_type_slug: the single type that best fits the combination.
         - organisation: the organisation for the combined entry, or null when the
           sources genuinely differ or none is known.
-        - details: ONE factual paragraph (3-6 sentences) covering what happened
-          across ALL the sources — every source must be represented; do not simply
-          restate one source's summary.
+        - details: ONE paragraph (3-6 sentences) written in the first person, as if
+          the user wrote it themselves — "I attended…", "I presented…" — covering
+          what happened across ALL the sources; every source must be represented,
+          never simply restate one source's summary. No meta-commentary: no "the
+          evidence indicates/suggests" and no remarks about missing information,
+          sources, or what the evidence shows.
         - reflection: for each prompt key, weave the sources' answers into one
           combined answer (a short paragraph, 2-6 sentences):
           - First person, natural and human — a busy clinician writing honestly.
@@ -79,7 +82,7 @@ class MergeDraftAgent implements Agent, HasStructuredOutput
             'title' => $schema->string()->description('Title for the combined entry, under 160 characters')->required(),
             'activity_type_slug' => $schema->string()->enum($this->activityTypeSlugs)->required(),
             'organisation' => $schema->string()->description('Organisation for the combined entry, or null')->nullable(),
-            'details' => $schema->string()->description('One factual paragraph covering all the merged sources')->required(),
+            'details' => $schema->string()->description('One first-person paragraph written as the user — "I attended…" — covering all the merged sources, with no meta-commentary about the evidence')->required(),
             'reflection' => $schema->object(
                 collect($this->reflectionPrompts)
                     ->mapWithKeys(fn (array $p) => [

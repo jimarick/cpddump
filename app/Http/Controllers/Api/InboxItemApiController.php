@@ -113,8 +113,8 @@ class InboxItemApiController extends Controller
         if ($item->piiGateActive()) {
             if (! $request->boolean('pii_ack')) {
                 return response()->json([
-                    'message' => 'Possible patient information was found. Remove it, or confirm you have checked it, before approving.',
-                    'errors' => ['pii' => ['Possible patient information was found. Remove it, or confirm you have checked it, before approving.']],
+                    'message' => 'Possible sensitive information was found — remove it, or confirm you have checked it, before approving.',
+                    'errors' => ['pii' => ['Possible sensitive information was found — remove it, or confirm you have checked it, before approving.']],
                 ], 422);
             }
 

@@ -73,7 +73,10 @@ export interface AiAnalysis {
     cpd_points: number;
     summary: string;
     suggested_learning_points: string[];
-    reflection_draft: Record<string, string>;
+    /** Answers are null when the user's own words held no reflection. */
+    reflection_draft: Record<string, string | null>;
+    /** Where a pre-filled reflection came from, quoting the user's words. */
+    reflection_source?: string | null;
     category_slugs: string[];
     domain_codes: string[];
     attribute_codes: string[];

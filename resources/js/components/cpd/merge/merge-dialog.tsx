@@ -1,12 +1,16 @@
 import { router } from '@inertiajs/react';
-import { AlertTriangle, Loader2, Undo2, X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Sparkle } from '@/components/brand/sparkle';
-import { EvidenceFormFields } from '@/components/cpd/evidence-form-fields';
+import { ApproveConfirmDialog } from '@/components/cpd/approve-confirm-dialog';
 import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
+import {
+    EvidenceWizard,
+    stepForErrors,
+    WIZARD_STEP_COUNT,
+} from '@/components/cpd/evidence-wizard';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -24,31 +28,20 @@ import type {
 
 const ROW_TILTS = [-1.4, 1, -0.6, 1.3, -1];
 
-/** The fields the AI draft touches — snapshotted for undo. */
-type DraftSnapshot = Pick<
-    EvidenceFormValues,
-    'title' | 'activity_type_slug' | 'organisation' | 'summary' | 'reflection'
->;
-
 /**
  * Everything the modal's form knows, updated atomically so the preview
  * and the AI draft can land in either order without racing.
  */
 interface FormState {
     values: EvidenceFormValues | null;
-    aiState: 'pending' | 'applied' | 'undone' | 'failed';
     aiDraft: MergeDraft | null;
-    preAiSnapshot: DraftSnapshot | null;
-}
-
-function snapshotOf(values: EvidenceFormValues): DraftSnapshot {
-    return {
-        title: values.title,
-        activity_type_slug: values.activity_type_slug,
-        organisation: values.organisation,
-        summary: values.summary,
-        reflection: values.reflection,
-    };
+    aiApplied: boolean;
+    /**
+     * True while /merges/draft is in flight. The wizard is held back
+     * behind a "drafting…" banner until this settles, so the boxes never
+     * show stitched defaults that silently swap to AI text seconds later.
+     */
+    aiPending: boolean;
 }
 
 /**
@@ -71,10 +64,11 @@ function applyDraft(
 }
 
 /**
- * The merge confirmation modal: combined points, date span, files, PII
- * decisions and the full editable entry — one reflection, on the whole.
- * Deterministic defaults arrive from the preview endpoint; AI-combined
- * reflections shimmer in afterwards with a one-tap undo.
+ * The merge confirmation modal: the same Details → Reflection → Categorise
+ * wizard as the inbox review, seeded with deterministic defaults from the
+ * preview endpoint and silently overlaid with the AI-combined draft. PII
+ * and keep-file decisions happen in the ApproveConfirmDialog popup when
+ * Merge is clicked.
  */
 export function MergeDialog({
     seed: initialSeed,
@@ -91,16 +85,15 @@ export function MergeDialog({
 
     const [form, setForm] = useState<FormState>({
         values: null,
-        aiState: 'pending',
         aiDraft: null,
-        preAiSnapshot: null,
+        aiApplied: false,
+        aiPending: true,
     });
 
+    const [step, setStep] = useState(0);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
-
-    const [keepIds, setKeepIds] = useState<number[]>([]);
-    const [piiAcks, setPiiAcks] = useState<number[]>([]);
+    const [confirmingSave, setConfirmingSave] = useState(false);
 
     const patchValues = (patch: Partial<EvidenceFormValues>) =>
         setForm((f) =>
@@ -127,11 +120,10 @@ export function MergeDialog({
                     const values = valuesFromPreview(data);
 
                     // The AI draft already landed — apply it on arrival.
-                    if (f.aiState === 'pending' && f.aiDraft) {
+                    if (f.aiDraft && !f.aiApplied) {
                         return {
                             ...f,
-                            aiState: 'applied',
-                            preAiSnapshot: snapshotOf(values),
+                            aiApplied: true,
                             values: applyDraft(values, f.aiDraft),
                         };
                     }
@@ -151,6 +143,8 @@ export function MergeDialog({
     }, [seed]);
 
     // The AI-drafted combined entry, fired once for the initial selection.
+    // The form waits behind the drafting banner until this settles —
+    // success, empty or failure — then shows the final text straight away.
     useEffect(() => {
         let cancelled = false;
 
@@ -160,38 +154,33 @@ export function MergeDialog({
                     return;
                 }
 
-                setForm((f) => {
-                    const empty =
-                        !draft.title &&
-                        !draft.details &&
-                        Object.keys(draft.reflection).length === 0;
+                const empty =
+                    !draft.title &&
+                    !draft.details &&
+                    Object.keys(draft.reflection).length === 0;
 
+                setForm((f) => {
                     if (empty) {
-                        return f.aiState === 'pending'
-                            ? { ...f, aiState: 'failed' }
-                            : f;
+                        return { ...f, aiPending: false };
                     }
 
-                    if (f.values && f.aiState === 'pending') {
+                    if (f.values && !f.aiApplied) {
                         return {
                             ...f,
-                            aiState: 'applied',
                             aiDraft: draft,
-                            preAiSnapshot: snapshotOf(f.values),
+                            aiApplied: true,
+                            aiPending: false,
                             values: applyDraft(f.values, draft),
                         };
                     }
 
-                    return { ...f, aiDraft: draft };
+                    return { ...f, aiDraft: draft, aiPending: false };
                 });
             })
             .catch(() => {
+                // Draft failure is silent: the stitched defaults stand.
                 if (!cancelled) {
-                    setForm((f) =>
-                        f.aiState === 'pending'
-                            ? { ...f, aiState: 'failed' }
-                            : f,
-                    );
+                    setForm((f) => ({ ...f, aiPending: false }));
                 }
             });
 
@@ -228,51 +217,10 @@ export function MergeDialog({
         setSeed(next);
     };
 
-    const undoAi = () =>
-        setForm((f) => ({
-            ...f,
-            aiState: 'undone',
-            values:
-                f.values && f.preAiSnapshot
-                    ? { ...f.values, ...f.preAiSnapshot }
-                    : f.values,
-        }));
-
-    const redoAi = () =>
-        setForm((f) =>
-            f.aiDraft
-                ? {
-                      ...f,
-                      aiState: 'applied',
-                      values: f.values
-                          ? applyDraft(
-                                { ...f.values, ...(f.preAiSnapshot ?? {}) },
-                                f.aiDraft,
-                            )
-                          : f.values,
-                  }
-                : f,
-        );
-
     const gatedSources =
-        preview?.sources.filter(
-            (s) => s.pii_gate && !piiAcks.includes(s.id),
-        ) ?? [];
+        preview?.sources.filter((s) => s.pii_gate) ?? [];
 
-    const removePii = (itemId: number) => {
-        setProcessing(true);
-        router.post(
-            `/inbox/${itemId}/remove-pii`,
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => setSeed({ ...seed }),
-                onFinish: () => setProcessing(false),
-            },
-        );
-    };
-
-    const merge = () => {
+    const submitMerge = (keepIds: number[], piiAcks: number[]) => {
         if (!form.values) {
             return;
         }
@@ -292,10 +240,50 @@ export function MergeDialog({
             },
             {
                 onSuccess: onClose,
-                onError: (errs) => setErrors(errs as Record<string, string>),
+                onError: (errs) => {
+                    setConfirmingSave(false);
+                    setErrors(errs as Record<string, string>);
+                    setStep(stepForErrors(errs as Record<string, string>));
+                },
                 onFinish: () => setProcessing(false),
             },
         );
+    };
+
+    const merge = () => {
+        if (gatedSources.length > 0 || keepableFiles.length > 0) {
+            setConfirmingSave(true);
+
+            return;
+        }
+
+        submitMerge([], []);
+    };
+
+    /** Text-only sensitive info: scrub every gated source, then merge. */
+    const removeInfoAndMerge = () => {
+        setProcessing(true);
+
+        const ids = gatedSources.map((s) => s.id);
+        const next = (i: number) => {
+            if (i >= ids.length) {
+                submitMerge([], []);
+
+                return;
+            }
+
+            router.post(
+                `/inbox/${ids[i]}/remove-pii`,
+                {},
+                {
+                    preserveScroll: true,
+                    onSuccess: () => next(i + 1),
+                    onError: () => setProcessing(false),
+                },
+            );
+        };
+
+        next(0);
     };
 
     const sourceCount = preview?.sources.length ?? 0;
@@ -310,17 +298,24 @@ export function MergeDialog({
 
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
-            <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-x-hidden overflow-y-auto *:min-w-0 sm:max-w-3xl">
+            <DialogContent
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-x-hidden overflow-y-auto *:min-w-0 sm:max-w-3xl"
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 font-display text-2xl font-extrabold">
                         Merge {sourceCount > 0 ? sourceCount : ''} into one
                         <Sparkle size={16} className="text-brand" />
+                        <span className="text-sm font-semibold text-stone-400">
+                            {step + 1} of {WIZARD_STEP_COUNT}
+                        </span>
                     </DialogTitle>
                 </DialogHeader>
 
                 <p className="-mt-2 text-[13px] text-stone-500">
-                    One entry replaces these — they're kept underneath and can
-                    be split apart again any time.
+                    {form.aiApplied
+                        ? `Title, details and reflections drafted by AI from all ${sourceCount} — one entry replaces them; they're kept underneath and can be split apart again any time.`
+                        : "One entry replaces these — they're kept underneath and can be split apart again any time."}
                 </p>
 
                 {previewError && (
@@ -336,229 +331,133 @@ export function MergeDialog({
                     </div>
                 )}
 
-                {preview && form.values && (
+                {preview && (
                     <>
-                        <div className="flex flex-wrap gap-2.5">
-                            {preview.sources.map((source, i) => (
-                                <div
-                                    key={`${source.kind}-${source.id}`}
-                                    style={{
-                                        rotate: `${ROW_TILTS[i % ROW_TILTS.length]}deg`,
-                                    }}
-                                    className="group relative max-w-[180px] rounded-[10px] border-[1.5px] border-ink bg-white px-3 py-2 shadow-[2px_2px_0_rgba(28,25,23,.12)]"
-                                >
-                                    <div className="truncate text-[12px] font-bold">
-                                        {source.title}
-                                    </div>
-                                    <div className="mt-0.5 text-[10.5px] font-semibold text-stone-500 uppercase">
-                                        {source.source ??
-                                            (source.is_target
-                                                ? 'merged entry'
-                                                : 'timeline')}
-                                        {source.starts_on
-                                            ? ` · ${source.starts_on}`
-                                            : ''}{' '}
-                                        · {source.cpd_points} pts
-                                    </div>
-                                    {!source.is_target && sourceCount > 2 && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                removeSource(source)
-                                            }
-                                            title="Leave this one out"
-                                            className="absolute -top-2 -left-2 hidden size-5 cursor-pointer items-center justify-center rounded-full border-[1.5px] border-ink bg-white text-[10px] font-bold shadow-[1.5px_1.5px_0_#1c1917] group-hover:flex"
+                        {step === 0 && (
+                            <>
+                                <div className="flex flex-wrap gap-2.5">
+                                    {preview.sources.map((source, i) => (
+                                        <div
+                                            key={`${source.kind}-${source.id}`}
+                                            style={{
+                                                rotate: `${ROW_TILTS[i % ROW_TILTS.length]}deg`,
+                                            }}
+                                            className="group relative max-w-[180px] rounded-[10px] border-[1.5px] border-ink bg-white px-3 py-2 shadow-[2px_2px_0_rgba(28,25,23,.12)]"
                                         >
-                                            <X className="size-3" />
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-
-                        {preview.defaults.points_breakdown.length > 1 && (
-                            <CaveatNote rotate={-1.5} className="-mt-1">
-                                {preview.defaults.points_breakdown.join(' + ')}{' '}
-                                points — trim if it double-counts
-                            </CaveatNote>
-                        )}
-
-                        {gatedSources.length > 0 && (
-                            <div className="rounded-[10px] border-2 border-brand bg-brand-pale px-4 py-3 text-sm">
-                                <div className="flex items-center gap-2 font-bold">
-                                    <AlertTriangle className="size-4 text-brand" />{' '}
-                                    Possible identifiable information
-                                </div>
-                                <div className="mt-2 grid gap-2.5">
-                                    {gatedSources.map((source) => (
-                                        <div key={source.id}>
-                                            <p className="text-[13px] font-semibold">
-                                                “{source.title}”
-                                                <span className="ml-1.5 font-normal text-stone-500">
-                                                    {(source.pii_flags ?? [])
-                                                        .map((f) =>
-                                                            f.type.replace(
-                                                                /_/g,
-                                                                ' ',
-                                                            ),
-                                                        )
-                                                        .join(', ')}
-                                                </span>
-                                            </p>
-                                            <div className="mt-1 flex flex-wrap gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        removePii(source.id)
-                                                    }
-                                                    disabled={processing}
-                                                    className="border-2 border-ink bg-white font-bold"
-                                                >
-                                                    Remove patient info
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setPiiAcks((ids) => [
-                                                            ...ids,
-                                                            source.id,
-                                                        ])
-                                                    }
-                                                    disabled={processing}
-                                                    className="text-stone-600"
-                                                >
-                                                    Keep — I've checked it
-                                                </Button>
+                                            <div className="truncate text-[12px] font-bold">
+                                                {source.title}
                                             </div>
+                                            <div className="mt-0.5 text-[10.5px] font-semibold text-stone-500 uppercase">
+                                                {source.source ??
+                                                    (source.is_target
+                                                        ? 'merged entry'
+                                                        : 'timeline')}
+                                                {source.starts_on
+                                                    ? ` · ${source.starts_on}`
+                                                    : ''}{' '}
+                                                · {source.cpd_points} pts
+                                            </div>
+                                            {!source.is_target &&
+                                                sourceCount > 2 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            removeSource(
+                                                                source,
+                                                            )
+                                                        }
+                                                        title="Leave this one out"
+                                                        className="absolute -top-2 -left-2 hidden size-5 cursor-pointer items-center justify-center rounded-full border-[1.5px] border-ink bg-white text-[10px] font-bold shadow-[1.5px_1.5px_0_#1c1917] group-hover:flex"
+                                                    >
+                                                        <X className="size-3" />
+                                                    </button>
+                                                )}
                                         </div>
                                     ))}
                                 </div>
-                                {errors.pii && (
-                                    <p className="mt-1.5 text-[12.5px] font-semibold text-red-600">
-                                        {errors.pii}
-                                    </p>
+
+                                {preview.defaults.points_breakdown.length >
+                                    1 && (
+                                    <CaveatNote rotate={-1.5} className="-mt-1">
+                                        {preview.defaults.points_breakdown.join(
+                                            ' + ',
+                                        )}{' '}
+                                        points — trim if it double-counts
+                                    </CaveatNote>
                                 )}
-                            </div>
+                            </>
                         )}
+                    </>
+                )}
 
-                        {keepableFiles.length > 0 && (
-                            <div className="rounded-lg border-[1.5px] border-dashed border-stone-300 bg-stone-50 p-3">
-                                <p className="text-[13px] font-semibold text-ink">
-                                    Keep the file
-                                    {keepableFiles.length > 1 ? 's' : ''} with
-                                    the merged entry?
-                                </p>
-                                <p className="mt-0.5 text-[12px] text-stone-500">
-                                    Unticked files are deleted when you merge —
-                                    the written entry is kept either way.
-                                </p>
-                                <div className="mt-2 grid gap-1.5">
-                                    {keepableFiles.map((file) => (
-                                        <label
-                                            key={file.id}
-                                            className="flex min-w-0 items-start gap-2 text-[13px] text-stone-700"
-                                        >
-                                            <Checkbox
-                                                checked={keepIds.includes(
-                                                    file.id,
-                                                )}
-                                                onCheckedChange={(v) =>
-                                                    setKeepIds((ids) =>
-                                                        v === true
-                                                            ? [...ids, file.id]
-                                                            : ids.filter(
-                                                                  (id) =>
-                                                                      id !==
-                                                                      file.id,
-                                                              ),
-                                                    )
-                                                }
-                                                className="mt-0.5"
-                                            />
-                                            {/* min-w-0 so long filenames truncate
-                                                instead of inflating the dialog. */}
-                                            <span className="min-w-0 flex-1 truncate">
-                                                {file.name}
-                                                <span className="ml-1.5 text-stone-400">
-                                                    from “{file.from}”
-                                                </span>
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                {preview && !previewError && form.aiPending && (
+                    <div className="flex items-center justify-center gap-2.5 rounded-[12px] border-2 border-dashed border-brand bg-brand-pale px-5 py-10 text-sm font-semibold text-brand-dark">
+                        <Sparkle size={14} className="shrink-0 text-brand" />
+                        <Loader2 className="size-4 shrink-0 animate-spin" />
+                        AI is drafting the combined entry from all{' '}
+                        {sourceCount} sources…
+                    </div>
+                )}
 
-                        {form.aiState === 'pending' && (
-                            <div className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-3.5 py-2 text-[13px] text-stone-600">
-                                <Sparkle size={13} className="text-brand" />
-                                <Loader2 className="size-3.5 animate-spin text-brand" />
-                                AI is drafting the combined entry…
-                            </div>
-                        )}
-                        {form.aiState === 'applied' && (
-                            <div className="flex flex-wrap items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-3.5 py-2 text-[13px] text-stone-600">
-                                <Sparkle size={13} className="text-brand" />
-                                Title, details and reflections drafted by AI
-                                from all {sourceCount} — edit below, or
-                                <button
-                                    type="button"
-                                    onClick={undoAi}
-                                    className="flex cursor-pointer items-center gap-1 font-semibold underline decoration-dashed underline-offset-2 hover:text-ink"
-                                >
-                                    <Undo2 className="size-3" /> undo
-                                </button>
-                            </div>
-                        )}
-                        {form.aiState === 'undone' && (
-                            <div className="flex flex-wrap items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-stone-300 px-3.5 py-2 text-[13px] text-stone-500">
-                                Back to the stitched-together originals —
-                                <button
-                                    type="button"
-                                    onClick={redoAi}
-                                    className="cursor-pointer font-semibold underline decoration-dashed underline-offset-2 hover:text-ink"
-                                >
-                                    re-apply the AI draft
-                                </button>
-                            </div>
-                        )}
-
-                        <EvidenceFormFields
+                {preview && form.values && !form.aiPending && (
+                    <>
+                        <EvidenceWizard
+                            step={step}
+                            onStepChange={setStep}
                             values={form.values}
                             onChange={patchValues}
                             reference={reference}
                             errors={errors}
+                            processing={processing}
+                            primaryLabel="Merge into one entry"
+                            onPrimary={merge}
+                            footerExtras={
+                                <Button
+                                    variant="ghost"
+                                    onClick={onClose}
+                                    disabled={processing}
+                                    className="text-stone-500"
+                                >
+                                    Cancel
+                                </Button>
+                            }
                         />
-
-                        <div className="mt-2 flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
-                            <Button
-                                onClick={merge}
-                                disabled={
-                                    processing || gatedSources.length > 0
-                                }
-                                title={
-                                    gatedSources.length > 0
-                                        ? 'Resolve the patient-information warnings first'
+                        {errors.pii && (
+                            <p className="text-[12.5px] font-semibold text-red-600">
+                                {errors.pii}
+                            </p>
+                        )}
+                        {confirmingSave && (
+                            <ApproveConfirmDialog
+                                files={keepableFiles}
+                                flags={gatedSources.flatMap(
+                                    (s) => s.pii_flags ?? [],
+                                )}
+                                flagLocation={
+                                    gatedSources.length > 0 &&
+                                    keepableFiles.length === 0
+                                        ? 'the evidence being merged'
                                         : undefined
                                 }
-                                className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
-                            >
-                                {processing && (
-                                    <Loader2 className="size-4 animate-spin" />
-                                )}{' '}
-                                Merge into one entry
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={onClose}
-                                disabled={processing}
-                                className="border-2 border-ink"
-                            >
-                                Cancel
-                            </Button>
-                        </div>
+                                verb="Merge"
+                                processing={processing}
+                                onConfirm={(keepIds, piiAck) =>
+                                    submitMerge(
+                                        keepIds,
+                                        piiAck
+                                            ? gatedSources.map((s) => s.id)
+                                            : [],
+                                    )
+                                }
+                                onRemoveInfo={
+                                    gatedSources.length > 0 &&
+                                    keepableFiles.length === 0
+                                        ? removeInfoAndMerge
+                                        : undefined
+                                }
+                                onCancel={() => setConfirmingSave(false)}
+                            />
+                        )}
                     </>
                 )}
             </DialogContent>

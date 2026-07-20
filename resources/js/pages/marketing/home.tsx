@@ -833,11 +833,7 @@ function Footer() {
     return (
         <div className="flex flex-col items-center justify-between gap-4 border-t border-ink/12 px-5 py-[26px] text-[12.5px] text-stone-500 md:flex-row md:px-12">
             <div className="flex items-center gap-2.5">
-                <span className="inline-block -rotate-4 rounded-[7px] border-2 border-brand p-0.5">
-                    <span className="inline-block rounded-[4px] border border-brand px-[7px] py-px text-[10.5px] font-bold tracking-[0.05em] text-brand uppercase">
-                        CPD Dump
-                    </span>
-                </span>
+                <Wordmark size="sm" />
                 <span>
                     · made for doctors who'd rather be doing anything else
                 </span>
@@ -849,6 +845,9 @@ function Footer() {
                 >
                     How it works
                 </a>
+                <Link href="/ai" className="text-stone-500 hover:text-ink">
+                    How we use AI
+                </Link>
                 <Link href="/privacy" className="text-stone-500 hover:text-ink">
                     Privacy policy
                 </Link>

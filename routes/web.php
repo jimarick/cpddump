@@ -35,6 +35,7 @@ Route::match(['get', 'post'], 'email/unsubscribe/{user}', EmailUnsubscribeContro
 Route::inertia('/', 'marketing/home')->name('home');
 Route::inertia('privacy', 'marketing/privacy')->name('privacy');
 Route::inertia('terms', 'marketing/terms')->name('terms');
+Route::inertia('ai', 'marketing/ai')->name('ai');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
@@ -76,6 +77,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('reports/{report}', [GeneratedReportController::class, 'destroy'])->name('reports.destroy');
 
         Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
+        Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
         Route::post('recurrences', [RecurrenceController::class, 'store'])->name('recurrences.store');
         Route::post('recurrences/{recurrence}/occurrence', [RecurrenceController::class, 'occurrence'])->name('recurrences.occurrence');
@@ -89,6 +91,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('ai/transcribe', [AiAssistController::class, 'transcribe'])
             ->middleware('throttle:20,1')
             ->name('ai.transcribe');
+        Route::post('ai/reflection-draft', [AiAssistController::class, 'reflectionDraft'])
+            ->middleware('throttle:20,1')
+            ->name('ai.reflection-draft');
     });
 
     Route::middleware(EnsureAdmin::class)->prefix('admin')->group(function () {

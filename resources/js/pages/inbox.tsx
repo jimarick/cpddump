@@ -11,7 +11,6 @@ import { Head, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     ChevronLeft,
-    ChevronRight,
     FileUp,
     Link2,
     Loader2,
@@ -29,17 +28,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
 import { Sparkle } from '@/components/brand/sparkle';
+import { ApproveConfirmDialog } from '@/components/cpd/approve-confirm-dialog';
 import { AttachmentLinks } from '@/components/cpd/attachment-links';
 import {
     DictatedInput,
     DictatedTextarea,
 } from '@/components/cpd/dictated-fields';
-import {
-    CategorisationStepFields,
-    DetailsStepFields,
-    ReflectionStepFields,
-} from '@/components/cpd/evidence-form-fields';
 import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
+import {
+    EvidenceWizard,
+    stepForErrors,
+    WIZARD_STEP_COUNT,
+} from '@/components/cpd/evidence-wizard';
 import { InboxDoodles } from '@/components/cpd/inbox-doodles';
 import { MergeDialog } from '@/components/cpd/merge/merge-dialog';
 import { MergePickerDialog } from '@/components/cpd/merge/merge-picker';
@@ -990,32 +990,6 @@ function FileDropzone({
     );
 }
 
-const REVIEW_STEPS = ['Details', 'Reflection', 'Categorise'] as const;
-
-/** Which review step each server-side validation error belongs to. */
-function stepForErrors(errors: Record<string, string>): number {
-    const keys = Object.keys(errors);
-    const detailFields = [
-        'title',
-        'activity_type_slug',
-        'starts_on',
-        'ends_on',
-        'organisation',
-        'cpd_points',
-        'summary',
-    ];
-
-    if (keys.some((k) => detailFields.includes(k))) {
-        return 0;
-    }
-
-    if (keys.some((k) => k.startsWith('reflection'))) {
-        return 1;
-    }
-
-    return 2;
-}
-
 function ReviewDialog({
     item,
     reference,
@@ -1043,7 +1017,13 @@ function ReviewDialog({
         organisation: analysis?.organisation ?? '',
         cpd_points: analysis?.cpd_points ?? 0,
         summary: analysis?.summary ?? '',
-        reflection: analysis?.reflection_draft ?? {},
+        // The analyst leaves answers null when the user's words held no
+        // reflection — coerce for the controlled fields.
+        reflection: Object.fromEntries(
+            Object.entries(analysis?.reflection_draft ?? {}).map(
+                ([key, text]) => [key, text ?? ''],
+            ),
+        ),
         category_slugs: analysis?.category_slugs ?? [],
         domain_codes: analysis?.domain_codes ?? [],
         attribute_codes: analysis?.attribute_codes ?? [],
@@ -1053,37 +1033,20 @@ function ReviewDialog({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
     const [neverAgain, setNeverAgain] = useState(false);
-    const [keepIds, setKeepIds] = useState<number[]>([]);
-    const [piiAck, setPiiAck] = useState(false);
-    const [piiRemoved, setPiiRemoved] = useState(false);
+    const [confirmingSave, setConfirmingSave] = useState(false);
+    const [editingTitle, setEditingTitle] = useState(false);
 
-    const keepableFiles = piiRemoved
-        ? []
-        : item.attachments.filter((a) => !a.purged);
-    const gateActive = item.pii_gate && !piiAck && !piiRemoved;
-
-    const removePii = () => {
-        setProcessing(true);
-        router.post(
-            `/inbox/${item.id}/remove-pii`,
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => setPiiRemoved(true),
-                onFinish: () => setProcessing(false),
-            },
-        );
-    };
+    const keepableFiles = item.attachments.filter((a) => !a.purged);
+    const gateActive = item.pii_gate;
 
     const piiFlags = item.ai_warnings?.pii_flags ?? [];
-    const missingEvidence = item.ai_warnings?.missing_evidence ?? [];
     const canIgnore = item.source === 'calendar' || item.source === 'email';
     const ignoreValue =
         (item.raw_payload.title as string | undefined) ??
         (item.raw_payload.subject as string | undefined) ??
         values.title;
 
-    const approve = () => {
+    const submitApprove = (keepIds: number[], piiAck: boolean) => {
         setProcessing(true);
         router.post(
             `/inbox/${item.id}/approve`,
@@ -1099,10 +1062,38 @@ function ReviewDialog({
             {
                 onSuccess: onClose,
                 onError: (errs) => {
+                    setConfirmingSave(false);
                     setErrors(errs as Record<string, string>);
                     setStep(stepForErrors(errs as Record<string, string>));
                 },
                 onFinish: () => setProcessing(false),
+            },
+        );
+    };
+
+    const approve = () => {
+        if (
+            gateActive ||
+            (retention === 'ask' && keepableFiles.length > 0)
+        ) {
+            setConfirmingSave(true);
+
+            return;
+        }
+
+        submitApprove([], false);
+    };
+
+    /** Text-only sensitive info: scrub it server-side, then approve. */
+    const removeInfoAndApprove = () => {
+        setProcessing(true);
+        router.post(
+            `/inbox/${item.id}/remove-pii`,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => submitApprove([], false),
+                onError: () => setProcessing(false),
             },
         );
     };
@@ -1133,168 +1124,90 @@ function ReviewDialog({
         );
     };
 
-    const lastStep = step === REVIEW_STEPS.length - 1;
-
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
-            <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl">
+            <DialogContent
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl"
+            >
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 font-display text-2xl font-extrabold">
-                        {item.status === 'failed'
-                            ? 'Analysis failed'
-                            : 'Review the draft'}
-                        {item.status === 'ready' && (
-                            <Sparkle size={16} className="text-brand" />
-                        )}
-                    </DialogTitle>
-                </DialogHeader>
-
-                {item.status !== 'failed' && (
-                    <div className="flex items-center gap-1.5">
-                        {REVIEW_STEPS.map((label, i) => (
-                            <button
-                                key={label}
-                                type="button"
-                                onClick={() => setStep(i)}
-                                className={`flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                                    i === step
-                                        ? 'rotate-[-0.5deg] border-[1.5px] border-ink bg-brand-tint text-brand-dark'
-                                        : 'border-[1.5px] border-dashed border-stone-300 text-stone-500 hover:border-ink hover:text-ink'
-                                }`}
-                            >
-                                <span
-                                    className={`flex size-4 items-center justify-center rounded-full text-[10px] font-bold ${
-                                        i === step
-                                            ? 'bg-brand text-white'
-                                            : 'bg-stone-200 text-stone-600'
-                                    }`}
+                    {item.status === 'failed' ? (
+                        <DialogTitle className="font-display text-2xl font-extrabold">
+                            Analysis failed
+                        </DialogTitle>
+                    ) : (
+                        <DialogTitle className="mr-6 flex items-start gap-2 font-display text-2xl font-extrabold">
+                            {editingTitle ? (
+                                <input
+                                    autoFocus
+                                    value={values.title}
+                                    onChange={(e) =>
+                                        setValues((v) => ({
+                                            ...v,
+                                            title: e.target.value,
+                                        }))
+                                    }
+                                    onBlur={() => setEditingTitle(false)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            setEditingTitle(false);
+                                        }
+                                    }}
+                                    className="w-full border-b-2 border-dashed border-brand bg-transparent font-display text-2xl font-extrabold focus:outline-none"
+                                />
+                            ) : (
+                                <button
+                                    type="button"
+                                    title="Edit the title"
+                                    onClick={() => setEditingTitle(true)}
+                                    className="group flex min-w-0 cursor-text items-start gap-2 text-left"
                                 >
-                                    {i + 1}
-                                </span>
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                                    <span className="decoration-dashed decoration-1 underline-offset-4 group-hover:underline">
+                                        {values.title || 'Untitled evidence'}
+                                    </span>
+                                    <PenLine className="mt-1.5 size-4 shrink-0 text-stone-300 group-hover:text-stone-500" />
+                                </button>
+                            )}
+                            <span className="mt-1.5 ml-auto shrink-0 text-sm font-semibold whitespace-nowrap text-stone-400">
+                                {step + 1} of {WIZARD_STEP_COUNT}
+                            </span>
+                        </DialogTitle>
+                    )}
+                    {errors.title && (
+                        <p className="text-xs font-semibold text-red-600">
+                            {errors.title}
+                        </p>
+                    )}
+                </DialogHeader>
 
                 {item.status === 'ready' &&
                     (item.merge_suggestions?.length ?? 0) > 0 && (
-                        <div className="rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-4 py-3 text-sm">
-                            <div className="flex items-center gap-2 font-bold">
-                                <Sparkle size={14} className="text-brand" />
-                                Looks like something you already have
-                            </div>
-                            <ul className="mt-1 list-disc pl-5 text-[13px] text-stone-600">
-                                {item.merge_suggestions!.map((s) => (
-                                    <li key={`${s.kind}-${s.id}`}>
-                                        “{s.title}”{' '}
-                                        <span className="text-stone-400">
-                                            (
-                                            {s.kind === 'activity'
-                                                ? 'on your timeline'
-                                                : 'in your inbox'}
-                                            )
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                            <p className="mt-1 text-[12.5px] text-stone-500">
-                                Merging means you reflect once, on the combined
-                                entry — any existing reflection comes with it.
-                                Or just carry on reviewing this on its own.
-                            </p>
+                        <div className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-3.5 py-2 text-[13px]">
+                            <Sparkle
+                                size={14}
+                                className="shrink-0 text-brand"
+                            />
+                            <span className="min-w-0 flex-1 truncate">
+                                Looks like{' '}
+                                <span className="font-bold">
+                                    “{item.merge_suggestions![0].title}”
+                                </span>
+                                {item.merge_suggestions!.length > 1 &&
+                                    ` +${item.merge_suggestions!.length - 1} more`}
+                            </span>
                             <Button
                                 size="sm"
                                 onClick={onMergeInstead}
                                 disabled={processing}
-                                className="mt-2 border-2 border-ink font-bold shadow-[2px_2px_0_#1c1917]"
+                                className="shrink-0 border-2 border-ink font-bold shadow-[2px_2px_0_#1c1917]"
                             >
-                                <Merge className="size-3.5" /> Merge into{' '}
-                                {item.merge_suggestions!.length === 1
-                                    ? 'it'
-                                    : 'these'}{' '}
-                                instead…
+                                <Merge className="size-3.5" /> Merge instead
                             </Button>
                         </div>
                     )}
 
-                {piiFlags.length > 0 && (
-                    <div className="rounded-[10px] border-2 border-brand bg-brand-pale px-4 py-3 text-sm">
-                        <div className="flex items-center gap-2 font-bold">
-                            <AlertTriangle className="size-4 text-brand" />{' '}
-                            Possible identifiable information
-                        </div>
-                        <ul className="mt-1 list-disc pl-5 text-[13px] text-stone-600">
-                            {piiFlags.map((flag, i) => (
-                                <li key={i}>
-                                    <span className="font-semibold">
-                                        {flag.type.replace(/_/g, ' ')}
-                                    </span>
-                                    {flag.excerpt ? <>: “{flag.excerpt}”</> : null}
-                                </li>
-                            ))}
-                        </ul>
-                        {gateActive ? (
-                            <div className="mt-2">
-                                <p className="text-[12.5px] text-stone-600">
-                                    This is still held in{' '}
-                                    {keepableFiles.length > 0
-                                        ? 'an attached file'
-                                        : 'your entry text'}
-                                    . Decide before approving:
-                                </p>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={removePii}
-                                        disabled={processing}
-                                        className="border-2 border-ink bg-white font-bold"
-                                    >
-                                        Remove patient info
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => setPiiAck(true)}
-                                        disabled={processing}
-                                        className="text-stone-600"
-                                    >
-                                        Keep — I've checked it
-                                    </Button>
-                                </div>
-                                {errors.pii && (
-                                    <p className="mt-1.5 text-[12.5px] font-semibold text-red-600">
-                                        {errors.pii}
-                                    </p>
-                                )}
-                            </div>
-                        ) : piiAck ? (
-                            <p className="mt-1 text-[12.5px] text-stone-500">
-                                You've confirmed you checked this — it will be
-                                recorded with your approval.
-                            </p>
-                        ) : (
-                            <p className="mt-1 text-[12.5px] text-stone-500">
-                                {piiRemoved ||
-                                (item.pii_gate === false &&
-                                    item.attachments.every((a) => a.purged))
-                                    ? 'The source containing this has already been deleted — nothing identifiable is stored. The drafted text below is written without identifiers.'
-                                    : 'Edit these out before approving — patients and colleagues must never be identifiable.'}
-                            </p>
-                        )}
-                    </div>
-                )}
-
                 {item.attachments.length > 0 && (
                     <AttachmentLinks attachments={item.attachments} />
-                )}
-
-                {missingEvidence.length > 0 && step === 0 && (
-                    <div className="rounded-[10px] border border-dashed border-stone-400 px-4 py-2.5 text-[13px] text-stone-600">
-                        <span className="font-semibold">Might be missing:</span>{' '}
-                        {missingEvidence.join(' · ')}
-                    </div>
                 )}
 
                 {item.status === 'failed' ? (
@@ -1317,169 +1230,105 @@ function ReviewDialog({
                     </div>
                 ) : (
                     <>
-                        {step === 0 && (
-                            <DetailsStepFields
-                                values={values}
-                                onChange={(patch) =>
-                                    setValues((v) => ({ ...v, ...patch }))
-                                }
-                                reference={reference}
-                                errors={errors}
-                            />
-                        )}
-                        {step === 1 && (
-                            <ReflectionStepFields
-                                values={values}
-                                onChange={(patch) =>
-                                    setValues((v) => ({ ...v, ...patch }))
-                                }
-                                reference={reference}
-                                errors={errors}
-                            />
-                        )}
-                        {step === 2 && (
-                            <CategorisationStepFields
-                                values={values}
-                                onChange={(patch) =>
-                                    setValues((v) => ({ ...v, ...patch }))
-                                }
-                                reference={reference}
-                                errors={errors}
-                            />
-                        )}
-
-                        <div className="mt-2 grid gap-3 border-t border-dashed border-stone-300 pt-4">
-                            {lastStep &&
-                                retention === 'ask' &&
-                                keepableFiles.length > 0 && (
-                                    <div className="rounded-lg border-[1.5px] border-dashed border-stone-300 bg-stone-50 p-3">
-                                        <p className="text-[13px] font-semibold text-ink">
-                                            Keep the file
-                                            {keepableFiles.length > 1
-                                                ? 's'
-                                                : ''}{' '}
-                                            with this activity?
-                                        </p>
-                                        <p className="mt-0.5 text-[12px] text-stone-500">
-                                            Unticked files are deleted when you
-                                            approve — your written entry is
-                                            kept either way. Only keep a file
-                                            if you're sure it contains no
-                                            personal or sensitive information.
-                                        </p>
-                                        <div className="mt-2 grid gap-1.5">
-                                            {keepableFiles.map((file) => (
-                                                <label
-                                                    key={file.id}
-                                                    className="flex items-start gap-2 text-[13px] text-stone-700"
-                                                >
-                                                    <Checkbox
-                                                        checked={keepIds.includes(
-                                                            file.id,
-                                                        )}
-                                                        onCheckedChange={(v) =>
-                                                            setKeepIds(
-                                                                (ids) =>
-                                                                    v === true
-                                                                        ? [
-                                                                              ...ids,
-                                                                              file.id,
-                                                                          ]
-                                                                        : ids.filter(
-                                                                              (
-                                                                                  id,
-                                                                              ) =>
-                                                                                  id !==
-                                                                                  file.id,
-                                                                          ),
-                                                            )
-                                                        }
-                                                        className="mt-0.5"
-                                                    />
-                                                    <span className="truncate">
-                                                        {file.name}
-                                                    </span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            {canIgnore && lastStep && (
-                                <label className="flex items-start gap-2 text-[13px] text-stone-600">
-                                    <Checkbox
-                                        checked={neverAgain}
-                                        onCheckedChange={(v) =>
-                                            setNeverAgain(v === true)
-                                        }
-                                        className="mt-0.5"
-                                    />
-                                    <span>
-                                        If I bin this, never show me items like
-                                        it again{' '}
-                                        <span className="text-stone-400">
-                                            (title contains “{ignoreValue}”)
+                        <EvidenceWizard
+                            step={step}
+                            onStepChange={setStep}
+                            values={values}
+                            onChange={(patch) =>
+                                setValues((v) => ({ ...v, ...patch }))
+                            }
+                            reference={reference}
+                            errors={errors}
+                            processing={processing}
+                            primaryLabel="Approve"
+                            onPrimary={approve}
+                            hideTitle
+                            reflectionSource={
+                                analysis?.reflection_source ?? null
+                            }
+                            lastStepExtra={
+                                canIgnore ? (
+                                    <label className="flex items-start gap-2 text-[13px] text-stone-600">
+                                        <Checkbox
+                                            checked={neverAgain}
+                                            onCheckedChange={(v) =>
+                                                setNeverAgain(v === true)
+                                            }
+                                            className="mt-0.5"
+                                        />
+                                        <span>
+                                            If I bin this, never show me items
+                                            like it again{' '}
+                                            <span className="text-stone-400">
+                                                (title contains “{ignoreValue}
+                                                ”)
+                                            </span>
                                         </span>
+                                    </label>
+                                ) : undefined
+                            }
+                            footerExtras={
+                                <>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={dismiss}
+                                        disabled={processing}
+                                        className="text-stone-500"
+                                    >
+                                        Bin it
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={onMergeWith}
+                                        disabled={processing}
+                                        className="text-stone-500"
+                                    >
+                                        <Merge className="size-4" /> Merge
+                                        with…
+                                    </Button>
+                                </>
+                            }
+                            footerRight={
+                                analysis ? (
+                                    <span className="text-[11.5px] text-stone-400">
+                                        AI confidence{' '}
+                                        {(analysis.confidence * 100).toFixed(
+                                            0,
+                                        )}
+                                        %
                                     </span>
-                                </label>
-                            )}
-                            <div className="flex flex-wrap items-center gap-2">
-                                {step > 0 && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setStep(step - 1)}
-                                        disabled={processing}
-                                        className="border-2 border-ink"
-                                    >
-                                        <ChevronLeft className="size-4" /> Back
-                                    </Button>
-                                )}
-                                {!lastStep ? (
-                                    <Button
-                                        onClick={() => setStep(step + 1)}
-                                        disabled={processing}
-                                        className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
-                                    >
-                                        Next <ChevronRight className="size-4" />
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        onClick={approve}
-                                        disabled={processing || gateActive}
-                                        title={
-                                            gateActive
-                                                ? 'Resolve the patient-information warning first'
-                                                : undefined
-                                        }
-                                        className="border-2 border-ink font-bold shadow-[3px_3px_0_#1c1917]"
-                                    >
-                                        {processing && (
-                                            <Loader2 className="size-4 animate-spin" />
-                                        )}{' '}
-                                        Approve
-                                    </Button>
-                                )}
-                                <Button
-                                    variant="ghost"
-                                    onClick={dismiss}
-                                    disabled={processing}
-                                    className="text-stone-500"
-                                >
-                                    Bin it
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={onMergeWith}
-                                    disabled={processing}
-                                    className="text-stone-500"
-                                >
-                                    <Merge className="size-4" /> Merge with…
-                                </Button>
-                                <span className="ml-auto text-[11.5px] text-stone-400">
-                                    {analysis &&
-                                        `AI confidence ${(analysis.confidence * 100).toFixed(0)}%`}
-                                </span>
-                            </div>
-                        </div>
+                                ) : undefined
+                            }
+                        />
+                        {errors.pii && (
+                            <p className="text-[12.5px] font-semibold text-red-600">
+                                {errors.pii}
+                            </p>
+                        )}
+                        {confirmingSave && (
+                            <ApproveConfirmDialog
+                                files={
+                                    retention === 'ask' ? keepableFiles : []
+                                }
+                                flags={gateActive ? piiFlags : []}
+                                flagLocation={
+                                    gateActive &&
+                                    keepableFiles.length > 0 &&
+                                    retention !== 'ask'
+                                        ? 'an attached file'
+                                        : undefined
+                                }
+                                verb="Approve"
+                                processing={processing}
+                                onConfirm={submitApprove}
+                                onRemoveInfo={
+                                    gateActive && keepableFiles.length === 0
+                                        ? removeInfoAndApprove
+                                        : undefined
+                                }
+                                onCancel={() => setConfirmingSave(false)}
+                            />
+                        )}
                     </>
                 )}
             </DialogContent>

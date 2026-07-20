@@ -43,7 +43,7 @@ class InboxItemController extends Controller
         if ($item->piiGateActive()) {
             if (! $request->boolean('pii_ack')) {
                 return back()->withErrors([
-                    'pii' => 'Possible patient information was found. Remove it, or confirm you have checked it, before approving.',
+                    'pii' => 'Possible sensitive information was found — remove it, or confirm you have checked it, before approving.',
                 ]);
             }
 

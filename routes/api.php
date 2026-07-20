@@ -40,6 +40,7 @@ Route::prefix('v1')->group(function () {
         Route::post('activities/{activity}/unmerge', [MergeApiController::class, 'unmerge'])->name('api.merges.unmerge');
 
         Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('api.attachments.show');
+        Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('api.attachments.destroy');
 
         Route::get('reference', [ReferenceApiController::class, 'reference'])->name('api.reference');
         Route::get('stats', [ReferenceApiController::class, 'stats'])->name('api.stats');
@@ -50,5 +51,8 @@ Route::prefix('v1')->group(function () {
         Route::post('ai/transcribe', [AiAssistController::class, 'transcribe'])
             ->middleware('throttle:20,1')
             ->name('api.ai.transcribe');
+        Route::post('ai/reflection-draft', [AiAssistController::class, 'reflectionDraft'])
+            ->middleware('throttle:20,1')
+            ->name('api.ai.reflection-draft');
     });
 });
