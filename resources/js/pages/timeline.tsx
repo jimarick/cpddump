@@ -1,3 +1,12 @@
+import {
+    DndContext,
+    DragOverlay,
+    PointerSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Head, router } from '@inertiajs/react';
 import { Layers, Loader2, Merge, Paperclip, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -8,6 +17,12 @@ import { EvidenceFormFields } from '@/components/cpd/evidence-form-fields';
 import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
 import { MergeDialog } from '@/components/cpd/merge/merge-dialog';
 import { MergePickerDialog } from '@/components/cpd/merge/merge-picker';
+import {
+    MergeDraggable,
+    STACK_DROP_ID,
+    StackedPile,
+} from '@/components/cpd/merge/stacked-pile';
+import { usePendingStack } from '@/components/cpd/merge/use-pending-stack';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -59,6 +74,65 @@ export default function Timeline({
     const [resetting, setResetting] = useState(false);
     const [pickingFor, setPickingFor] = useState<ActivityData | null>(null);
     const [mergeSeed, setMergeSeed] = useState<MergeSeed | null>(null);
+    const [draggingId, setDraggingId] = useState<number | null>(null);
+    const { stack, start, add, remove: unstack, clear } = usePendingStack();
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 250, tolerance: 5 },
+        }),
+    );
+
+    const stackItems = stack
+        .map((id) => activities.find((a) => a.id === id))
+        .filter((a): a is ActivityData => a !== undefined);
+    const stackActive = stackItems.length >= 2;
+    const draggingActivity =
+        draggingId === null
+            ? null
+            : (activities.find((a) => a.id === draggingId) ?? null);
+
+    // At most one merged entry per stack — it becomes the absorb target.
+    const stackedParents = stackItems.filter(
+        (a) => (a.merged_from?.length ?? 0) > 0,
+    );
+    const mergeDisabledReason =
+        stackedParents.length > 1
+            ? "Two merged entries can't merge into each other — split one apart first."
+            : undefined;
+
+    const onDragStart = (e: DragStartEvent) =>
+        setDraggingId(Number(e.active.id));
+
+    const onDragEnd = (e: DragEndEvent) => {
+        setDraggingId(null);
+
+        const activeId = Number(e.active.id);
+        const overId = e.over?.id;
+
+        if (overId === undefined) {
+            return;
+        }
+
+        if (overId === STACK_DROP_ID) {
+            add(activeId);
+        } else if (!stackActive && Number(overId) !== activeId) {
+            start(Number(overId), activeId);
+        }
+    };
+
+    const mergeStack = () => {
+        const target = stackedParents.length === 1 ? stackedParents[0] : null;
+
+        setMergeSeed({
+            activity_ids: stackItems
+                .filter((a) => a.id !== target?.id)
+                .map((a) => a.id),
+            inbox_item_ids: [],
+            into_activity_id: target?.id ?? null,
+        });
+    };
 
     const dated = useMemo(
         () =>
@@ -298,10 +372,62 @@ export default function Timeline({
                             </span>
                         </div>
 
-                        <div className="overflow-hidden rounded-[14px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(28,25,23,.12)]">
-                            {activities.map((activity, i) => (
+        <DndContext
+            sensors={sensors}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDragCancel={() => setDraggingId(null)}
+        >
+                        <div
+                            className={`rounded-[14px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(28,25,23,.12)] ${
+                                stackActive ? '' : 'overflow-hidden'
+                            }`}
+                        >
+                            {activities.map((activity, i) => {
+                                if (stackActive) {
+                                    if (activity.id === stackItems[0].id) {
+                                        return (
+                                            <div
+                                                key="pending-pile"
+                                                className="px-4 md:px-6"
+                                            >
+                                                <StackedPile
+                                                    cards={stackItems.map(
+                                                        (member) => ({
+                                                            id: member.id,
+                                                            title: member.title,
+                                                            meta: `${member.starts_on ?? '—'} · ${member.cpd_points} pts${(member.merged_from?.length ?? 0) > 0 ? ' · merged entry' : ''}`,
+                                                            accent: member
+                                                                .type.color,
+                                                        }),
+                                                    )}
+                                                    onRemove={unstack}
+                                                    onClear={clear}
+                                                    onMerge={mergeStack}
+                                                    mergeDisabledReason={
+                                                        mergeDisabledReason
+                                                    }
+                                                />
+                                            </div>
+                                        );
+                                    }
+
+                                    if (stack.includes(activity.id)) {
+                                        return null;
+                                    }
+                                }
+
+                                return (
+                                    <MergeDraggable
+                                        key={activity.id}
+                                        id={activity.id}
+                                        dragDisabled={false}
+                                        dropDisabled={
+                                            stackActive ||
+                                            draggingId === activity.id
+                                        }
+                                    >
                                 <button
-                                    key={activity.id}
                                     type="button"
                                     onClick={() => setEditing(activity)}
                                     className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left hover:bg-[#fffbf8] md:px-5 ${
@@ -357,8 +483,30 @@ export default function Timeline({
                                         {activity.cpd_points} pts
                                     </span>
                                 </button>
-                            ))}
+                                    </MergeDraggable>
+                                );
+                            })}
                         </div>
+                        <DragOverlay dropAnimation={null}>
+                            {draggingActivity && (
+                                <div className="flex w-full min-w-0 rotate-[-2deg] scale-[1.03] items-center gap-3 rounded-[12px] border-2 border-ink bg-white px-4 py-3 shadow-[7px_8px_0_rgba(28,25,23,.25)]">
+                                    <span
+                                        className="size-3 shrink-0 rounded-full border-[1.5px] border-ink"
+                                        style={{
+                                            backgroundColor:
+                                                draggingActivity.type.color,
+                                        }}
+                                    />
+                                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">
+                                        {draggingActivity.title}
+                                    </span>
+                                    <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap text-brand-dark">
+                                        {draggingActivity.cpd_points} pts
+                                    </span>
+                                </div>
+                            )}
+                        </DragOverlay>
+        </DndContext>
                     </div>
                 </>
             )}

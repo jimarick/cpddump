@@ -1,3 +1,12 @@
+import {
+    DndContext,
+    DragOverlay,
+    PointerSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
@@ -34,6 +43,12 @@ import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
 import { InboxDoodles } from '@/components/cpd/inbox-doodles';
 import { MergeDialog } from '@/components/cpd/merge/merge-dialog';
 import { MergePickerDialog } from '@/components/cpd/merge/merge-picker';
+import {
+    MergeDraggable,
+    STACK_DROP_ID,
+    StackedPile,
+} from '@/components/cpd/merge/stacked-pile';
+import { usePendingStack } from '@/components/cpd/merge/use-pending-stack';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -80,6 +95,8 @@ export default function Inbox({
     const [reviewing, setReviewing] = useState<InboxItemData | null>(null);
     const [pickingFor, setPickingFor] = useState<InboxItemData | null>(null);
     const [mergeSeed, setMergeSeed] = useState<MergeSeed | null>(null);
+    const [draggingId, setDraggingId] = useState<number | null>(null);
+    const { stack, start, add, remove: unstack, clear } = usePendingStack();
     const [adding, setAdding] = useState(false);
     const [addMode, setAddMode] = useState<DumpMode | null>(null);
     const [managing, setManaging] = useState<RecurrenceData | null>(null);
@@ -152,8 +169,10 @@ export default function Inbox({
         [items],
     );
 
+    // Pause the poll while a drag is in flight — rows must not be swapped
+    // out from under the pointer.
     useEffect(() => {
-        if (!analysing) {
+        if (!analysing || draggingId !== null) {
             return;
         }
 
@@ -163,7 +182,45 @@ export default function Inbox({
         );
 
         return () => clearInterval(timer);
-    }, [analysing]);
+    }, [analysing, draggingId]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 250, tolerance: 5 },
+        }),
+    );
+
+    // Membership is derived from live props: items approved or binned
+    // elsewhere silently fall off; fewer than two survivors = no pile.
+    const stackItems = stack
+        .map((id) => items.find((i) => i.id === id && i.status === 'ready'))
+        .filter((i): i is InboxItemData => i !== undefined);
+    const stackActive = stackItems.length >= 2;
+    const draggingItem =
+        draggingId === null
+            ? null
+            : (items.find((i) => i.id === draggingId) ?? null);
+
+    const onDragStart = (e: DragStartEvent) =>
+        setDraggingId(Number(e.active.id));
+
+    const onDragEnd = (e: DragEndEvent) => {
+        setDraggingId(null);
+
+        const activeId = Number(e.active.id);
+        const overId = e.over?.id;
+
+        if (overId === undefined) {
+            return;
+        }
+
+        if (overId === STACK_DROP_ID) {
+            add(activeId);
+        } else if (!stackActive && Number(overId) !== activeId) {
+            start(Number(overId), activeId);
+        }
+    };
 
     return (
         <>
@@ -204,29 +261,100 @@ export default function Inbox({
                         waiting for your review ↓
                     </span>
                     <InboxDoodles />
-                    <div
-                        data-doodle-obstacle
-                        className="relative grid min-h-0 min-w-0 flex-1 auto-rows-min grid-cols-[minmax(0,1fr)] gap-2.5 overflow-y-auto px-1 pt-1 pb-2"
+                    <DndContext
+                        sensors={sensors}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        onDragCancel={() => setDraggingId(null)}
                     >
-                        {items.map((item, i) => (
-                            <InboxRow
-                                key={item.id}
-                                item={item}
-                                index={i}
-                                onOpen={() =>
-                                    item.status === 'ready' ||
-                                    item.status === 'failed'
-                                        ? setReviewing(item)
-                                        : undefined
+                        <div
+                            data-doodle-obstacle
+                            className="relative grid min-h-0 min-w-0 flex-1 auto-rows-min grid-cols-[minmax(0,1fr)] gap-2.5 overflow-y-auto px-1 pt-1 pb-2"
+                        >
+                            {items.map((item, i) => {
+                                if (stackActive) {
+                                    if (item.id === stackItems[0].id) {
+                                        return (
+                                            <StackedPile
+                                                key="pending-pile"
+                                                cards={stackItems.map(
+                                                    (member) => ({
+                                                        id: member.id,
+                                                        title: itemTitle(
+                                                            member,
+                                                        ),
+                                                        meta: `${member.source_label} · ${member.ai_analysis?.cpd_points ?? 0} pts`,
+                                                    }),
+                                                )}
+                                                onRemove={unstack}
+                                                onClear={clear}
+                                                onMerge={() =>
+                                                    setMergeSeed({
+                                                        activity_ids: [],
+                                                        inbox_item_ids:
+                                                            stackItems.map(
+                                                                (m) => m.id,
+                                                            ),
+                                                        into_activity_id:
+                                                            null,
+                                                    })
+                                                }
+                                            />
+                                        );
+                                    }
+
+                                    if (stack.includes(item.id)) {
+                                        return null;
+                                    }
                                 }
-                                onDelete={() =>
-                                    router.delete(`/inbox/${item.id}`, {
-                                        preserveScroll: true,
-                                    })
-                                }
-                            />
-                        ))}
-                    </div>
+
+                                return (
+                                    <MergeDraggable
+                                        key={item.id}
+                                        id={item.id}
+                                        dragDisabled={
+                                            item.status !== 'ready'
+                                        }
+                                        dropDisabled={
+                                            stackActive ||
+                                            item.status !== 'ready' ||
+                                            draggingId === item.id
+                                        }
+                                    >
+                                        <InboxRow
+                                            item={item}
+                                            index={i}
+                                            onOpen={() =>
+                                                item.status === 'ready' ||
+                                                item.status === 'failed'
+                                                    ? setReviewing(item)
+                                                    : undefined
+                                            }
+                                            onDelete={() =>
+                                                router.delete(
+                                                    `/inbox/${item.id}`,
+                                                    {
+                                                        preserveScroll: true,
+                                                    },
+                                                )
+                                            }
+                                        />
+                                    </MergeDraggable>
+                                );
+                            })}
+                        </div>
+                        <DragOverlay dropAnimation={null}>
+                            {draggingItem && (
+                                <div className="rotate-[-2deg] scale-[1.03] rounded-[12px] shadow-[7px_8px_0_rgba(28,25,23,.25)]">
+                                    <InboxRow
+                                        item={draggingItem}
+                                        index={0}
+                                        onDelete={() => undefined}
+                                    />
+                                </div>
+                            )}
+                        </DragOverlay>
+                    </DndContext>
                     <RegularsStrip
                         recurrences={recurrences}
                         onAdd={() => {
@@ -305,11 +433,7 @@ export default function Inbox({
 
             {pickingFor && (
                 <MergePickerDialog
-                    baseLabel={
-                        pickingFor.ai_analysis?.title ??
-                        (pickingFor.raw_payload.title as string | undefined) ??
-                        'this item'
-                    }
+                    baseLabel={itemTitle(pickingFor)}
                     exclude={{ activityIds: [], itemIds: [pickingFor.id] }}
                     onClose={() => setPickingFor(null)}
                     onConfirm={(selection) => {
@@ -364,6 +488,16 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 
 const ROW_TILTS = ['-0.4deg', '0.3deg', '-0.2deg', '0.45deg', '-0.35deg'];
 
+function itemTitle(item: InboxItemData): string {
+    return (
+        item.ai_analysis?.title ??
+        (item.raw_payload.title as string | undefined) ??
+        (item.raw_payload.subject as string | undefined) ??
+        (item.raw_payload.url as string | undefined) ??
+        'Untitled evidence'
+    );
+}
+
 function InboxRow({
     item,
     index,
@@ -375,12 +509,7 @@ function InboxRow({
     onOpen?: () => void;
     onDelete: () => void;
 }) {
-    const title =
-        item.ai_analysis?.title ??
-        (item.raw_payload.title as string | undefined) ??
-        (item.raw_payload.subject as string | undefined) ??
-        (item.raw_payload.url as string | undefined) ??
-        'Untitled evidence';
+    const title = itemTitle(item);
 
     const busy = item.status === 'pending' || item.status === 'analysing';
     const failed = item.status === 'failed';
