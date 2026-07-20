@@ -31,6 +31,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('activities', [ActivityApiController::class, 'index'])->name('api.activities.index');
         Route::get('activities/{activity}', [ActivityApiController::class, 'show'])->name('api.activities.show');
+        Route::put('activities/{activity}', [ActivityApiController::class, 'update'])->name('api.activities.update');
 
         Route::get('merges/candidates', [MergeApiController::class, 'candidates'])->name('api.merges.candidates');
         Route::post('merges/preview', [MergeApiController::class, 'preview'])->name('api.merges.preview');

@@ -235,7 +235,7 @@ test('sharing a url creates a link item and fetches the page', function () {
 
 // ── Timeline ────────────────────────────────────────────────────────────
 
-test('the activities timeline is scoped, paginated and read-only', function () {
+test('the activities timeline is scoped and paginated; deletion stays web-only', function () {
     $user = ukDoctor();
     $item = InboxItem::factory()->for($user)->ready()->create();
     $item->approve($item->ai_analysis);
@@ -254,8 +254,9 @@ test('the activities timeline is scoped, paginated and read-only', function () {
         ->assertOk()
         ->assertJsonPath('activity.title', $item->ai_analysis['title']);
 
-    // No write routes exist for activities in the API.
-    $this->putJson("/api/v1/activities/{$id}", [])->assertStatus(405);
+    // Editing arrived with the merge feature (see MergeApiTest); deleting
+    // an activity still has no API route.
+    $this->deleteJson("/api/v1/activities/{$id}")->assertStatus(405);
 });
 
 // ── Reference & stats ───────────────────────────────────────────────────

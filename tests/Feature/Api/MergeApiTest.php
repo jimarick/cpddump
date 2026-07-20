@@ -60,6 +60,38 @@ test('merge validation errors carry the blocking item ids', function () {
     ])->assertStatus(422)->assertJsonValidationErrors(['activity_ids']);
 });
 
+test('the companion app can edit an activity, including a merged one', function () {
+    $user = ukDoctor();
+    Sanctum::actingAs($user);
+
+    $activity = Activity::factory()->for($user)->create([
+        'appraisal_period_id' => $user->currentAppraisalPeriod()->id,
+    ]);
+
+    $updated = $this->putJson("/api/v1/activities/{$activity->id}", [
+        'title' => 'Edited from the app',
+        'activity_type_slug' => 'course',
+        'cpd_points' => 3.5,
+        'reflection' => ['why_selected' => 'Updated on the go.', 'bogus_key' => 'dropped'],
+        'category_slugs' => ['cpd'],
+    ])->assertOk()->json('activity');
+
+    expect($updated['title'])->toBe('Edited from the app')
+        ->and($updated['cpd_points'])->toBe(3.5)
+        ->and($updated['reflection'])->toBe(['why_selected' => 'Updated on the go.'])
+        ->and(collect($updated['categories'])->pluck('slug')->all())->toBe(['cpd']);
+
+    // Someone else's activity is untouchable.
+    $other = ukDoctor();
+    $theirs = Activity::factory()->for($other)->create([
+        'appraisal_period_id' => $other->currentAppraisalPeriod()->id,
+    ]);
+
+    $this->putJson("/api/v1/activities/{$theirs->id}", [
+        'title' => 'x', 'activity_type_slug' => 'course', 'cpd_points' => 1,
+    ])->assertForbidden();
+});
+
 test('another user\'s merged entry cannot be split through the API', function () {
     $user = ukDoctor();
     $other = ukDoctor();
