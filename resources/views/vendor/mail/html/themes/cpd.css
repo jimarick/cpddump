@@ -1,8 +1,10 @@
 /* CPD Dump paper-and-ink mail theme.
    Email-safe translation of the web design system: paper background,
-   ink borders, hard offset shadows, one orange. Webfonts and CSS
-   transforms don't survive email clients, so Georgia stands in for
-   Cormorant Garamond and the stamp sits straight. */
+   ink borders, hard offset shadows, one orange. Bricolage Grotesque is
+   imported for clients that honour it (Apple Mail); everywhere else the
+   heavy system-sans fallback keeps the same voice. */
+
+@import url('https://fonts.bunny.net/css?family=bricolage-grotesque:700,800');
 
 body,
 body *:not(html):not(style):not(br):not(tr):not(code) {
@@ -44,19 +46,20 @@ a img {
 
 h1 {
     color: #1c1917;
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: 'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 26px;
-    font-weight: bold;
-    letter-spacing: -0.01em;
+    font-weight: 800;
+    letter-spacing: -0.03em;
     margin-top: 0;
     text-align: start;
 }
 
 h2 {
     color: #1c1917;
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: 'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 20px;
-    font-weight: bold;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     margin-top: 0;
     text-align: start;
 }

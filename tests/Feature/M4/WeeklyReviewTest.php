@@ -61,5 +61,10 @@ test('the weekly review email renders', function () {
     expect($html)
         ->toContain('3')
         ->toContain('Domain 2')
-        ->toContain($user->inboundEmailAddress());
+        ->toContain($user->inboundEmailAddress())
+        // Current brand: the wordmark with orange stop and Bricolage
+        // Grotesque, not the retired stamp logo.
+        ->toContain('cpd dump')
+        ->toContain('Bricolage Grotesque')
+        ->not->toContain('text-transform: uppercase');
 });
