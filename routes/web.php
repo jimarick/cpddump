@@ -57,7 +57,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('merges/candidates', [MergeController::class, 'candidates'])->name('merges.candidates');
         Route::post('merges/preview', [MergeController::class, 'preview'])->name('merges.preview');
-        Route::post('merges/reflection', [MergeController::class, 'reflection'])->middleware('throttle:20,1')->name('merges.reflection');
+        Route::post('merges/draft', [MergeController::class, 'draft'])->middleware('throttle:20,1')->name('merges.draft');
         Route::post('merges', [MergeController::class, 'store'])->name('merges.store');
         Route::post('activities/{activity}/unmerge', [MergeController::class, 'unmerge'])->name('merges.unmerge');
 

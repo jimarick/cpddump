@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { postJson } from '@/lib/api';
 import type {
+    MergeDraft,
     MergePreview,
     MergeSeed,
     MergeSourceSummary,
@@ -23,17 +24,50 @@ import type {
 
 const ROW_TILTS = [-1.4, 1, -0.6, 1.3, -1];
 
-type Reflection = Record<string, string>;
+/** The fields the AI draft touches — snapshotted for undo. */
+type DraftSnapshot = Pick<
+    EvidenceFormValues,
+    'title' | 'activity_type_slug' | 'organisation' | 'summary' | 'reflection'
+>;
 
 /**
  * Everything the modal's form knows, updated atomically so the preview
- * and the AI reflection can land in either order without racing.
+ * and the AI draft can land in either order without racing.
  */
 interface FormState {
     values: EvidenceFormValues | null;
     aiState: 'pending' | 'applied' | 'undone' | 'failed';
-    aiReflection: Reflection | null;
-    preAiReflection: Reflection | null;
+    aiDraft: MergeDraft | null;
+    preAiSnapshot: DraftSnapshot | null;
+}
+
+function snapshotOf(values: EvidenceFormValues): DraftSnapshot {
+    return {
+        title: values.title,
+        activity_type_slug: values.activity_type_slug,
+        organisation: values.organisation,
+        summary: values.summary,
+        reflection: values.reflection,
+    };
+}
+
+/**
+ * AI values layer OVER the deterministic defaults: anything the draft
+ * left null or empty keeps its stitched-together starting value.
+ */
+function applyDraft(
+    values: EvidenceFormValues,
+    draft: MergeDraft,
+): EvidenceFormValues {
+    return {
+        ...values,
+        title: draft.title ?? values.title,
+        activity_type_slug:
+            draft.activity_type_slug ?? values.activity_type_slug,
+        organisation: draft.organisation ?? values.organisation,
+        summary: draft.details ?? values.summary,
+        reflection: { ...values.reflection, ...draft.reflection },
+    };
 }
 
 /**
@@ -58,8 +92,8 @@ export function MergeDialog({
     const [form, setForm] = useState<FormState>({
         values: null,
         aiState: 'pending',
-        aiReflection: null,
-        preAiReflection: null,
+        aiDraft: null,
+        preAiSnapshot: null,
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -92,21 +126,13 @@ export function MergeDialog({
 
                     const values = valuesFromPreview(data);
 
-                    // The AI combine already landed — apply it on arrival.
-                    // AI answers layer OVER the stitched defaults: a key the
-                    // AI left empty keeps its concatenated sources.
-                    if (f.aiState === 'pending' && f.aiReflection) {
+                    // The AI draft already landed — apply it on arrival.
+                    if (f.aiState === 'pending' && f.aiDraft) {
                         return {
                             ...f,
                             aiState: 'applied',
-                            preAiReflection: values.reflection,
-                            values: {
-                                ...values,
-                                reflection: {
-                                    ...values.reflection,
-                                    ...f.aiReflection,
-                                },
-                            },
+                            preAiSnapshot: snapshotOf(values),
+                            values: applyDraft(values, f.aiDraft),
                         };
                     }
 
@@ -124,18 +150,23 @@ export function MergeDialog({
         };
     }, [seed]);
 
-    // AI-combined reflections, fired once for the initial selection.
+    // The AI-drafted combined entry, fired once for the initial selection.
     useEffect(() => {
         let cancelled = false;
 
-        postJson<{ reflection: Reflection }>('/merges/reflection', initialSeed)
-            .then(({ reflection }) => {
+        postJson<{ draft: MergeDraft }>('/merges/draft', initialSeed)
+            .then(({ draft }) => {
                 if (cancelled) {
                     return;
                 }
 
                 setForm((f) => {
-                    if (Object.keys(reflection).length === 0) {
+                    const empty =
+                        !draft.title &&
+                        !draft.details &&
+                        Object.keys(draft.reflection).length === 0;
+
+                    if (empty) {
                         return f.aiState === 'pending'
                             ? { ...f, aiState: 'failed' }
                             : f;
@@ -145,19 +176,13 @@ export function MergeDialog({
                         return {
                             ...f,
                             aiState: 'applied',
-                            aiReflection: reflection,
-                            preAiReflection: f.values.reflection,
-                            values: {
-                                ...f.values,
-                                reflection: {
-                                    ...f.values.reflection,
-                                    ...reflection,
-                                },
-                            },
+                            aiDraft: draft,
+                            preAiSnapshot: snapshotOf(f.values),
+                            values: applyDraft(f.values, draft),
                         };
                     }
 
-                    return { ...f, aiReflection: reflection };
+                    return { ...f, aiDraft: draft };
                 });
             })
             .catch(() => {
@@ -208,25 +233,22 @@ export function MergeDialog({
             ...f,
             aiState: 'undone',
             values:
-                f.values && f.preAiReflection
-                    ? { ...f.values, reflection: f.preAiReflection }
+                f.values && f.preAiSnapshot
+                    ? { ...f.values, ...f.preAiSnapshot }
                     : f.values,
         }));
 
     const redoAi = () =>
         setForm((f) =>
-            f.aiReflection
+            f.aiDraft
                 ? {
                       ...f,
                       aiState: 'applied',
                       values: f.values
-                          ? {
-                                ...f.values,
-                                reflection: {
-                                    ...(f.preAiReflection ?? {}),
-                                    ...f.aiReflection,
-                                },
-                            }
+                          ? applyDraft(
+                                { ...f.values, ...(f.preAiSnapshot ?? {}) },
+                                f.aiDraft,
+                            )
                           : f.values,
                   }
                 : f,
@@ -288,7 +310,7 @@ export function MergeDialog({
 
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
-            <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-x-hidden overflow-y-auto sm:max-w-3xl">
+            <DialogContent className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-x-hidden overflow-y-auto *:min-w-0 sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 font-display text-2xl font-extrabold">
                         Merge {sourceCount > 0 ? sourceCount : ''} into one
@@ -473,13 +495,14 @@ export function MergeDialog({
                             <div className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-3.5 py-2 text-[13px] text-stone-600">
                                 <Sparkle size={13} className="text-brand" />
                                 <Loader2 className="size-3.5 animate-spin text-brand" />
-                                AI is weaving the reflections together…
+                                AI is drafting the combined entry…
                             </div>
                         )}
                         {form.aiState === 'applied' && (
-                            <div className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-3.5 py-2 text-[13px] text-stone-600">
+                            <div className="flex flex-wrap items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-3.5 py-2 text-[13px] text-stone-600">
                                 <Sparkle size={13} className="text-brand" />
-                                Reflections combined by AI — edit below, or
+                                Title, details and reflections drafted by AI
+                                from all {sourceCount} — edit below, or
                                 <button
                                     type="button"
                                     onClick={undoAi}
@@ -490,14 +513,14 @@ export function MergeDialog({
                             </div>
                         )}
                         {form.aiState === 'undone' && (
-                            <div className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-stone-300 px-3.5 py-2 text-[13px] text-stone-500">
+                            <div className="flex flex-wrap items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-stone-300 px-3.5 py-2 text-[13px] text-stone-500">
                                 Back to the stitched-together originals —
                                 <button
                                     type="button"
                                     onClick={redoAi}
                                     className="cursor-pointer font-semibold underline decoration-dashed underline-offset-2 hover:text-ink"
                                 >
-                                    re-apply the AI combine
+                                    re-apply the AI draft
                                 </button>
                             </div>
                         )}

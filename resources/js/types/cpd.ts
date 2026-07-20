@@ -243,6 +243,15 @@ export interface MergePreview {
     retention: 'ask' | 'always' | 'never';
 }
 
+/** The AI-drafted combined entry, applied over the deterministic defaults. */
+export interface MergeDraft {
+    title: string | null;
+    activity_type_slug: string | null;
+    organisation: string | null;
+    details: string | null;
+    reflection: Record<string, string>;
+}
+
 export interface MergeCandidates {
     activities: {
         id: number;

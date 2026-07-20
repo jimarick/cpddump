@@ -14,8 +14,8 @@ use Throwable;
 
 class MergeController extends Controller
 {
-    /** AI-combined reflections for the modal — costs tokens, so on demand. */
-    public function reflection(Request $request, ActivityMerger $merger, AiGateway $ai): JsonResponse
+    /** The AI-drafted combined entry for the modal — costs tokens, so on demand. */
+    public function draft(Request $request, ActivityMerger $merger, AiGateway $ai): JsonResponse
     {
         $validated = $request->validate([
             'activity_ids' => ['nullable', 'array'],
@@ -32,7 +32,7 @@ class MergeController extends Controller
         }
 
         try {
-            $reflection = $merger->combineReflections(
+            $draft = $merger->combineDraft(
                 $request->user(),
                 array_map('intval', $validated['activity_ids'] ?? []),
                 array_map('intval', $validated['inbox_item_ids'] ?? []),
@@ -44,11 +44,11 @@ class MergeController extends Controller
             report($e);
 
             return response()->json([
-                'message' => 'The AI could not combine those reflections just now. Try again.',
+                'message' => 'The AI could not combine those just now. Try again.',
             ], 422);
         }
 
-        return response()->json(['reflection' => $reflection]);
+        return response()->json(['draft' => $draft]);
     }
 
     /** What the "Merge with…" picker can offer. */

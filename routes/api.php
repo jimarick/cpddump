@@ -35,7 +35,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('merges/candidates', [MergeApiController::class, 'candidates'])->name('api.merges.candidates');
         Route::post('merges/preview', [MergeApiController::class, 'preview'])->name('api.merges.preview');
-        Route::post('merges/reflection', [MergeApiController::class, 'reflection'])->middleware('throttle:20,1')->name('api.merges.reflection');
+        Route::post('merges/draft', [MergeApiController::class, 'draft'])->middleware('throttle:20,1')->name('api.merges.draft');
         Route::post('merges', [MergeApiController::class, 'store'])->name('api.merges.store');
         Route::post('activities/{activity}/unmerge', [MergeApiController::class, 'unmerge'])->name('api.merges.unmerge');
 

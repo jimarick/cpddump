@@ -124,6 +124,32 @@ export function StackedPile({
 }
 
 /**
+ * Wraps the DragOverlay clone: while hovering a valid drop target, a
+ * centred "drop to stack" badge covers the card's content (Review button
+ * included) so the signal can never be obscured.
+ */
+export function DragCardOverlay({
+    overTarget,
+    children,
+}: {
+    overTarget: boolean;
+    children: ReactNode;
+}) {
+    return (
+        <div className="relative rotate-[-2deg] scale-[1.03] rounded-[12px] shadow-[7px_8px_0_rgba(28,25,23,.25)]">
+            {children}
+            {overTarget && (
+                <span className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[12px] bg-paper/85">
+                    <span className="rounded-[8px] border-2 border-ink bg-brand px-3 py-1 text-[11px] font-extrabold tracking-[0.05em] text-white uppercase shadow-[2px_2px_0_#1c1917]">
+                        Drop to stack
+                    </span>
+                </span>
+            )}
+        </div>
+    );
+}
+
+/**
  * Makes a list row both a drag source and (until a stack exists) a drop
  * target. Buttons inside keep working — the pointer sensor only kicks in
  * after 8px of travel.
@@ -167,13 +193,9 @@ export function MergeDraggable({
             )}
         >
             {isOver && !isDragging && (
-                // Full-row overlay: never clipped by the scroll container,
-                // never hidden behind a neighbouring row.
-                <span className="pointer-events-none absolute inset-0 z-30 flex items-center justify-end rounded-[12px] bg-brand/10 pr-4">
-                    <span className="rounded-[7px] border-[1.5px] border-ink bg-brand px-2 py-0.5 text-[9.5px] font-extrabold tracking-[0.05em] text-white uppercase shadow-[2px_2px_0_#1c1917]">
-                        Drop to stack
-                    </span>
-                </span>
+                // Just the highlight — the "drop to stack" badge lives on
+                // the dragged card, where nothing can cover it.
+                <span className="pointer-events-none absolute inset-0 z-30 rounded-[12px] bg-brand/10" />
             )}
             {children}
         </div>

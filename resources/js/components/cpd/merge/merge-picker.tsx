@@ -102,9 +102,11 @@ export function MergePickerDialog({
 
     return (
         <Dialog open onOpenChange={(o) => !o && onClose()}>
-            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+            {/* *:min-w-0 keeps any wide child from inflating the dialog's
+                grid track and pushing everything past the right edge. */}
+            <DialogContent className="max-h-[85vh] w-[min(100vw-2rem,32rem)] overflow-x-hidden overflow-y-auto *:min-w-0 sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="font-display text-xl font-extrabold">
+                    <DialogTitle className="pr-6 font-display text-xl font-extrabold break-words">
                         Merge “{baseLabel}” with…
                     </DialogTitle>
                 </DialogHeader>

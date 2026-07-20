@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Ai\ReflectionMergerAgent;
+use App\Ai\MergeDraftAgent;
 use App\Enums\AiPurpose;
 use App\Enums\InboxItemStatus;
 use App\Models\Activity;
@@ -26,66 +26,92 @@ class ActivityMerger
     public function __construct(private AiGateway $ai) {}
 
     /**
-     * AI-combined reflections for the merge modal: one woven answer per
-     * profession reflection prompt, from every source's saved answers and
-     * AI drafts. Called on demand — the modal opens on naive concatenation
-     * and upgrades when this lands.
+     * The AI-drafted combined entry for the merge modal: title, type,
+     * organisation, one details paragraph spanning every source, and one
+     * woven answer per reflection prompt. Called on demand — the modal
+     * opens on deterministic defaults and upgrades when this lands.
      *
      * @param  array<int, int>  $activityIds
      * @param  array<int, int>  $inboxItemIds
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
-    public function combineReflections(User $user, array $activityIds, array $inboxItemIds, ?int $intoActivityId = null): array
+    public function combineDraft(User $user, array $activityIds, array $inboxItemIds, ?int $intoActivityId = null): array
     {
         [$activities, $items, $target] = $this->resolveSources($user, $activityIds, $inboxItemIds, $intoActivityId);
 
         $prompts = collect($user->profession?->reflectionPrompts() ?? []);
 
-        $describe = function (string $title, ?string $date, array $answers, bool $userWritten) use ($prompts): ?string {
-            $lines = $prompts
-                ->map(fn (array $p) => filled($answers[$p['key']] ?? null)
-                    ? "  {$p['key']}: ".$answers[$p['key']]
-                    : null)
-                ->filter();
+        $describe = function (string $title, ?string $date, ?string $type, ?string $organisation, ?string $summary, array $answers, bool $userWritten) use ($prompts): string {
+            $head = collect([
+                $date,
+                $type,
+                $organisation,
+                $userWritten ? 'reviewed and written by the user' : 'AI draft',
+            ])->filter()->implode(' · ');
 
-            if ($lines->isEmpty()) {
-                return null;
+            $lines = collect(["Source: {$title} ({$head})"]);
+
+            if (filled($summary)) {
+                $lines->push("  summary: {$summary}");
             }
 
-            $origin = $userWritten ? 'written by the user' : 'AI draft';
+            foreach ($prompts as $prompt) {
+                if (filled($answers[$prompt['key']] ?? null)) {
+                    $lines->push("  {$prompt['key']}: ".$answers[$prompt['key']]);
+                }
+            }
 
-            return "Source: {$title}".($date ? " ({$date})" : '')." — {$origin}\n".$lines->implode("\n");
+            return $lines->implode("\n");
         };
 
         $sources = $activities->collect()
             ->when($target !== null, fn ($all) => $all->prepend($target))
-            ->map(fn (Activity $a) => $describe($a->title, $a->starts_on?->toDateString(), $a->reflection ?? [], true))
+            ->map(fn (Activity $a) => $describe(
+                $a->title,
+                $a->starts_on?->toDateString(),
+                $a->type->name,
+                $a->organisation,
+                $a->details,
+                $a->reflection ?? [],
+                true,
+            ))
             ->concat($items->map(fn (InboxItem $i) => $describe(
                 $i->ai_analysis['title'] ?? 'Untitled evidence',
                 $i->ai_analysis['starts_on'] ?? null,
+                $i->ai_analysis['activity_type_slug'] ?? null,
+                $i->ai_analysis['organisation'] ?? null,
+                $i->ai_analysis['summary'] ?? null,
                 (array) ($i->ai_analysis['reflection_draft'] ?? []),
                 false,
-            )))
-            ->filter();
-
-        if ($sources->isEmpty()) {
-            return [];
-        }
+            )));
 
         $response = $this->ai->structuredPrompt(
-            agent: new ReflectionMergerAgent(
+            agent: new MergeDraftAgent(
                 $user->profession->name ?? 'healthcare professional',
                 $prompts->all(),
+                ActivityType::availableTo($user->profession)->pluck('slug')->all(),
             ),
             user: $user,
             purpose: AiPurpose::MergeReflection,
             prompt: $sources->implode("\n\n"),
         );
 
-        return collect((array) ($response->toArray()['reflection'] ?? []))
-            ->only($prompts->pluck('key'))
-            ->filter(fn ($answer) => is_string($answer) && $answer !== '')
-            ->all();
+        $draft = $response->toArray();
+
+        return [
+            'title' => is_string($draft['title'] ?? null) && $draft['title'] !== '' ? $draft['title'] : null,
+            'activity_type_slug' => is_string($draft['activity_type_slug'] ?? null) && $draft['activity_type_slug'] !== ''
+                ? $draft['activity_type_slug']
+                : null,
+            'organisation' => is_string($draft['organisation'] ?? null) && $draft['organisation'] !== ''
+                ? $draft['organisation']
+                : null,
+            'details' => is_string($draft['details'] ?? null) && $draft['details'] !== '' ? $draft['details'] : null,
+            'reflection' => collect((array) ($draft['reflection'] ?? []))
+                ->only($prompts->pluck('key'))
+                ->filter(fn ($answer) => is_string($answer) && $answer !== '')
+                ->all(),
+        ];
     }
 
     /**

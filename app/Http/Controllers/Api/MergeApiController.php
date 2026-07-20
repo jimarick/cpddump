@@ -46,7 +46,7 @@ class MergeApiController extends Controller
         ));
     }
 
-    public function reflection(Request $request, ActivityMerger $merger, AiGateway $ai): JsonResponse
+    public function draft(Request $request, ActivityMerger $merger, AiGateway $ai): JsonResponse
     {
         $validated = $request->validate([
             'activity_ids' => ['nullable', 'array'],
@@ -63,7 +63,7 @@ class MergeApiController extends Controller
         }
 
         try {
-            $reflection = $merger->combineReflections(
+            $draft = $merger->combineDraft(
                 $request->user(),
                 array_map('intval', $validated['activity_ids'] ?? []),
                 array_map('intval', $validated['inbox_item_ids'] ?? []),
@@ -75,11 +75,11 @@ class MergeApiController extends Controller
             report($e);
 
             return response()->json([
-                'message' => 'The AI could not combine those reflections just now. Try again.',
+                'message' => 'The AI could not combine those just now. Try again.',
             ], 422);
         }
 
-        return response()->json(['reflection' => $reflection]);
+        return response()->json(['draft' => $draft]);
     }
 
     public function store(MergeActivitiesRequest $request, ActivityMerger $merger): JsonResponse

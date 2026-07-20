@@ -18,6 +18,7 @@ import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
 import { MergeDialog } from '@/components/cpd/merge/merge-dialog';
 import { MergePickerDialog } from '@/components/cpd/merge/merge-picker';
 import {
+    DragCardOverlay,
     MergeDraggable,
     STACK_DROP_ID,
     StackedPile,
@@ -75,6 +76,7 @@ export default function Timeline({
     const [pickingFor, setPickingFor] = useState<ActivityData | null>(null);
     const [mergeSeed, setMergeSeed] = useState<MergeSeed | null>(null);
     const [draggingId, setDraggingId] = useState<number | null>(null);
+    const [overTarget, setOverTarget] = useState(false);
     const { stack, start, add, remove: unstack, clear } = usePendingStack();
 
     const sensors = useSensors(
@@ -107,6 +109,7 @@ export default function Timeline({
 
     const onDragEnd = (e: DragEndEvent) => {
         setDraggingId(null);
+        setOverTarget(false);
 
         const activeId = Number(e.active.id);
         const overId = e.over?.id;
@@ -375,8 +378,16 @@ export default function Timeline({
         <DndContext
             sensors={sensors}
             onDragStart={onDragStart}
+            onDragOver={(e) =>
+                setOverTarget(
+                    e.over !== null && e.over.id !== e.active.id,
+                )
+            }
             onDragEnd={onDragEnd}
-            onDragCancel={() => setDraggingId(null)}
+            onDragCancel={() => {
+                setDraggingId(null);
+                setOverTarget(false);
+            }}
         >
                         <div
                             className={`rounded-[14px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(28,25,23,.12)] ${
@@ -489,7 +500,8 @@ export default function Timeline({
                         </div>
                         <DragOverlay dropAnimation={null}>
                             {draggingActivity && (
-                                <div className="flex w-full min-w-0 rotate-[-2deg] scale-[1.03] items-center gap-3 rounded-[12px] border-2 border-ink bg-white px-4 py-3 shadow-[7px_8px_0_rgba(28,25,23,.25)]">
+                                <DragCardOverlay overTarget={overTarget}>
+                                <div className="flex w-full min-w-0 items-center gap-3 rounded-[12px] border-2 border-ink bg-white px-4 py-3">
                                     <span
                                         className="size-3 shrink-0 rounded-full border-[1.5px] border-ink"
                                         style={{
@@ -504,6 +516,7 @@ export default function Timeline({
                                         {draggingActivity.cpd_points} pts
                                     </span>
                                 </div>
+                                </DragCardOverlay>
                             )}
                         </DragOverlay>
         </DndContext>

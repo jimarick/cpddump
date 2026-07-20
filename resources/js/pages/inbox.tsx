@@ -44,6 +44,7 @@ import { InboxDoodles } from '@/components/cpd/inbox-doodles';
 import { MergeDialog } from '@/components/cpd/merge/merge-dialog';
 import { MergePickerDialog } from '@/components/cpd/merge/merge-picker';
 import {
+    DragCardOverlay,
     MergeDraggable,
     STACK_DROP_ID,
     StackedPile,
@@ -96,6 +97,7 @@ export default function Inbox({
     const [pickingFor, setPickingFor] = useState<InboxItemData | null>(null);
     const [mergeSeed, setMergeSeed] = useState<MergeSeed | null>(null);
     const [draggingId, setDraggingId] = useState<number | null>(null);
+    const [overTarget, setOverTarget] = useState(false);
     const [relatedHighlight, setRelatedHighlight] = useState<number[] | null>(
         null,
     );
@@ -210,6 +212,7 @@ export default function Inbox({
 
     const onDragEnd = (e: DragEndEvent) => {
         setDraggingId(null);
+        setOverTarget(false);
 
         const activeId = Number(e.active.id);
         const overId = e.over?.id;
@@ -267,8 +270,17 @@ export default function Inbox({
                     <DndContext
                         sensors={sensors}
                         onDragStart={onDragStart}
+                        onDragOver={(e) =>
+                            setOverTarget(
+                                e.over !== null &&
+                                    e.over.id !== e.active.id,
+                            )
+                        }
                         onDragEnd={onDragEnd}
-                        onDragCancel={() => setDraggingId(null)}
+                        onDragCancel={() => {
+                            setDraggingId(null);
+                            setOverTarget(false);
+                        }}
                     >
                         <div
                             data-doodle-obstacle
@@ -356,13 +368,13 @@ export default function Inbox({
                         </div>
                         <DragOverlay dropAnimation={null}>
                             {draggingItem && (
-                                <div className="rotate-[-2deg] scale-[1.03] rounded-[12px] shadow-[7px_8px_0_rgba(28,25,23,.25)]">
+                                <DragCardOverlay overTarget={overTarget}>
                                     <InboxRow
                                         item={draggingItem}
                                         index={0}
                                         onDelete={() => undefined}
                                     />
-                                </div>
+                                </DragCardOverlay>
                             )}
                         </DragOverlay>
                     </DndContext>
