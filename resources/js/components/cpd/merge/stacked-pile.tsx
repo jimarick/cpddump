@@ -14,7 +14,9 @@ export interface PileCard {
     accent?: string;
 }
 
-const PILE_TILTS = [-0.8, 1.6, -2.1, 1.2, -1.6, 2.2];
+// Gentle: these rows are full-width, so even one degree of rotation
+// swings the far edge dozens of pixels.
+const PILE_TILTS = [-0.3, 0.5, -0.6, 0.4, -0.5, 0.55];
 
 export const STACK_DROP_ID = 'pending-stack';
 
@@ -56,9 +58,9 @@ export function StackedPile({
                         key={card.id}
                         style={{
                             rotate: `${PILE_TILTS[i % PILE_TILTS.length]}deg`,
-                            marginTop: i === 0 ? 0 : -34,
+                            marginTop: i === 0 ? 0 : -48,
                             zIndex: cards.length - i,
-                            translate: `${i % 2 === 0 ? 0 : 4}px`,
+                            translate: `${i % 2 === 0 ? 0 : 2}px`,
                         }}
                         className={cn(
                             'group relative flex w-full min-w-0 items-center gap-3 rounded-[12px] border-2 border-ink bg-white px-4 py-3 shadow-[3px_3px_0_rgba(28,25,23,.12)]',
@@ -165,8 +167,12 @@ export function MergeDraggable({
             )}
         >
             {isOver && !isDragging && (
-                <span className="absolute -top-2.5 right-3 z-20 rounded-[7px] border-[1.5px] border-ink bg-brand px-2 py-0.5 text-[9.5px] font-extrabold tracking-[0.05em] text-white uppercase shadow-[2px_2px_0_#1c1917]">
-                    Drop to stack
+                // Full-row overlay: never clipped by the scroll container,
+                // never hidden behind a neighbouring row.
+                <span className="pointer-events-none absolute inset-0 z-30 flex items-center justify-end rounded-[12px] bg-brand/10 pr-4">
+                    <span className="rounded-[7px] border-[1.5px] border-ink bg-brand px-2 py-0.5 text-[9.5px] font-extrabold tracking-[0.05em] text-white uppercase shadow-[2px_2px_0_#1c1917]">
+                        Drop to stack
+                    </span>
                 </span>
             )}
             {children}

@@ -272,7 +272,7 @@ export default function Inbox({
                     >
                         <div
                             data-doodle-obstacle
-                            className="relative grid min-h-0 min-w-0 flex-1 auto-rows-min grid-cols-[minmax(0,1fr)] gap-2.5 overflow-y-auto px-1 pt-1 pb-2"
+                            className="relative grid min-h-0 min-w-0 flex-1 auto-rows-min grid-cols-[minmax(0,1fr)] gap-2.5 overflow-y-auto px-3 pt-3 pb-3"
                         >
                             {items.map((item, i) => {
                                 if (stackActive) {
