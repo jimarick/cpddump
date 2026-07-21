@@ -13,6 +13,19 @@ use RuntimeException;
  */
 class ApnsClient
 {
+    /**
+     * Whether this environment can sign pushes at all. Unconfigured
+     * environments (no .p8 key set) skip delivery quietly instead of
+     * failing every queued notification.
+     */
+    public function configured(): bool
+    {
+        return (filled(config('services.apns.private_key'))
+                || filled(config('services.apns.private_key_path')))
+            && filled(config('services.apns.key_id'))
+            && filled(config('services.apns.team_id'));
+    }
+
     /** @param  array<string, mixed>  $payload */
     public function push(string $deviceToken, array $payload): ApnsResponse
     {

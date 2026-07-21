@@ -150,6 +150,7 @@ test('tokens apns reports dead are pruned, live ones kept', function () {
     $live = PushToken::factory()->for($user)->create();
 
     $this->mock(ApnsClient::class, function ($mock) use ($dead) {
+        $mock->shouldReceive('configured')->andReturnTrue();
         $mock->shouldReceive('push')->twice()->andReturnUsing(
             fn (string $token) => $token === $dead->token
                 ? new ApnsResponse(410, 'Unregistered')

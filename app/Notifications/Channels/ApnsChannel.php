@@ -19,6 +19,16 @@ class ApnsChannel
 
     public function send(User $notifiable, Notification $notification): void
     {
+        // No APNs key in this environment: skip quietly rather than fail
+        // the queued job — pushes resume once APNS_* secrets are set.
+        if (! $this->client->configured()) {
+            Log::info('APNs push skipped — no APNs key configured', [
+                'notification' => $notification::class,
+            ]);
+
+            return;
+        }
+
         /** @phpstan-ignore method.notFound */
         $payload = $notification->toApns($notifiable);
 
