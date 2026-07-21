@@ -73,7 +73,6 @@ export function EvidenceWizard({
     footerExtras,
     footerRight,
     hideTitle = false,
-    reflectionSource,
     initialComposedNotes = null,
 }: {
     step: number;
@@ -95,8 +94,6 @@ export function EvidenceWizard({
     footerRight?: ReactNode;
     /** The parent shows the title in its own header instead. */
     hideTitle?: boolean;
-    /** The analyst's note on where a pre-filled reflection came from. */
-    reflectionSource?: string | null;
     /**
      * Notes the import analysis already processed — Next skips the AI pass
      * while the box still matches these. Null means never processed, so
@@ -194,10 +191,7 @@ export function EvidenceWizard({
                     (composing ? (
                         <AiWorkingState />
                     ) : (
-                        <ComposedStepFields
-                            {...stepProps}
-                            reflectionSource={reflectionSource}
-                        />
+                        <ComposedStepFields {...stepProps} />
                     ))}
                 {step === 3 && (
                     <TakeawaysStepFields values={values} onChange={onChange} />

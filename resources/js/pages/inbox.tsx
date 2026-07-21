@@ -1384,9 +1384,6 @@ function ReviewDialog({
                             primaryLabel="Approve"
                             onPrimary={approve}
                             hideTitle
-                            reflectionSource={
-                                analysis?.reflection_source ?? null
-                            }
                             initialComposedNotes={
                                 (item.raw_payload.notes as
                                     | string

@@ -484,8 +484,7 @@ export function ComposedStepFields({
     onChange,
     reference,
     errors = {},
-    reflectionSource,
-}: StepProps & { reflectionSource?: string | null }) {
+}: StepProps) {
     return (
         <div className="grid gap-5">
             <div className="grid gap-1.5">
@@ -505,7 +504,6 @@ export function ComposedStepFields({
                 onChange={onChange}
                 reference={reference}
                 errors={errors}
-                reflectionSource={reflectionSource}
             />
         </div>
     );
@@ -543,12 +541,9 @@ export function ReflectionStepFields({
     reference,
     talk,
     onTalk,
-    reflectionSource,
 }: StepProps & {
     talk?: ReflectionTalkState;
     onTalk?: (patch: Partial<ReflectionTalkState>) => void;
-    /** The analyst's note on where a pre-filled reflection came from. */
-    reflectionSource?: string | null;
 }) {
     const [openInfo, setOpenInfo] = useState<Record<string, boolean>>({});
 
@@ -592,9 +587,11 @@ export function ReflectionStepFields({
             .join('\n')
             .slice(0, 4000);
 
+    // The analyst's reflection_source note is no longer surfaced — the
+    // notes page shows the user's words verbatim, so provenance is obvious.
     const provenance = talk?.shaped
         ? 'Shaped from your dictation — edit anything, or tap a sparkle to redo one box.'
-        : reflectionSource;
+        : null;
 
     return (
         <div className="grid gap-5">
