@@ -43,6 +43,54 @@ test('the weekly review summarises the week and the standing totals', function (
     });
 });
 
+test('the weekly review carries the learning section and a learning-only week still sends', function () {
+    Mail::fake();
+
+    $user = ukDoctor();
+    // No inbox items at all — learning is the only signal this week.
+    Activity::factory()->for($user)->create([
+        'appraisal_period_id' => $user->currentAppraisalPeriod()->id,
+        'nuggets' => [['id' => 'n1', 'text' => 'A weekly nugget', 'done' => false]],
+        'actions' => [['id' => 'a1', 'text' => 'Done already', 'done' => true]],
+    ]);
+
+    $this->artisan('cpd:send-weekly-reviews');
+
+    Mail::assertQueued(WeeklyReview::class, function (WeeklyReview $mail) use ($user) {
+        return $mail->user->is($user)
+            && $mail->summary['learning'][0]['nuggets'][0]['text'] === 'A weekly nugget'
+            // Ticked-done actions never resurface.
+            && $mail->summary['learning'][0]['actions'] === [];
+    });
+});
+
+test('the learning section respects its sub-toggle and hidden takeaways', function () {
+    Mail::fake();
+
+    $subToggledOff = ukDoctor();
+    $subToggledOff->update(['weekly_learning_recap_enabled' => false]);
+    Activity::factory()->for($subToggledOff)->create([
+        'appraisal_period_id' => $subToggledOff->currentAppraisalPeriod()->id,
+        'nuggets' => [['id' => 'n1', 'text' => 'Hidden', 'done' => false]],
+    ]);
+
+    $excludedActivity = ukDoctor();
+    Activity::factory()->for($excludedActivity)->create([
+        'appraisal_period_id' => $excludedActivity->currentAppraisalPeriod()->id,
+        // "Hidden from notifications" at review: arrived done.
+        'nuggets' => [['id' => 'n2', 'text' => 'Held back', 'done' => true]],
+    ]);
+
+    $this->artisan('cpd:send-weekly-reviews');
+
+    Mail::assertQueued(WeeklyReview::class, fn (WeeklyReview $mail) => $mail->user->is($subToggledOff)
+        ? $mail->summary['learning'] === []
+        : true);
+    Mail::assertQueued(WeeklyReview::class, fn (WeeklyReview $mail) => $mail->user->is($excludedActivity)
+        ? $mail->summary['learning'] === []
+        : true);
+});
+
 test('the weekly review email renders', function () {
     $user = ukDoctor();
     $user->ensureInboundEmailToken();

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -125,6 +126,14 @@ class InboxItem extends Model
                 'organisation' => $payload['organisation'] ?? null,
                 'details' => $payload['summary'] ?? null,
                 'reflection' => collect((array) ($payload['reflection_draft'] ?? []))->only($reflectionKeys)->all(),
+                // Absent key (an older client) inherits the AI extraction;
+                // an explicitly-sent empty list means the user cleared it.
+                'nuggets' => $this->takeawaysFrom($payload, 'nuggets'),
+                'actions' => $this->takeawaysFrom($payload, 'actions'),
+                'source_notes' => $payload['source_notes']
+                    ?? $this->raw_payload['notes']
+                    ?? $this->ai_analysis['user_notes']
+                    ?? null,
             ]);
 
             $activity->categories()->sync(
@@ -178,6 +187,31 @@ class InboxItem extends Model
         });
     }
 
+    /**
+     * The nugget/action list to promote onto the activity: the payload's
+     * when the client sent the key, the AI extraction otherwise — items
+     * normalised to {id, text, done}.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<int, array{id: string, text: string, done: bool}>
+     */
+    private function takeawaysFrom(array $payload, string $list): array
+    {
+        $items = array_key_exists($list, $payload)
+            ? (array) ($payload[$list] ?? [])
+            : (array) ($this->ai_analysis[$list] ?? []);
+
+        return collect($items)
+            ->filter(fn ($item) => is_array($item) && trim((string) ($item['text'] ?? '')) !== '')
+            ->map(fn ($item) => [
+                'id' => (string) ($item['id'] ?? Str::ulid()),
+                'text' => trim((string) $item['text']),
+                'done' => (bool) ($item['done'] ?? false),
+            ])
+            ->values()
+            ->all();
+    }
+
     public function dismiss(): void
     {
         // Delete means delete: files, analysis, the row itself — gone.
@@ -194,7 +228,12 @@ class InboxItem extends Model
         $this->delete();
     }
 
-    /** Payload keys that carry third-party content (email bodies etc.). */
+    /**
+     * Payload keys that carry third-party content (email bodies etc.).
+     * User-authored text ('details', debrief 'notes') must never join this
+     * list — the user chose to keep those words, and debrief notes survive
+     * onto the activity as source_notes.
+     */
     private const REDACTABLE_PAYLOAD_KEYS = ['body', 'transcript', 'page_text', 'html'];
 
     /**
@@ -235,8 +274,8 @@ class InboxItem extends Model
         }
 
         $hasStoredFiles = $this->attachments()->whereNull('purged_at')->exists();
-        $hasAuthoredText = in_array($this->source, [EvidenceSource::Manual, EvidenceSource::Upload], true)
-            && filled($this->raw_payload['details'] ?? null);
+        $hasAuthoredText = in_array($this->source, [EvidenceSource::Manual, EvidenceSource::Upload, EvidenceSource::Debrief], true)
+            && (filled($this->raw_payload['details'] ?? null) || filled($this->raw_payload['notes'] ?? null));
 
         return $hasStoredFiles || $hasAuthoredText;
     }

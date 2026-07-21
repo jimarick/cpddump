@@ -300,7 +300,7 @@ export function MergeDialog({
         <Dialog open onOpenChange={(o) => !o && onClose()}>
             <DialogContent
                 onOpenAutoFocus={(e) => e.preventDefault()}
-                className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-x-hidden overflow-y-auto *:min-w-0 sm:max-w-3xl"
+                className="!flex max-h-[92vh] w-[min(100vw-2rem,52rem)] flex-col overflow-hidden *:min-w-0 sm:max-w-3xl"
             >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 font-display text-2xl font-extrabold">
@@ -476,6 +476,12 @@ function valuesFromPreview(preview: MergePreview): EvidenceFormValues {
         organisation: d.organisation ?? '',
         cpd_points: d.cpd_points,
         summary: d.details,
+        // Merging keeps takeaways per-source on the server; the combined
+        // entry starts without its own lists (revealed so add-your-own works).
+        nuggets: [],
+        actions: [],
+        source_notes: '',
+        selected_takeaway_ids: [],
         reflection: d.reflection,
         category_slugs: d.category_slugs,
         domain_codes: d.domain_codes,

@@ -132,23 +132,33 @@ export default function Privacy() {
                             <tr>
                                 <td>A voice note</td>
                                 <td>
-                                    We transcribe it, delete the recording
-                                    immediately, write your drafted entry, then
-                                    delete the transcript too
+                                    We transcribe it and delete the recording
+                                    immediately. Your words from the transcript
+                                    are kept as your entry's own notes — you
+                                    can edit or delete them at review — then
+                                    the raw transcript is deleted
                                 </td>
-                                <td>No — already gone once read</td>
-                                <td>No — only your drafted entry remains</td>
+                                <td>
+                                    Your own words only, as your editable notes
+                                </td>
+                                <td>
+                                    Your notes stay on the entry until you
+                                    delete them
+                                </td>
                             </tr>
                             <tr>
                                 <td>A forwarded email</td>
                                 <td>
                                     We delete the original within seconds of it
                                     arriving, and delete its text as soon as
-                                    it's been read and your entry drafted
+                                    it's been read and your entry drafted. Any
+                                    note you typed yourself above the forward
+                                    is kept as your entry's own notes
                                 </td>
                                 <td>
                                     No — already gone once read (attachments
-                                    follow their own rows above)
+                                    follow their own rows above); only your own
+                                    typed note survives, as your editable notes
                                 </td>
                                 <td>No — only your drafted entry remains</td>
                             </tr>
@@ -161,6 +171,24 @@ export default function Privacy() {
                                 </td>
                                 <td>No — already gone once read</td>
                                 <td>No — only your drafted entry remains</td>
+                            </tr>
+                            <tr>
+                                <td>Notes you type or paste (a "Debrief")</td>
+                                <td>
+                                    These are your own words: AI distils them
+                                    into nuggets and actions, and the notes
+                                    themselves are kept word-for-word on the
+                                    entry so you can revisit them. The
+                                    personal-information check runs on them
+                                    like any typed text, and "remove personal
+                                    info" scrubs identifiers from them on
+                                    request
+                                </td>
+                                <td>Yes — they're part of your entry</td>
+                                <td>
+                                    Yes, until you edit or delete them — they
+                                    belong to your entry, not to a source file
+                                </td>
                             </tr>
                             <tr>
                                 <td>Entries you combine (merge)</td>

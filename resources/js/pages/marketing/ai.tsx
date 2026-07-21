@@ -8,7 +8,7 @@ import LegalLayout from '@/layouts/marketing/legal-layout';
  */
 export default function HowWeUseAi() {
     return (
-        <LegalLayout title="How CPD Dump uses AI" updated="20 July 2026">
+        <LegalLayout title="How CPD Dump uses AI" updated="21 July 2026">
             <p>
                 AI does the paperwork; it does not do your thinking. This page
                 lists every place AI touches your portfolio — and the one place
@@ -29,6 +29,47 @@ export default function HowWeUseAi() {
                     like personal information so you can deal with
                     it before the entry is saved, and spots when two dumps look
                     like the same event so you can combine them.
+                </p>
+            </section>
+
+            <section>
+                <h2>Debriefs — your notes become nuggets and actions</h2>
+                <p>
+                    After a lecture or course you can paste (or dictate) your
+                    raw notes as a "Debrief". AI distils them into up to ten
+                    <strong> nuggets</strong> — the facts and insights worth
+                    remembering — and, only where you expressed an intention
+                    ("TODO…", "ask the department…"), a separate list of{' '}
+                    <strong>actions</strong>. Anything you emphasised in your
+                    notes — bold, highlights, headings — is treated as what
+                    mattered most to you, and your wording is kept. You can
+                    edit, re-sort or delete every item, and your original notes
+                    are kept word-for-word on the entry, one tap away. The
+                    same extraction runs on other evidence too, from the
+                    evidence itself.
+                </p>
+                <p>
+                    When you review an entry, your own words get one notes box
+                    — prefilled verbatim with whatever you supplied (the note
+                    you typed on a forwarded email, your voice-note transcript,
+                    your pasted debrief), never rewritten. Pressing Next runs
+                    one AI pass over your facts and notes: a two-sentence
+                    details line, your reflection answers drafted from your
+                    words, the nuggets and actions, and the categorisation —
+                    all editable before you approve. Categories are filed
+                    automatically and can be changed any time from the
+                    activity. Takeaways themselves are opt-in per entry:
+                    unless you press "Generate takeaways" at review (or later
+                    on the activity), the extraction is discarded and nothing
+                    is kept or resurfaced.
+                </p>
+                <p>
+                    Your nuggets come back to you for revision: a Takeaways
+                    page, an optional daily "morning gem" phone notification,
+                    and optional weekly and monthly summary emails. These only
+                    ever contain your own approved content, and every one of
+                    them can be switched off in settings — or silenced
+                    per-nugget by marking it done.
                 </p>
             </section>
 

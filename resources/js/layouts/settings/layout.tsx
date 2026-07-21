@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 const NAV = [
     { title: 'Profile', href: '/settings/profile' },
     { title: 'Evidence & email', href: '/settings/evidence' },
+    { title: 'Notifications', href: '/settings/notifications' },
     { title: 'Calendars', href: '/settings/calendars' },
     { title: 'AI', href: '/settings/ai' },
     { title: 'Security', href: '/settings/security' },

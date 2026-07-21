@@ -64,6 +64,17 @@ export interface PiiFlag {
     detected_by?: 'scanner';
 }
 
+/**
+ * One nugget (learned) or action (to chase) — id-addressed everywhere.
+ * A type alias (not an interface) so it satisfies Inertia's implicit
+ * index-signature check when submitted in a form payload.
+ */
+export type Takeaway = {
+    id: string;
+    text: string;
+    done: boolean;
+};
+
 export interface AiAnalysis {
     title: string;
     activity_type_slug: string;
@@ -72,7 +83,12 @@ export interface AiAnalysis {
     organisation: string | null;
     cpd_points: number;
     summary: string;
-    suggested_learning_points: string[];
+    /** The user's own words from the evidence, verbatim — never third-party text. */
+    user_notes?: string | null;
+    /** Pre-rename analyses only — superseded by nuggets. */
+    suggested_learning_points?: string[];
+    nuggets?: Takeaway[];
+    actions?: Takeaway[];
     /** Answers are null when the user's own words held no reflection. */
     reflection_draft: Record<string, string | null>;
     /** Where a pre-filled reflection came from, quoting the user's words. */
@@ -180,6 +196,9 @@ export interface ActivityData {
     organisation: string | null;
     details: string | null;
     reflection: Record<string, string>;
+    nuggets: Takeaway[];
+    actions: Takeaway[];
+    source_notes: string | null;
     type: { slug: string; name: string; color: string; icon: string };
     categories: { slug: string; name: string }[];
     domains: { code: string; name: string }[];

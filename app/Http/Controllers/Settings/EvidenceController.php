@@ -17,7 +17,6 @@ class EvidenceController extends Controller
 
         return Inertia::render('settings/evidence', [
             'dumpAddress' => $user->inboundEmailAddress(),
-            'weeklyEmailEnabled' => $user->weekly_email_enabled,
             'attachmentRetention' => $user->attachment_retention,
             'storageUsedBytes' => (int) $user->attachments()->whereNull('purged_at')->sum('size'),
             'storageQuotaBytes' => (int) config('cpd.ingest.user_storage_quota_bytes'),
@@ -36,7 +35,6 @@ class EvidenceController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'weekly_email_enabled' => ['sometimes', 'required', 'boolean'],
             'attachment_retention' => ['sometimes', 'required', 'in:ask,always,never'],
         ]);
 

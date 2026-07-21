@@ -63,6 +63,19 @@ class AuthApiController extends Controller
         return response()->json(['user' => $this->userPayload($request->user())]);
     }
 
+    /** The app's settings sheet: toggle push preferences. */
+    public function updatePreferences(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'push_weekly_nudge_enabled' => ['sometimes', 'required', 'boolean'],
+            'push_morning_gem_enabled' => ['sometimes', 'required', 'boolean'],
+        ]);
+
+        $request->user()->update($validated);
+
+        return response()->json(['user' => $this->userPayload($request->user()->refresh())]);
+    }
+
     /** @return array<string, mixed> */
     private function userPayload(User $user): array
     {
@@ -74,6 +87,8 @@ class AuthApiController extends Controller
             'profession' => $user->profession?->only(['id', 'slug', 'name']),
             'dump_address' => $user->inboundEmailAddress(),
             'attachment_retention' => $user->attachment_retention,
+            'push_weekly_nudge_enabled' => $user->push_weekly_nudge_enabled,
+            'push_morning_gem_enabled' => $user->push_morning_gem_enabled,
             'period' => $user->currentAppraisalPeriod()?->only(['id', 'label', 'starts_on', 'ends_on']),
         ];
     }

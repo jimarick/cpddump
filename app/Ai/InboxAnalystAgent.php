@@ -149,10 +149,17 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
           no learning time is evidenced.
         - Dates must come from the evidence, not be invented. Use null when unknown.
         - summary: write it in the first person, as if the user wrote it themselves — "I attended…",
-          "I completed…". Natural and human, 2-4 sentences: what it was, what it covered, what it
-          involved. Never write meta-commentary: no "the evidence indicates/suggests", no remarks
+          "I completed…". Natural and human, TWO SENTENCES MAXIMUM: what it was and what it
+          covered. Never write meta-commentary: no "the evidence indicates/suggests", no remarks
           about missing information, unreadable files, sources, or what the evidence shows. Anything
           missing or unreadable belongs ONLY in missing_evidence, never in the summary.
+        - user_notes: the user's OWN words found in the evidence, copied out VERBATIM — the
+          commentary they typed above a forwarded email, their voice-note transcript, notes they
+          added alongside a file. Reproduce their words exactly (their typos included); never
+          summarise, never rewrite, and never include third-party content (the forwarded email
+          itself, a newsletter, a page's text). Null when the evidence contains no words of the
+          user's own. Exception to the identifier rule: if their words contain an identifier,
+          replace just that identifier with [removed].
         - Reflections are NOT like the summary: they are the user's personal reflection, and you
           must never write them from nothing. Search the evidence for the user's OWN reflective
           words — commentary they typed above a forwarded email ("really useful day…", "I'll start
@@ -167,6 +174,21 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
         - reflection_source: when you filled any reflection answer, one short line saying where
           the user's reflection came from, quoting a few of their own words — e.g. "From your
           forwarded email — 'really useful day…'". Null when every reflection answer is null.
+        - nuggets: up to 10 key learning points from this evidence, best first — short,
+          self-contained, specific professional content, each worth resurfacing to the user later
+          ("Prasugrel is contraindicated after TIA", never "the course was informative"). When the
+          evidence is the user's own notes (source "debrief"), their emphasis is your strongest
+          signal: anything they bolded, underlined, highlighted, wrote in capitals or set off under
+          a heading mattered to them — prefer those lines, keeping the user's wording and
+          specifics (light tidying of punctuation only). Fewer good nuggets beat ten padded ones.
+        - actions: ONLY things the user themselves expressed intent to do, try, look up, raise or
+          investigate ("TODO…", "ask the department…", "look up…", "I should…"). A topic merely
+          being mentioned is not an action. Usually empty for evidence that isn't the user's own
+          notes.
+        - If the evidence includes a user-supplied "occurred_on" date, it is authoritative — use
+          it as starts_on even if fetched page content suggests another date.
+        - A debrief's "notes" are the user's own words: they may also contain reflective
+          commentary, which counts as the user's own reflection for the rules above.
         - Categorise against {$frameworkName} using ONLY the provided codes. Choose the few that
           genuinely fit; do not scattergun.
         - Patient safety: if the evidence contains anything that could identify a patient, colleague
@@ -228,8 +250,10 @@ class InboxAnalystAgent implements Agent, HasStructuredOutput
             'ends_on' => $schema->string()->description('ISO date YYYY-MM-DD')->nullable(),
             'organisation' => $schema->string()->nullable(),
             'cpd_points' => $schema->number()->description('Estimated CPD points, ~1 per hour')->required(),
-            'summary' => $schema->string()->description('First-person summary (2-4 sentences) written as the user — "I attended…" — describing the activity itself, with no meta-commentary about the evidence or missing information')->required(),
-            'suggested_learning_points' => $schema->array()->items($schema->string())->required(),
+            'summary' => $schema->string()->description('First-person account (two sentences maximum) written as the user — "I attended…" — describing the activity itself, with no meta-commentary about the evidence or missing information')->required(),
+            'user_notes' => $schema->string()->description('The user\'s own words from the evidence, verbatim — their email commentary, voice transcript or added notes; never third-party content; null when they wrote nothing themselves')->nullable(),
+            'nuggets' => $schema->array()->items($schema->string())->description('Up to 10 key learning points, best first — short, self-contained, worth resurfacing later; the user\'s own emphasised lines take priority')->required(),
+            'actions' => $schema->array()->items($schema->string())->description('Things the user expressed intent to do, try, look up or investigate — empty unless the user stated intent')->required(),
             'reflection_draft' => $schema->object($reflectionProperties)->required(),
             'reflection_source' => $schema->string()->description('Where the user\'s reflection came from, quoting a few of their words — null when every reflection answer is null')->nullable(),
             'category_slugs' => $schema->array()->items($schema->string()->enum($this->categorySlugs))->required(),

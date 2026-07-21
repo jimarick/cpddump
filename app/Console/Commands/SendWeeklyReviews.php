@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\EvidenceSource;
 use App\Enums\InboxItemStatus;
 use App\Mail\WeeklyReview;
+use App\Models\Activity;
 use App\Models\User;
 use App\Services\StatsService;
 use Illuminate\Console\Command;
@@ -35,8 +36,25 @@ class SendWeeklyReviews extends Command
                     ->get()
                     ->sum(fn ($item) => (float) ($item->ai_analysis['cpd_points'] ?? 0));
 
-                // Nothing new and nothing waiting: stay out of their inbox.
-                if ($capturedThisWeek === 0 && $periodStats['awaiting'] === 0 && $periodStats['activities'] === 0) {
+                $learning = $user->weekly_learning_recap_enabled
+                    ? $user->activities()
+                        ->where('created_at', '>=', now()->subWeek())
+                        ->where(fn ($q) => $q->whereNotNull('nuggets')->orWhereNotNull('actions'))
+                        ->orderByDesc('starts_on')
+                        ->get()
+                        ->map(fn (Activity $a) => [
+                            'title' => $a->title,
+                            'nuggets' => $a->openNuggets(),
+                            'actions' => $a->openActions(),
+                        ])
+                        ->filter(fn (array $g) => $g['nuggets'] !== [] || $g['actions'] !== [])
+                        ->values()
+                        ->all()
+                    : [];
+
+                // Nothing new, nothing waiting, nothing learned: stay out
+                // of their inbox.
+                if ($capturedThisWeek === 0 && $periodStats['awaiting'] === 0 && $periodStats['activities'] === 0 && $learning === []) {
                     return;
                 }
 
@@ -61,6 +79,7 @@ class SendWeeklyReviews extends Command
                 Mail::to($user)->queue(new WeeklyReview($user, [
                     'captured_this_week' => $capturedThisWeek,
                     'points_this_week' => $pointsThisWeek,
+                    'learning' => $learning,
                     'awaiting' => $periodStats['awaiting'],
                     'total_activities' => $periodStats['activities'],
                     'total_points' => $periodStats['points'],

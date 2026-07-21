@@ -440,6 +440,11 @@ class ActivityMerger
             'organisation' => $payload['organisation'] ?? null,
             'cpd_points' => $payload['cpd_points'] ?? 0,
             'details' => $payload['details'] ?? null,
+            // The merge form starts with empty lists, so empty means
+            // "untouched", never "cleared" — a merge must not wipe the
+            // takeaways an existing parent already carries.
+            'nuggets' => $this->mergedTakeaways($payload['nuggets'] ?? [], $parent->nuggets ?? []),
+            'actions' => $this->mergedTakeaways($payload['actions'] ?? [], $parent->actions ?? []),
             'reflection' => collect((array) ($payload['reflection'] ?? []))
                 ->only($reflectionKeys)
                 ->filter(fn ($answer) => filled($answer))
@@ -626,5 +631,36 @@ class ActivityMerger
                 ->map(fn ($id) => (int) $id)
                 ->unique()->values()->all(),
         ];
+    }
+
+    /**
+     * User-entered takeaways from the merge form, layered over whatever the
+     * parent already carried (existing items keep their ids and done state;
+     * duplicates by id collapse to the submitted version).
+     *
+     * @param  array<int, array<string, mixed>>  $submitted
+     * @param  array<int, array{id: string, text: string, done?: bool}>  $existing
+     * @return array<int, array{id: string, text: string, done: bool}>
+     */
+    private function mergedTakeaways(array $submitted, array $existing): array
+    {
+        $clean = collect($submitted)
+            ->filter(fn ($t) => filled($t['text'] ?? null))
+            ->map(fn ($t) => [
+                'id' => (string) $t['id'],
+                'text' => trim((string) $t['text']),
+                'done' => (bool) ($t['done'] ?? false),
+            ]);
+
+        return collect($existing)
+            ->filter(fn ($t) => ! $clean->contains(fn ($c) => $c['id'] === $t['id']))
+            ->map(fn ($t) => [
+                'id' => $t['id'],
+                'text' => $t['text'],
+                'done' => (bool) ($t['done'] ?? false),
+            ])
+            ->concat($clean)
+            ->values()
+            ->all();
     }
 }

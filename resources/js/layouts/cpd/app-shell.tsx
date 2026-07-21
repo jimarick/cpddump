@@ -20,6 +20,7 @@ import { logout } from '@/routes';
 const TABS = [
     { label: 'Inbox', href: '/inbox' },
     { label: 'Timeline', href: '/timeline' },
+    { label: 'Takeaways', href: '/takeaways' },
     { label: 'Projects', href: '/projects' },
     { label: 'Reports', href: '/reports' },
 ];

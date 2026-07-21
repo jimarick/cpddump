@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\AiController;
 use App\Http\Controllers\Settings\CalendarController;
 use App\Http\Controllers\Settings\EvidenceController;
+use App\Http\Controllers\Settings\NotificationsController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
@@ -41,6 +42,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('settings/calendars/import', [CalendarController::class, 'import'])->name('calendars.import');
     Route::post('settings/calendars/{feed}/sync', [CalendarController::class, 'sync'])->name('calendars.sync');
     Route::delete('settings/calendars/{feed}', [CalendarController::class, 'destroy'])->name('calendars.destroy');
+
+    Route::get('settings/notifications', [NotificationsController::class, 'edit'])->name('notifications.edit');
+    Route::patch('settings/notifications', [NotificationsController::class, 'update'])->name('notifications.update');
 
     Route::get('settings/ai', [AiController::class, 'edit'])->name('ai.edit');
     Route::patch('settings/ai', [AiController::class, 'update'])->name('ai.update');

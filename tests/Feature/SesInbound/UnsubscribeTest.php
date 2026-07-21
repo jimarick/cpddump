@@ -37,6 +37,17 @@ test('the reminders variant silences every recurrence', function () {
         ->and($user->fresh()->weekly_email_enabled)->toBeTrue();
 });
 
+test('the monthly variant flips only the monthly digest', function () {
+    $user = ukDoctor();
+
+    $url = URL::signedRoute('email.unsubscribe', ['user' => $user->id, 'type' => 'monthly']);
+
+    $this->get($url)->assertOk()->assertSee('monthly digests');
+
+    expect($user->fresh()->monthly_digest_email_enabled)->toBeFalse()
+        ->and($user->fresh()->weekly_email_enabled)->toBeTrue();
+});
+
 test('an unsigned unsubscribe link is rejected', function () {
     $user = ukDoctor();
 

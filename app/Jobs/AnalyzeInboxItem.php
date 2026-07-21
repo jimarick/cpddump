@@ -12,6 +12,7 @@ use App\Services\PidScanner;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\Image;
 use Laravel\Ai\Files\StoredDocument;
@@ -107,6 +108,11 @@ class AnalyzeInboxItem implements ShouldQueue
         // its draft, but an NHS number has no business in a reflection ever
         // — scrub any that slipped through, deterministically.
         $analysis = $this->scrubDraft($analysis);
+
+        // The model returns nuggets/actions as plain strings; every client
+        // and the Takeaways endpoints address them by id, so wrap here —
+        // the one place all analyses flow through.
+        $analysis = $this->wrapTakeaways($analysis);
 
         $item->update([
             'status' => InboxItemStatus::Ready,
@@ -304,7 +310,7 @@ class AnalyzeInboxItem implements ShouldQueue
     {
         $scanner = app(PidScanner::class);
 
-        foreach (['title', 'summary', 'organisation'] as $field) {
+        foreach (['title', 'summary', 'organisation', 'user_notes'] as $field) {
             if (is_string($analysis[$field] ?? null)) {
                 $analysis[$field] = $scanner->scrubNhsNumbers($analysis[$field])['text'];
             }
@@ -314,6 +320,34 @@ class AnalyzeInboxItem implements ShouldQueue
             if (is_string($value)) {
                 $analysis['reflection_draft'][$key] = $scanner->scrubNhsNumbers($value)['text'];
             }
+        }
+
+        foreach (['nuggets', 'actions'] as $list) {
+            $analysis[$list] = array_map(
+                fn ($text) => is_string($text) ? $scanner->scrubNhsNumbers($text)['text'] : $text,
+                (array) ($analysis[$list] ?? []),
+            );
+        }
+
+        return $analysis;
+    }
+
+    /**
+     * @param  array<string, mixed>  $analysis
+     * @return array<string, mixed>
+     */
+    private function wrapTakeaways(array $analysis): array
+    {
+        foreach (['nuggets', 'actions'] as $list) {
+            $analysis[$list] = collect((array) ($analysis[$list] ?? []))
+                ->filter(fn ($text) => is_string($text) && trim($text) !== '')
+                ->map(fn ($text) => [
+                    'id' => (string) Str::ulid(),
+                    'text' => trim($text),
+                    'done' => false,
+                ])
+                ->values()
+                ->all();
         }
 
         return $analysis;

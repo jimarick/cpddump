@@ -17,11 +17,15 @@
 </head>
 <body>
     <div class="card">
-        <h1>Done — no more {{ $type === 'reminders' ? 'reminders' : 'weekly emails' }}.</h1>
+        <h1>Done — no more {{ match ($type) {
+            'reminders' => 'reminders',
+            'monthly' => 'monthly digests',
+            default => 'weekly emails',
+        } }}.</h1>
         <p>
             Your evidence keeps collecting either way.
             You can switch this back on any time in
-            <a href="{{ route('evidence.edit') }}">your settings</a>.
+            <a href="{{ route('notifications.edit') }}">your settings</a>.
         </p>
     </div>
 </body>

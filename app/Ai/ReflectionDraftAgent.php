@@ -43,7 +43,9 @@ class ReflectionDraftAgent implements Agent, HasStructuredOutput
         - Keep every specific the user mentioned (courses, cases, changes made) and keep
           their meaning; tidy the rambling, don't replace it.
         - Never invent facts, learning or intentions the user didn't express. The activity
-          context is for grounding references only, not new material.
+          context is for grounding references only, not new material. Exception: any "key
+          learning points" or "action points" in the context are the user's own words — you
+          may weave those into the answers they genuinely support.
         - If the ramble doesn't touch a question at all, set that answer to null — an
           honestly empty box beats confident filler.
         - Never include patient-identifiable or colleague-identifiable details.

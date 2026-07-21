@@ -32,8 +32,9 @@ class InboxController extends Controller
                 'source' => $item->source->value,
                 'source_label' => $item->source->label(),
                 'status' => $item->status->value,
-                // Only what the UI reads — raw source text never ships to the client.
-                'raw_payload' => collect($item->raw_payload)->only(['title', 'subject', 'url'])->all(),
+                // Only what the UI reads — raw source text never ships to the
+                // client. Debrief notes are user-authored, so they do.
+                'raw_payload' => collect($item->raw_payload)->only(['title', 'subject', 'url', 'notes', 'occurred_on'])->all(),
                 'ai_analysis' => $item->ai_analysis,
                 'ai_warnings' => $item->ai_warnings,
                 'pii_gate' => $item->piiGateActive(),

@@ -14,13 +14,17 @@ class EmailUnsubscribeController extends Controller
 {
     public function __invoke(Request $request, User $user): View
     {
-        $type = $request->query('type') === 'reminders' ? 'reminders' : 'weekly';
+        $type = match ($request->query('type')) {
+            'reminders' => 'reminders',
+            'monthly' => 'monthly',
+            default => 'weekly',
+        };
 
-        if ($type === 'reminders') {
-            $user->recurrences()->update(['reminder' => 'none']);
-        } else {
-            $user->update(['weekly_email_enabled' => false]);
-        }
+        match ($type) {
+            'reminders' => $user->recurrences()->update(['reminder' => 'none']),
+            'monthly' => $user->update(['monthly_digest_email_enabled' => false]),
+            default => $user->update(['weekly_email_enabled' => false]),
+        };
 
         return view('unsubscribed', ['type' => $type]);
     }

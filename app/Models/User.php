@@ -41,12 +41,15 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $ai_api_key
  * @property bool $weekly_email_enabled
  * @property bool $push_weekly_nudge_enabled
+ * @property bool $weekly_learning_recap_enabled
+ * @property bool $monthly_digest_email_enabled
+ * @property bool $push_morning_gem_enabled
  * @property string $attachment_retention
  * @property Carbon|null $onboarded_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'profession_id', 'timezone', 'ai_provider', 'ai_api_key', 'weekly_email_enabled', 'push_weekly_nudge_enabled', 'attachment_retention', 'onboarded_at'])]
+#[Fillable(['name', 'email', 'password', 'profession_id', 'timezone', 'ai_provider', 'ai_api_key', 'weekly_email_enabled', 'push_weekly_nudge_enabled', 'weekly_learning_recap_enabled', 'monthly_digest_email_enabled', 'push_morning_gem_enabled', 'attachment_retention', 'onboarded_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'ai_api_key'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -84,6 +87,9 @@ class User extends Authenticatable implements PasskeyUser
             'ai_api_key' => 'encrypted',
             'weekly_email_enabled' => 'boolean',
             'push_weekly_nudge_enabled' => 'boolean',
+            'weekly_learning_recap_enabled' => 'boolean',
+            'monthly_digest_email_enabled' => 'boolean',
+            'push_morning_gem_enabled' => 'boolean',
             'onboarded_at' => 'datetime',
         ];
     }

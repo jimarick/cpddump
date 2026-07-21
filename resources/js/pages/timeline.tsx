@@ -21,6 +21,7 @@ import {
 import { useMemo, useState } from 'react';
 import { CaveatNote } from '@/components/brand/caveat-note';
 import { Chip } from '@/components/brand/chip';
+import { Sparkle } from '@/components/brand/sparkle';
 import { AttachmentLinks } from '@/components/cpd/attachment-links';
 import { EvidenceFormFields } from '@/components/cpd/evidence-form-fields';
 import type { EvidenceFormValues } from '@/components/cpd/evidence-form-fields';
@@ -34,6 +35,7 @@ import {
 } from '@/components/cpd/merge/stacked-pile';
 import { usePendingStack } from '@/components/cpd/merge/use-pending-stack';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -53,6 +55,7 @@ import type {
     MergeSeed,
     PeriodData,
     ReferenceData,
+    Takeaway,
 } from '@/types/cpd';
 
 /** An activity that definitely has a date — the only kind the line can plot. */
@@ -727,6 +730,116 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     );
 }
 
+/**
+ * Nuggets and actions on the activity view, tickable in place — done means
+ * "stop resurfacing this" and is reversible. Ticks hit the per-item
+ * takeaways endpoint, so they can't collide with a form edit.
+ */
+function TakeawaysBlock({ activity }: { activity: ActivityData }) {
+    const [showNotes, setShowNotes] = useState(false);
+    const [generating, setGenerating] = useState(false);
+
+    const nuggets = activity.nuggets ?? [];
+    const actions = activity.actions ?? [];
+    const empty = nuggets.length === 0 && actions.length === 0;
+
+    const generate = () => {
+        setGenerating(true);
+        router.post(
+            `/activities/${activity.id}/takeaways/generate`,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setGenerating(false),
+            },
+        );
+    };
+
+    const toggle = (item: Takeaway) =>
+        router.patch(
+            `/activities/${activity.id}/takeaways/${item.id}`,
+            { done: !item.done },
+            { preserveScroll: true },
+        );
+
+    const row = (item: Takeaway, accent: boolean) => (
+        <label
+            key={item.id}
+            className={`flex cursor-pointer items-start gap-2 text-sm leading-relaxed ${accent ? 'border-l-3 border-brand pl-2' : ''}`}
+        >
+            <Checkbox
+                checked={item.done}
+                onCheckedChange={() => toggle(item)}
+                className="mt-0.5"
+            />
+            <span
+                className={
+                    item.done ? 'text-stone-400 line-through' : 'text-stone-700'
+                }
+            >
+                {item.text}
+            </span>
+        </label>
+    );
+
+    return (
+        <div className="grid gap-3">
+            {empty && (
+                <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-dashed border-stone-400 px-3.5 py-2.5">
+                    <Button
+                        size="sm"
+                        onClick={generate}
+                        disabled={generating}
+                        className="border-2 border-ink font-bold shadow-[2px_2px_0_#1c1917]"
+                    >
+                        {generating ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                            <Sparkle size={12} />
+                        )}{' '}
+                        Generate takeaways
+                    </Button>
+                    <span className="min-w-0 flex-1 text-[12.5px] text-stone-500">
+                        Pulls nuggets and actions from this entry onto your
+                        Takeaways wall — fed back as morning gems and weekly
+                        recaps.
+                    </span>
+                </div>
+            )}
+            {nuggets.length > 0 && (
+                <div className="grid gap-1.5">
+                    <span className="text-sm font-bold">Nuggets</span>
+                    {nuggets.map((n) => row(n, false))}
+                </div>
+            )}
+            {actions.length > 0 && (
+                <div className="grid gap-1.5">
+                    <span className="text-sm font-bold">Actions</span>
+                    {actions.map((a) => row(a, true))}
+                </div>
+            )}
+            {activity.source_notes && (
+                <div className="grid gap-1">
+                    <button
+                        type="button"
+                        onClick={() => setShowNotes((s) => !s)}
+                        className="cursor-pointer self-start text-xs font-semibold text-stone-500 underline decoration-dashed underline-offset-3 hover:text-ink"
+                    >
+                        {showNotes
+                            ? 'Hide your original notes'
+                            : 'View your original notes'}
+                    </button>
+                    {showNotes && (
+                        <p className="rounded-[10px] border border-dashed border-stone-400 bg-white px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap text-stone-600">
+                            {activity.source_notes}
+                        </p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function EditActivityDialog({
     activity,
     reference,
@@ -746,6 +859,12 @@ function EditActivityDialog({
         organisation: activity.organisation ?? '',
         cpd_points: activity.cpd_points,
         summary: activity.details ?? '',
+        // Read-only here: per-item takeaway edits go through the takeaways
+        // endpoints, and activities.update ignores these keys.
+        nuggets: activity.nuggets ?? [],
+        actions: activity.actions ?? [],
+        source_notes: activity.source_notes ?? '',
+        selected_takeaway_ids: [],
         reflection: activity.reflection ?? {},
         category_slugs: activity.categories.map((c) => c.slug),
         domain_codes: activity.domains.map((d) => d.code),
@@ -966,6 +1085,8 @@ function EditActivityDialog({
                                 </p>
                             </div>
                         ))}
+
+                        <TakeawaysBlock activity={activity} />
 
                         <div className="mt-2 flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
                             <Button

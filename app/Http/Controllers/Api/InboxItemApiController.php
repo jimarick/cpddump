@@ -24,8 +24,10 @@ class InboxItemApiController extends Controller
     public function store(Request $request, EvidenceIngestor $ingestor): JsonResponse
     {
         $validated = $request->validate([
-            'title' => ['nullable', 'string', 'max:255', 'required_without_all:files,audio,url'],
+            'title' => ['nullable', 'string', 'max:255', 'required_without_all:files,audio,url,notes'],
             'details' => ['nullable', 'string', 'max:20000'],
+            'notes' => ['nullable', 'string', 'max:50000'],
+            'occurred_on' => ['nullable', 'date'],
             'url' => ['nullable', 'url', 'max:2048'],
             'audio' => ['nullable', 'file', 'max:51200', 'mimetypes:audio/webm,audio/ogg,audio/mpeg,audio/mp4,audio/wav,audio/x-m4a,video/webm'],
             'files' => ['nullable', 'array', 'max:5'],
@@ -43,6 +45,7 @@ class InboxItemApiController extends Controller
         }
 
         $source = match (true) {
+            filled($validated['notes'] ?? null) => EvidenceSource::Debrief,
             $audio !== null => EvidenceSource::VoiceNote,
             $files !== [] => EvidenceSource::Upload,
             filled($validated['url'] ?? null) => EvidenceSource::Link,
@@ -55,6 +58,8 @@ class InboxItemApiController extends Controller
             rawPayload: array_filter([
                 'title' => $validated['title'] ?? null,
                 'details' => $validated['details'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+                'occurred_on' => $validated['occurred_on'] ?? null,
                 'url' => $validated['url'] ?? null,
             ]),
             files: $files,
@@ -145,7 +150,7 @@ class InboxItemApiController extends Controller
 
         $payload = $item->raw_payload ?? [];
 
-        foreach (['title', 'details'] as $key) {
+        foreach (['title', 'details', 'notes'] as $key) {
             if (is_string($payload[$key] ?? null)) {
                 $payload[$key] = $scanner->scrubNhsNumbers($payload[$key])['text'];
             }
@@ -214,7 +219,7 @@ class InboxItemApiController extends Controller
             'status' => $item->status->value,
             // Only what clients display — raw source text (email bodies,
             // transcripts) never ships; it is scrubbed post-analysis anyway.
-            'raw_payload' => collect($item->raw_payload)->only(['title', 'subject', 'url', 'details'])->all(),
+            'raw_payload' => collect($item->raw_payload)->only(['title', 'subject', 'url', 'details', 'notes', 'occurred_on'])->all(),
             'pii_gate' => $item->piiGateActive(),
             'merge_suggestions' => $suggestions,
             'ai_analysis' => $item->ai_analysis,

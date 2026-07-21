@@ -100,6 +100,15 @@ class EvidenceIngestor
             return;
         }
 
+        // A debrief that references a page gets the page read too; the
+        // fetch job merges page text alongside the user's notes and then
+        // dispatches analysis itself.
+        if ($item->source === EvidenceSource::Debrief && filled($item->raw_payload['url'] ?? null)) {
+            FetchLinkContent::dispatch($item)->delay($delay);
+
+            return;
+        }
+
         // Any audio — a voice note or an mp3/wav that arrived another way —
         // is transcribed first; the transcript then re-enters this pipeline.
         if (blank($item->raw_payload['transcript'] ?? null) && $attachments->contains(fn ($a) => $a->isAudio())) {

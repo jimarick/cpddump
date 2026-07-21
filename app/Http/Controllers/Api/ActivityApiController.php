@@ -32,9 +32,16 @@ class ActivityApiController extends Controller
 
         $scrub = fn (?string $text) => $text === null ? null : $scanner->scrubNhsNumbers($text)['text'];
 
+        $scrubList = fn (?array $items) => collect($items ?? [])
+            ->map(fn (array $item) => [...$item, 'text' => $scrub($item['text'] ?? '') ?? ''])
+            ->all();
+
         $activity->update([
             'title' => $scrub($activity->title),
             'details' => $scrub($activity->details),
+            'source_notes' => $scrub($activity->source_notes),
+            'nuggets' => $scrubList($activity->nuggets),
+            'actions' => $scrubList($activity->actions),
             'reflection' => collect($activity->reflection ?? [])
                 ->map(fn (string $answer) => $scrub($answer))
                 ->all(),
@@ -56,6 +63,7 @@ class ActivityApiController extends Controller
             'organisation' => ['nullable', 'string', 'max:255'],
             'cpd_points' => ['required', 'numeric', 'min:0', 'max:999'],
             'details' => ['nullable', 'string', 'max:20000'],
+            'source_notes' => ['nullable', 'string', 'max:50000'],
             'reflection' => ['nullable', 'array'],
             'reflection.*' => ['nullable', 'string', 'max:20000'],
             'category_slugs' => ['nullable', 'array'],
@@ -79,6 +87,9 @@ class ActivityApiController extends Controller
             'cpd_points' => $validated['cpd_points'],
             'details' => $validated['details'] ?? null,
             'reflection' => collect((array) ($validated['reflection'] ?? []))->only($reflectionKeys)->all(),
+            // Nuggets/actions deliberately absent: per-item edits go through
+            // the takeaways endpoints, so a stale edit form can't wipe them.
+            ...(array_key_exists('source_notes', $validated) ? ['source_notes' => $validated['source_notes']] : []),
         ]);
 
         $activity->categories()->sync(
@@ -168,6 +179,9 @@ class ActivityApiController extends Controller
             'organisation' => $activity->organisation,
             'details' => $activity->details,
             'reflection' => $activity->reflection,
+            'nuggets' => $activity->nuggets ?? [],
+            'actions' => $activity->actions ?? [],
+            'source_notes' => $activity->source_notes,
             'type' => $activity->type->only(['slug', 'name', 'color', 'icon']),
             'categories' => $activity->categories->map->only(['slug', 'name'])->all(),
             'domains' => $activity->frameworkDomains->map->only(['code', 'name'])->all(),

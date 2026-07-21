@@ -4,7 +4,6 @@ import { useState } from 'react';
 import HeadingSmall from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 
 interface IgnoreRuleData {
     id: number;
@@ -18,7 +17,6 @@ interface IgnoreRuleData {
 
 interface Props {
     dumpAddress: string | null;
-    weeklyEmailEnabled: boolean;
     ignoreRules: IgnoreRuleData[];
     attachmentRetention: 'ask' | 'always' | 'never';
     storageUsedBytes: number;
@@ -61,7 +59,6 @@ function formatBytes(bytes: number): string {
 
 export default function EvidenceSettings({
     dumpAddress,
-    weeklyEmailEnabled,
     ignoreRules,
     attachmentRetention,
     storageUsedBytes,
@@ -140,24 +137,6 @@ export default function EvidenceSettings({
                             </button>
                         </div>
                     )}
-                </div>
-
-                <div>
-                    <HeadingSmall
-                        title="Weekly review email"
-                        description="A Monday-morning summary of your week and what's waiting."
-                    />
-                    <label className="mt-3 flex items-center gap-2.5 text-sm">
-                        <Checkbox
-                            checked={weeklyEmailEnabled}
-                            onCheckedChange={(v) =>
-                                router.patch('/settings/evidence', {
-                                    weekly_email_enabled: v === true,
-                                })
-                            }
-                        />
-                        <Label>Send me the weekly review</Label>
-                    </label>
                 </div>
 
                 <div>

@@ -39,7 +39,32 @@ class WeeklyReview extends Mailable implements ShouldQueue
     {
         return new Content(markdown: 'mail.weekly-review', with: array_merge($this->summary, [
             'unsubscribe_url' => $this->unsubscribeUrl(),
+            'mark_done_url' => $this->markDoneUrl(),
         ]));
+    }
+
+    /**
+     * "Got these" one-click: marks exactly the takeaways this email showed
+     * as done, so they stop being resurfaced. Null when the email carries
+     * no learning section.
+     */
+    private function markDoneUrl(): ?string
+    {
+        $ids = [];
+
+        foreach ((array) ($this->summary['learning'] ?? []) as $group) {
+            $ids = [
+                ...$ids,
+                ...array_column((array) ($group['nuggets'] ?? []), 'id'),
+                ...array_column((array) ($group['actions'] ?? []), 'id'),
+            ];
+        }
+
+        if ($ids === []) {
+            return null;
+        }
+
+        return URL::signedRoute('email.takeaways.done', ['user' => $this->user->id, 'ids' => implode(',', $ids)]);
     }
 
     public function headers(): Headers

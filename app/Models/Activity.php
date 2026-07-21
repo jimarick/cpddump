@@ -26,6 +26,9 @@ use Illuminate\Support\Collection;
  * @property string|null $organisation
  * @property string|null $details
  * @property array<string, string> $reflection
+ * @property array<int, array{id: string, text: string, done?: bool}>|null $nuggets
+ * @property array<int, array{id: string, text: string, done?: bool}>|null $actions
+ * @property string|null $source_notes
  * @property int|null $merged_into_activity_id
  * @property Carbon|null $merged_at
  * @property bool $merge_unreviewed
@@ -77,7 +80,97 @@ class Activity extends Model
             'ends_on' => 'date',
             'cpd_points' => 'decimal:2',
             'reflection' => 'array',
+            'nuggets' => 'array',
+            'actions' => 'array',
         ];
+    }
+
+    /**
+     * Takeaways still worth resurfacing — done means "got it, stop
+     * reminding me", so the morning gem and email digests only ever
+     * draw from these.
+     *
+     * @return array<int, array{id: string, text: string, done?: bool}>
+     */
+    public function openNuggets(): array
+    {
+        return array_values(array_filter($this->nuggets ?? [], fn ($n) => ! ($n['done'] ?? false)));
+    }
+
+    /** @return array<int, array{id: string, text: string, done?: bool}> */
+    public function openActions(): array
+    {
+        return array_values(array_filter($this->actions ?? [], fn ($a) => ! ($a['done'] ?? false)));
+    }
+
+    /** Tick or un-tick a nugget/action by id, whichever list holds it. */
+    public function setTakeawayDone(string $id, bool $done): bool
+    {
+        return $this->mutateTakeaway($id, function (array $item, string $kind) use ($done) {
+            $item['done'] = $done;
+
+            return [$item, $kind];
+        });
+    }
+
+    public function setTakeawayText(string $id, string $text): bool
+    {
+        return $this->mutateTakeaway($id, function (array $item, string $kind) use ($text) {
+            $item['text'] = trim($text);
+
+            return [$item, $kind];
+        });
+    }
+
+    /** Reclassify a takeaway (id stable) — powers drag between the lists. */
+    public function moveTakeaway(string $id, string $kind): bool
+    {
+        return $this->mutateTakeaway($id, fn (array $item) => [$item, $kind === 'action' ? 'actions' : 'nuggets']);
+    }
+
+    public function removeTakeaway(string $id): bool
+    {
+        return $this->mutateTakeaway($id, fn () => null);
+    }
+
+    /**
+     * Find the item by id in either list, apply $mutate (returning
+     * [$item, $targetList] to keep it, or null to drop it), and save.
+     *
+     * @param  callable(array<string, mixed>, string): (array{0: array<string, mixed>, 1: string}|null)  $mutate
+     */
+    private function mutateTakeaway(string $id, callable $mutate): bool
+    {
+        $lists = ['nuggets' => $this->nuggets ?? [], 'actions' => $this->actions ?? []];
+
+        foreach ($lists as $kind => $items) {
+            foreach ($items as $index => $item) {
+                if ($item['id'] !== $id) {
+                    continue;
+                }
+
+                array_splice($lists[$kind], $index, 1);
+                $result = $mutate($item, $kind);
+
+                if ($result !== null) {
+                    [$mutated, $target] = $result;
+
+                    // Same list keeps its position; a reclassified item
+                    // joins the end of the other list.
+                    if ($target === $kind) {
+                        array_splice($lists[$kind], $index, 0, [$mutated]);
+                    } else {
+                        $lists[$target][] = $mutated;
+                    }
+                }
+
+                $this->update(['nuggets' => array_values($lists['nuggets']), 'actions' => array_values($lists['actions'])]);
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return BelongsTo<User, $this> */

@@ -69,7 +69,15 @@ class InboxItemFactory extends Factory
             'organisation' => 'Resuscitation Council UK',
             'cpd_points' => 6,
             'summary' => 'Completed the Advanced Life Support recertification course, including simulated cardiac arrest scenarios.',
-            'suggested_learning_points' => ['Updated ALS algorithm changes', 'Refreshed team-leadership in arrest scenarios'],
+            // Post-job shape: AnalyzeInboxItem wraps the model's plain
+            // strings with ids before persisting.
+            'nuggets' => [
+                ['id' => '01hexamplenugget0000000001', 'text' => 'Updated ALS algorithm changes', 'done' => false],
+                ['id' => '01hexamplenugget0000000002', 'text' => 'Refreshed team-leadership in arrest scenarios', 'done' => false],
+            ],
+            'actions' => [
+                ['id' => '01hexampleaction0000000001', 'text' => 'Book the paediatric variant next year', 'done' => false],
+            ],
             'reflection_draft' => [
                 'why_selected' => 'This recertification keeps my resuscitation skills current, which is core to safe practice.',
                 'learning_need' => 'My previous ALS certificate was due to expire and the algorithms had been updated.',

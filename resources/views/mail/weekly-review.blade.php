@@ -19,6 +19,33 @@ Review your inbox
 **{{ $regulars_waiting }}** of your regular activities {{ $regulars_waiting === 1 ? 'has' : 'have' }} a draft waiting for a quick reflection.
 @endif
 
+@if (count($learning ?? []) > 0)
+## What you learned this week
+
+@foreach ($learning as $group)
+@if (count($group['nuggets']) > 0)
+**{{ $group['title'] }}**
+
+@foreach ($group['nuggets'] as $nugget)
+- {{ $nugget['text'] }}
+@endforeach
+
+@endif
+@endforeach
+@php($weekActions = collect($learning)->flatMap(fn ($g) => collect($g['actions'])->map(fn ($a) => $a + ['from' => $g['title']])))
+@if ($weekActions->isNotEmpty())
+**To chase**
+
+@foreach ($weekActions as $action)
+- {{ $action['text'] }} <small>({{ $action['from'] }})</small>
+@endforeach
+
+@endif
+@if (filled($mark_done_url ?? null))
+[Got these — mark them all done]({{ $mark_done_url }}) and they won't be resurfaced again.
+@endif
+
+@endif
 ## Where you stand this appraisal year
 
 - **{{ $total_activities }}** activities · **{{ $total_points }}** CPD points

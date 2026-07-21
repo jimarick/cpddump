@@ -19,12 +19,13 @@ class InboxItemController extends Controller
         $validated = $request->validated();
 
         $source = match (true) {
+            filled($validated['notes'] ?? null) => EvidenceSource::Debrief,
             $request->hasFile('files') => EvidenceSource::Upload,
             filled($validated['url'] ?? null) => EvidenceSource::Link,
             default => EvidenceSource::Manual,
         };
 
-        $payload = collect($validated)->only(['title', 'details', 'url'])->filter()->all();
+        $payload = collect($validated)->only(['title', 'details', 'url', 'notes', 'occurred_on'])->filter()->all();
 
         $item = $ingestor->ingest(
             $request->user(),
@@ -71,7 +72,7 @@ class InboxItemController extends Controller
 
         $payload = $item->raw_payload ?? [];
 
-        foreach (['title', 'details'] as $key) {
+        foreach (['title', 'details', 'notes'] as $key) {
             if (is_string($payload[$key] ?? null)) {
                 $payload[$key] = $scanner->scrubNhsNumbers($payload[$key])['text'];
             }

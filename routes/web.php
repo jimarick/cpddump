@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\AiAssistController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\EmailTakeawaysDoneController;
 use App\Http\Controllers\EmailUnsubscribeController;
 use App\Http\Controllers\GeneratedReportController;
 use App\Http\Controllers\InboxController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RecurrenceController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\TakeawayController;
 use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\Webhooks\ResendInboundController;
 use App\Http\Controllers\Webhooks\SesEventsController;
@@ -31,6 +33,10 @@ Route::post('webhooks/ses-events', SesEventsController::class)
 Route::match(['get', 'post'], 'email/unsubscribe/{user}', EmailUnsubscribeController::class)
     ->middleware('signed')
     ->name('email.unsubscribe');
+
+Route::get('email/takeaways/done/{user}', EmailTakeawaysDoneController::class)
+    ->middleware('signed')
+    ->name('email.takeaways.done');
 
 Route::inertia('/', 'marketing/home')->name('home');
 Route::inertia('privacy', 'marketing/privacy')->name('privacy');
@@ -65,6 +71,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('timeline', [TimelineController::class, 'index'])->name('timeline');
         Route::post('timeline/reset', [TimelineController::class, 'reset'])->name('timeline.reset');
 
+        Route::get('takeaways', [TakeawayController::class, 'index'])->name('takeaways');
+        Route::post('activities/{activity}/takeaways/generate', [TakeawayController::class, 'generate'])->middleware('throttle:20,1')->name('activities.takeaways.generate');
+        Route::patch('activities/{activity}/takeaways/{item}', [TakeawayController::class, 'update'])->name('activities.takeaways.update');
+        Route::delete('activities/{activity}/takeaways/{item}', [TakeawayController::class, 'destroy'])->name('activities.takeaways.destroy');
+
         Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
         Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
         Route::put('projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
@@ -94,6 +105,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('ai/reflection-draft', [AiAssistController::class, 'reflectionDraft'])
             ->middleware('throttle:20,1')
             ->name('ai.reflection-draft');
+        Route::post('ai/compose-review', [AiAssistController::class, 'composeReview'])
+            ->middleware('throttle:20,1')
+            ->name('ai.compose-review');
     });
 
     Route::middleware(EnsureAdmin::class)->prefix('admin')->group(function () {

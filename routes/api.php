@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\InboxItemApiController;
 use App\Http\Controllers\Api\MergeApiController;
 use App\Http\Controllers\Api\PushTokenApiController;
 use App\Http\Controllers\Api\ReferenceApiController;
+use App\Http\Controllers\Api\TakeawayApiController;
 use App\Http\Controllers\AttachmentController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,13 @@ Route::prefix('v1')->group(function () {
         Route::post('inbox-items/{item}/retry', [InboxItemApiController::class, 'retry'])->name('api.inbox-items.retry');
         Route::post('inbox-items/{item}/remove-pii', [InboxItemApiController::class, 'removePii'])->name('api.inbox-items.remove-pii');
         Route::delete('inbox-items/{item}', [InboxItemApiController::class, 'dismiss'])->name('api.inbox-items.dismiss');
+
+        Route::get('takeaways', [TakeawayApiController::class, 'index'])->name('api.takeaways.index');
+        Route::post('activities/{activity}/takeaways/generate', [TakeawayApiController::class, 'generate'])->middleware('throttle:20,1')->name('api.activities.takeaways.generate');
+        Route::patch('activities/{activity}/takeaways/{item}', [TakeawayApiController::class, 'update'])->name('api.activities.takeaways.update');
+        Route::delete('activities/{activity}/takeaways/{item}', [TakeawayApiController::class, 'destroy'])->name('api.activities.takeaways.destroy');
+
+        Route::patch('user/preferences', [AuthApiController::class, 'updatePreferences'])->name('api.user.preferences');
 
         Route::get('activities', [ActivityApiController::class, 'index'])->name('api.activities.index');
         Route::get('activities/{activity}', [ActivityApiController::class, 'show'])->name('api.activities.show');
@@ -55,5 +63,8 @@ Route::prefix('v1')->group(function () {
         Route::post('ai/reflection-draft', [AiAssistController::class, 'reflectionDraft'])
             ->middleware('throttle:20,1')
             ->name('api.ai.reflection-draft');
+        Route::post('ai/compose-review', [AiAssistController::class, 'composeReview'])
+            ->middleware('throttle:20,1')
+            ->name('api.ai.compose-review');
     });
 });

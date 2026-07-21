@@ -13,6 +13,7 @@ enum EvidenceSource: string
     case VoiceNote = 'voice_note';
     case Article = 'article';
     case Recurring = 'recurring';
+    case Debrief = 'debrief';
 
     public function label(): string
     {
@@ -26,6 +27,7 @@ enum EvidenceSource: string
             self::VoiceNote => 'Voice',
             self::Article => 'Article',
             self::Recurring => 'Regular',
+            self::Debrief => 'Debrief',
         };
     }
 }

@@ -11,10 +11,12 @@ import { Head, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     ChevronLeft,
+    ClipboardList,
     FileUp,
     Link2,
     Loader2,
     Merge,
+    Mic,
     Paperclip,
     PenLine,
     Plus,
@@ -68,6 +70,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type {
     InboxItemData,
     MergeSeed,
@@ -666,8 +673,9 @@ function InboxRow({
 const FILE_ACCEPT =
     '.pdf,.jpg,.jpeg,.png,.webp,.heic,.gif,.doc,.docx,.ppt,.pptx,.txt';
 
-type DumpMode = 'files' | 'link' | 'text' | 'regular';
+type DumpMode = 'debrief' | 'files' | 'link' | 'voice' | 'regular';
 
+/** The smaller cards under the Debrief hero. */
 const DUMP_MODES: {
     key: DumpMode;
     icon: typeof FileUp;
@@ -690,10 +698,10 @@ const DUMP_MODES: {
         rotate: '0.6deg',
     },
     {
-        key: 'text',
-        icon: PenLine,
-        title: 'Just words',
-        blurb: 'Type what happened',
+        key: 'voice',
+        icon: Mic,
+        title: 'Voice note',
+        blurb: 'Talk it out, we type it up',
         rotate: '-0.5deg',
     },
     {
@@ -723,11 +731,15 @@ function AddEvidenceDialog({
     const form = useForm<{
         title: string;
         details: string;
+        notes: string;
+        occurred_on: string;
         url: string;
         files: File[];
     }>({
         title: '',
         details: '',
+        notes: '',
+        occurred_on: '',
         url: '',
         files: initialFiles,
     });
@@ -747,7 +759,17 @@ function AddEvidenceDialog({
             ? form.data.files.length > 0
             : mode === 'link'
               ? form.data.url.trim() !== ''
-              : form.data.title.trim() !== '';
+              : mode === 'voice'
+                ? form.data.notes.trim() !== ''
+                : form.data.title.trim() !== '' ||
+                  form.data.notes.trim() !== '';
+
+    const openDebrief = () => {
+        // Date defaults to today; the user corrects it when the lecture
+        // wasn't. Notes make it a debrief server-side.
+        form.setData('occurred_on', new Date().toISOString().slice(0, 10));
+        setMode('debrief');
+    };
 
     return (
         <Dialog open onOpenChange={(o) => !o && close()}>
@@ -770,19 +792,34 @@ function AddEvidenceDialog({
 
                 {mode === null ? (
                     <div className="grid gap-3 py-1 sm:grid-cols-2">
+                        <button
+                            type="button"
+                            onClick={openDebrief}
+                            style={{ rotate: '-0.4deg' }}
+                            className="cursor-pointer rounded-[12px] border-2 border-ink bg-brand-pale px-4 py-6 text-center shadow-[4px_4px_0_rgba(28,25,23,.18)] transition-transform hover:-translate-y-0.5 hover:bg-brand-tint sm:col-span-2"
+                        >
+                            <ClipboardList className="mx-auto size-7 text-brand" />
+                            <span className="mt-2 block text-[16px] font-bold">
+                                Debrief
+                            </span>
+                            <span className="mt-0.5 block text-[12px] leading-snug text-stone-500">
+                                A few words or your whole lecture notes — typed,
+                                pasted or dictated. The AI files the rest.
+                            </span>
+                        </button>
                         {DUMP_MODES.map((m) => (
                             <button
                                 key={m.key}
                                 type="button"
                                 onClick={() => setMode(m.key)}
                                 style={{ rotate: m.rotate }}
-                                className="cursor-pointer rounded-[12px] border-2 border-ink bg-white px-3 py-5 text-center shadow-[4px_4px_0_rgba(28,25,23,.12)] transition-transform hover:-translate-y-0.5 hover:bg-brand-pale"
+                                className="cursor-pointer rounded-[12px] border-2 border-ink bg-white px-3 py-3.5 text-center shadow-[4px_4px_0_rgba(28,25,23,.12)] transition-transform hover:-translate-y-0.5 hover:bg-brand-pale"
                             >
-                                <m.icon className="mx-auto size-6 text-brand" />
-                                <span className="mt-2 block text-[14px] font-bold">
+                                <m.icon className="mx-auto size-5 text-brand" />
+                                <span className="mt-1.5 block text-[13px] font-bold">
                                     {m.title}
                                 </span>
-                                <span className="mt-0.5 block text-[11.5px] leading-snug text-stone-500">
+                                <span className="mt-0.5 block text-[11px] leading-snug text-stone-500">
                                     {m.blurb}
                                 </span>
                             </button>
@@ -837,27 +874,94 @@ function AddEvidenceDialog({
                             </>
                         )}
 
-                        {mode === 'text' && (
+                        {mode === 'voice' && (
                             <>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="new-title">
-                                        What was it?
+                                    <Label htmlFor="new-voice-notes">
+                                        Talk it out
                                     </Label>
-                                    <DictatedInput
-                                        id="new-title"
+                                    <DictatedTextarea
+                                        id="new-voice-notes"
                                         autoFocus
-                                        value={form.data.title}
-                                        onValueChange={(title) =>
-                                            form.setData('title', title)
+                                        value={form.data.notes}
+                                        onValueChange={(notes) =>
+                                            form.setData('notes', notes)
                                         }
-                                        placeholder="e.g. Taught FRCR physics revision session"
+                                        rows={8}
+                                        placeholder="Hit the mic and ramble — what it was, when, what you took away. We type it up, then the AI files it and pulls out the nuggets."
                                     />
-                                    <InputError message={form.errors.title} />
+                                    <InputError message={form.errors.notes} />
                                 </div>
-                                <OptionalNote
-                                    form={form}
-                                    label="Anything else? (optional)"
-                                />
+                            </>
+                        )}
+
+                        {mode === 'debrief' && (
+                            <>
+                                <div className="grid grid-cols-[1fr_9rem] gap-3">
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="new-title">
+                                            What was it?
+                                        </Label>
+                                        <DictatedInput
+                                            id="new-title"
+                                            autoFocus
+                                            value={form.data.title}
+                                            onValueChange={(title) =>
+                                                form.setData('title', title)
+                                            }
+                                            placeholder="e.g. Liver MRI masterclass"
+                                        />
+                                        <InputError
+                                            message={form.errors.title}
+                                        />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="new-occurred-on">
+                                            When?
+                                        </Label>
+                                        <Input
+                                            id="new-occurred-on"
+                                            type="date"
+                                            value={form.data.occurred_on}
+                                            onChange={(e) =>
+                                                form.setData(
+                                                    'occurred_on',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="new-notes">
+                                        Your notes (optional)
+                                    </Label>
+                                    <DictatedTextarea
+                                        id="new-notes"
+                                        value={form.data.notes}
+                                        onValueChange={(notes) =>
+                                            form.setData('notes', notes)
+                                        }
+                                        rows={9}
+                                        placeholder="A sentence or your whole lecture notes — type, paste or dictate. Anything you bolded, highlighted or headed up gets treated as a key point. The AI pulls out the nuggets and the things you said you'd chase."
+                                    />
+                                    <InputError message={form.errors.notes} />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="new-debrief-url">
+                                        Link (optional)
+                                    </Label>
+                                    <Input
+                                        id="new-debrief-url"
+                                        type="url"
+                                        value={form.data.url}
+                                        onChange={(e) =>
+                                            form.setData('url', e.target.value)
+                                        }
+                                        placeholder="https://… — we'll read the page too"
+                                    />
+                                    <InputError message={form.errors.url} />
+                                </div>
                             </>
                         )}
 
@@ -888,6 +992,8 @@ function OptionalNote({
         typeof useForm<{
             title: string;
             details: string;
+            notes: string;
+            occurred_on: string;
             url: string;
             files: File[];
         }>
@@ -1017,6 +1123,23 @@ function ReviewDialog({
         organisation: analysis?.organisation ?? '',
         cpd_points: analysis?.cpd_points ?? 0,
         summary: analysis?.summary ?? '',
+        // Pre-rename analyses carried plain-string suggested_learning_points;
+        // fall back so old Ready items aren't blanked.
+        nuggets:
+            analysis?.nuggets ??
+            (analysis?.suggested_learning_points ?? []).map((text) => ({
+                id: crypto.randomUUID(),
+                text,
+                done: false,
+            })),
+        actions: analysis?.actions ?? [],
+        // The user's own words, verbatim: their pasted debrief, or what the
+        // analyst copied out (email commentary, voice transcript).
+        source_notes:
+            (item.raw_payload.notes as string | undefined) ??
+            analysis?.user_notes ??
+            '',
+        selected_takeaway_ids: [],
         // The analyst leaves answers null when the user's words held no
         // reflection — coerce for the controlled fields.
         reflection: Object.fromEntries(
@@ -1048,10 +1171,20 @@ function ReviewDialog({
 
     const submitApprove = (keepIds: number[], piiAck: boolean) => {
         setProcessing(true);
+
+        const payload: Partial<EvidenceFormValues> = { ...values };
+        delete payload.selected_takeaway_ids;
+
+        // Takeaways are opt-in per item: only the selected ones are kept —
+        // everything else is discarded, never recorded.
+        const chosen = new Set(values.selected_takeaway_ids);
+
         router.post(
             `/inbox/${item.id}/approve`,
             {
-                ...values,
+                ...payload,
+                nuggets: values.nuggets.filter((n) => chosen.has(n.id)),
+                actions: values.actions.filter((a) => chosen.has(a.id)),
                 cpd_points: Number(values.cpd_points),
                 starts_on: values.starts_on || null,
                 ends_on: values.ends_on || null,
@@ -1128,7 +1261,7 @@ function ReviewDialog({
         <Dialog open onOpenChange={(o) => !o && onClose()}>
             <DialogContent
                 onOpenAutoFocus={(e) => e.preventDefault()}
-                className="max-h-[92vh] w-[min(100vw-2rem,52rem)] overflow-y-auto sm:max-w-3xl"
+                className="!flex max-h-[92vh] w-[min(100vw-2rem,52rem)] flex-col overflow-hidden sm:max-w-3xl"
             >
                 <DialogHeader>
                     {item.status === 'failed' ? (
@@ -1137,7 +1270,13 @@ function ReviewDialog({
                         </DialogTitle>
                     ) : (
                         <DialogTitle className="mr-6 flex items-start gap-2 font-display text-2xl font-extrabold">
-                            {editingTitle ? (
+                            {step > 0 ? (
+                                <span className="min-w-0">
+                                    {step === 3
+                                        ? 'Key takeaways'
+                                        : 'Your notes & reflections'}
+                                </span>
+                            ) : editingTitle ? (
                                 <input
                                     autoFocus
                                     value={values.title}
@@ -1181,6 +1320,7 @@ function ReviewDialog({
                 </DialogHeader>
 
                 {item.status === 'ready' &&
+                    step === 0 &&
                     (item.merge_suggestions?.length ?? 0) > 0 && (
                         <div className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-brand/60 bg-brand-pale px-3.5 py-2 text-[13px]">
                             <Sparkle
@@ -1206,9 +1346,10 @@ function ReviewDialog({
                         </div>
                     )}
 
-                {item.attachments.length > 0 && (
-                    <AttachmentLinks attachments={item.attachments} />
-                )}
+                {item.attachments.length > 0 &&
+                    (item.status === 'failed' || step === 0) && (
+                        <AttachmentLinks attachments={item.attachments} />
+                    )}
 
                 {item.status === 'failed' ? (
                     <div className="grid gap-4">
@@ -1246,6 +1387,13 @@ function ReviewDialog({
                             reflectionSource={
                                 analysis?.reflection_source ?? null
                             }
+                            initialComposedNotes={
+                                (item.raw_payload.notes as
+                                    | string
+                                    | undefined) ??
+                                analysis?.user_notes ??
+                                ''
+                            }
                             lastStepExtra={
                                 canIgnore ? (
                                     <label className="flex items-start gap-2 text-[13px] text-stone-600">
@@ -1271,21 +1419,45 @@ function ReviewDialog({
                                 <>
                                     <Button
                                         variant="ghost"
-                                        onClick={dismiss}
+                                        onClick={() => {
+                                            if (
+                                                window.confirm(
+                                                    'Bin this item? Binned means deleted — the draft, its analysis and any files are gone for good.',
+                                                )
+                                            ) {
+                                                dismiss();
+                                            }
+                                        }}
                                         disabled={processing}
                                         className="text-stone-500"
                                     >
+                                        <Trash2 className="size-4 text-red-600" />{' '}
                                         Bin it
                                     </Button>
-                                    <Button
-                                        variant="ghost"
-                                        onClick={onMergeWith}
-                                        disabled={processing}
-                                        className="text-stone-500"
-                                    >
-                                        <Merge className="size-4" /> Merge
-                                        with…
-                                    </Button>
+                                    {step === 0 && (
+                                        <span className="absolute left-1/2 -translate-x-1/2">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={onMergeWith}
+                                                        disabled={processing}
+                                                        className="border-2 border-stone-300 text-stone-600 hover:border-stone-400"
+                                                    >
+                                                        <Merge className="size-4" />{' '}
+                                                        Merge with…
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="max-w-60 text-center">
+                                                    Several dumps about the
+                                                    same event? Combine this
+                                                    with other inbox items or
+                                                    activities into one
+                                                    portfolio entry.
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </span>
+                                    )}
                                 </>
                             }
                             footerRight={
