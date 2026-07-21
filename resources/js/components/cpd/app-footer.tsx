@@ -13,7 +13,7 @@ export function AppFooter() {
             <div className="mx-auto flex max-w-[1080px] flex-col items-center justify-between gap-3 px-4 py-6 text-[12.5px] text-stone-500 md:flex-row md:px-6">
                 <div className="flex items-center gap-2.5">
                     <Wordmark size="sm" />
-                    <span>· your words, your portfolio</span>
+                    <span>· your words, with some AI sprinkles</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-x-[22px] gap-y-2">
                     <Link
