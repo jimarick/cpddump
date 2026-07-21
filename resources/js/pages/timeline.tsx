@@ -539,7 +539,11 @@ export default function Timeline({
             {editing && (
                 <EditActivityDialog
                     key={editing.id}
-                    activity={editing}
+                    // Prefer the live props copy so takeaway ticks made
+                    // inside the dialog reflect immediately after reload.
+                    activity={
+                        activities.find((a) => a.id === editing.id) ?? editing
+                    }
                     reference={reference}
                     onClose={() => setEditing(null)}
                     onMergeWith={() => {
@@ -736,7 +740,6 @@ function CopyButton({ text, label }: { text: string; label: string }) {
  * takeaways endpoint, so they can't collide with a form edit.
  */
 function TakeawaysBlock({ activity }: { activity: ActivityData }) {
-    const [showNotes, setShowNotes] = useState(false);
     const [generating, setGenerating] = useState(false);
 
     const nuggets = activity.nuggets ?? [];
@@ -759,7 +762,7 @@ function TakeawaysBlock({ activity }: { activity: ActivityData }) {
         router.patch(
             `/activities/${activity.id}/takeaways/${item.id}`,
             { done: !item.done },
-            { preserveScroll: true },
+            { preserveScroll: true, preserveState: true },
         );
 
     const row = (item: Takeaway, accent: boolean) => (
@@ -818,24 +821,6 @@ function TakeawaysBlock({ activity }: { activity: ActivityData }) {
                     {actions.map((a) => row(a, true))}
                 </div>
             )}
-            {activity.source_notes && (
-                <div className="grid gap-1">
-                    <button
-                        type="button"
-                        onClick={() => setShowNotes((s) => !s)}
-                        className="cursor-pointer self-start text-xs font-semibold text-stone-500 underline decoration-dashed underline-offset-3 hover:text-ink"
-                    >
-                        {showNotes
-                            ? 'Hide your original notes'
-                            : 'View your original notes'}
-                    </button>
-                    {showNotes && (
-                        <p className="rounded-[10px] border border-dashed border-stone-400 bg-white px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap text-stone-600">
-                            {activity.source_notes}
-                        </p>
-                    )}
-                </div>
-            )}
         </div>
     );
 }
@@ -873,6 +858,7 @@ function EditActivityDialog({
     });
 
     const [mode, setMode] = useState<'view' | 'edit'>('view');
+    const [viewTab, setViewTab] = useState<'ai' | 'notes'>('ai');
     const [values, setValues] = useState<EvidenceFormValues>(initialValues);
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -1052,41 +1038,75 @@ function EditActivityDialog({
                             </p>
                         )}
 
-                        {activity.details && (
-                            <div className="grid gap-1">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-bold">
-                                        Details
-                                    </span>
-                                    <CopyButton
-                                        text={activity.details}
-                                        label="details"
-                                    />
-                                </div>
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700">
-                                    {activity.details}
-                                </p>
+                        {activity.source_notes && (
+                            <div className="inline-flex self-start rounded-full border-2 border-ink p-0.5 text-xs font-semibold">
+                                {(['ai', 'notes'] as const).map((v) => (
+                                    <button
+                                        key={v}
+                                        type="button"
+                                        onClick={() => setViewTab(v)}
+                                        className={`cursor-pointer rounded-full px-3 py-1 ${
+                                            viewTab === v
+                                                ? 'bg-ink text-paper'
+                                                : 'text-stone-500 hover:text-ink'
+                                        }`}
+                                    >
+                                        {v === 'ai'
+                                            ? 'AI write-up'
+                                            : 'My notes'}
+                                    </button>
+                                ))}
                             </div>
                         )}
 
-                        {reflectionBlocks.map((block) => (
-                            <div key={block.key} className="grid gap-1">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-bold">
-                                        {block.label}
-                                    </span>
-                                    <CopyButton
-                                        text={block.text}
-                                        label={block.label}
-                                    />
-                                </div>
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700">
-                                    {block.text}
-                                </p>
-                            </div>
-                        ))}
+                        {viewTab === 'notes' && activity.source_notes ? (
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700">
+                                {activity.source_notes}
+                            </p>
+                        ) : (
+                            <>
+                                {activity.details && (
+                                    <div className="grid gap-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-sm font-bold">
+                                                Details
+                                            </span>
+                                            <CopyButton
+                                                text={activity.details}
+                                                label="details"
+                                            />
+                                        </div>
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700">
+                                            {activity.details}
+                                        </p>
+                                    </div>
+                                )}
 
-                        <TakeawaysBlock activity={activity} />
+                                {reflectionBlocks.map((block) => (
+                                    <div
+                                        key={block.key}
+                                        className="grid gap-1"
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-sm font-bold">
+                                                {block.label}
+                                            </span>
+                                            <CopyButton
+                                                text={block.text}
+                                                label={block.label}
+                                            />
+                                        </div>
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700">
+                                            {block.text}
+                                        </p>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+
+                        <div className="border-t border-dashed border-stone-300 pt-4">
+                            <TakeawaysBlock activity={activity} />
+                        </div>
 
                         <div className="mt-2 flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
                             <Button
@@ -1123,6 +1143,10 @@ function EditActivityDialog({
                             reference={reference}
                             errors={errors}
                         />
+
+                        <div className="border-t border-dashed border-stone-300 pt-4">
+                            <TakeawaysBlock activity={activity} />
+                        </div>
 
                         <div className="mt-2 flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
                             <Button

@@ -1018,14 +1018,25 @@ export function EvidenceFormFields(props: StepProps) {
 
     return (
         <div className="grid gap-6">
-            <DetailsStepFields {...props} />
+            <DetailsStepFields {...props} hideSummary />
             <div className="border-t border-dashed border-stone-300 pt-5">
                 <CategorisationSummary {...props} />
             </div>
-            <div className="border-t border-dashed border-stone-300 pt-5">
-                {talk.mode !== 'talk' && (
-                    <div className="mb-3 text-sm font-bold">Reflection</div>
-                )}
+            <div className="grid gap-5 border-t border-dashed border-stone-300 pt-5">
+                <div className="text-sm font-bold">Reflection</div>
+                <div className="grid gap-1.5">
+                    <Label className={LABEL_QUIET} htmlFor="summary">
+                        Details
+                    </Label>
+                    <AiTextarea
+                        id="summary"
+                        value={props.values.summary}
+                        rows={4}
+                        onChange={(v) => props.onChange({ summary: v })}
+                        field="Details — a first-person account of what this activity was, two sentences maximum"
+                        context={aiContext({ ...props.values, summary: '' })}
+                    />
+                </div>
                 <ReflectionStepFields
                     {...props}
                     talk={talk}
