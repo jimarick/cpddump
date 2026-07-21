@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\ActivityType;
 use App\Models\FrameworkAttribute;
+use App\Services\PidScanner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,6 +16,33 @@ use Illuminate\Http\Request;
  */
 class ActivityApiController extends Controller
 {
+    /**
+     * Post-approval remedy for the user who notices personal information
+     * on their phone: purge stored files to stubs, scrub identifiers from
+     * the text, keep the clean entry — API parity with the web remedy.
+     */
+    public function removePii(Request $request, Activity $activity, PidScanner $scanner): JsonResponse
+    {
+        abort_unless($activity->user_id === $request->user()->id, 403);
+
+        $activity->attachments()->whereNull('purged_at')->get()->each(function ($attachment) {
+            $attachment->purgeToStub();
+            $attachment->update(['extracted_text' => null]);
+        });
+
+        $scrub = fn (?string $text) => $text === null ? null : $scanner->scrubNhsNumbers($text)['text'];
+
+        $activity->update([
+            'title' => $scrub($activity->title),
+            'details' => $scrub($activity->details),
+            'reflection' => collect($activity->reflection ?? [])
+                ->map(fn (string $answer) => $scrub($answer))
+                ->all(),
+        ]);
+
+        return $this->show($request, $activity->refresh());
+    }
+
     /** Same validation and normalisation as the web activity edit. */
     public function update(Request $request, Activity $activity): JsonResponse
     {

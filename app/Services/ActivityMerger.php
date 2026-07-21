@@ -390,7 +390,7 @@ class ActivityMerger
 
         if ($blocking->isNotEmpty()) {
             throw ValidationException::withMessages([
-                'pii' => ['Possible sensitive information was found — remove it, or confirm you have checked it, before merging.'],
+                'pii' => ['Possible personal information was found — remove it, or confirm you have checked it, before merging.'],
                 'pii_item_ids' => $blocking->map(fn (int $id) => (string) $id)->all(),
             ]);
         }

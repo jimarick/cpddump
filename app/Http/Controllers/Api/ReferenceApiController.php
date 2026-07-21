@@ -31,8 +31,12 @@ class ReferenceApiController extends Controller
 
     public function stats(Request $request, StatsService $stats): JsonResponse
     {
+        $validated = $request->validate(['period' => ['nullable', 'integer']]);
+
         $user = $request->user();
-        $period = $user->currentAppraisalPeriod();
+        $period = filled($validated['period'] ?? null)
+            ? $user->appraisalPeriods()->find((int) $validated['period'])
+            : $user->currentAppraisalPeriod();
 
         return response()->json([
             'period' => $period?->only(['id', 'label', 'starts_on', 'ends_on']),

@@ -10,21 +10,20 @@ export default function Privacy() {
                 CPD Dump helps healthcare professionals collect and organise
                 their own continuing professional development (CPD) evidence.
                 This policy explains what we store, why, and the rules that keep
-                patients and colleagues out of it.
+                other people's personal information out of it.
             </p>
 
             <section>
-                <h2>The golden rule: no patient data</h2>
+                <h2>The golden rule: no personal information about others</h2>
                 <p>
                     CPD Dump is for evidence about{' '}
                     <em>your professional development</em> — never about
-                    patients. Nothing you upload, forward, dictate or paste
-                    should identify a patient, a colleague, or any other third
-                    party. We scan incoming content for likely identifiers
+                    other people. Nothing you upload, forward, dictate or paste
+                    should identify anyone else. We scan incoming content for likely identifiers
                     (names, NHS numbers, dates of birth, addresses) and warn you
                     before anything is stored, but the responsibility for
                     anonymising content remains yours. If we identify content
-                    that appears to contain patient-identifiable information, we
+                    that appears to contain personal information, we
                     will flag it for your review and you should delete or edit
                     it.
                 </p>
@@ -169,7 +168,7 @@ export default function Privacy() {
                                     The original entries and their files are
                                     kept underneath the combined entry, exactly
                                     as they were — un-combining restores them.
-                                    The sensitive-information check still
+                                    The personal-information check still
                                     applies before anything can be combined
                                 </td>
                                 <td>—</td>
@@ -192,7 +191,7 @@ export default function Privacy() {
                     </table>
                 </div>
                 <p>
-                    We automatically scan everything for patient-identifiable
+                    We automatically scan everything for personal
                     information (like NHS numbers) and will stop you approving
                     an item until you've removed it or confirmed it's safe.
                     Files are never kept unless you explicitly choose to keep
@@ -208,8 +207,8 @@ export default function Privacy() {
                     Your personal dump address exists only to receive evidence
                     from you. The raw email is deleted within seconds of
                     arriving — we keep only what the table above describes. Do
-                    not forward emails containing patient-identifiable
-                    information.
+                    not forward emails containing personal
+                    information about others.
                 </p>
             </section>
 

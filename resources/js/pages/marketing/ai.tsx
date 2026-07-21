@@ -26,7 +26,7 @@ export default function HowWeUseAi() {
                     CPD points, a first-person summary of what the activity
                     was, and a suggested categorisation against your
                     profession's framework. It also flags anything that looks
-                    like patient-identifiable information so you can deal with
+                    like personal information so you can deal with
                     it before the entry is saved, and spots when two dumps look
                     like the same event so you can combine them.
                 </p>

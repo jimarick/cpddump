@@ -113,8 +113,8 @@ class InboxItemApiController extends Controller
         if ($item->piiGateActive()) {
             if (! $request->boolean('pii_ack')) {
                 return response()->json([
-                    'message' => 'Possible sensitive information was found — remove it, or confirm you have checked it, before approving.',
-                    'errors' => ['pii' => ['Possible sensitive information was found — remove it, or confirm you have checked it, before approving.']],
+                    'message' => 'Possible personal information was found — remove it, or confirm you have checked it, before approving.',
+                    'errors' => ['pii' => ['Possible personal information was found — remove it, or confirm you have checked it, before approving.']],
                 ], 422);
             }
 
@@ -130,7 +130,7 @@ class InboxItemApiController extends Controller
     }
 
     /**
-     * "Remove patient info" — API parity with the web: purge stored files to
+     * "Remove personal info" — API parity with the web: purge stored files to
      * stubs and scrub NHS numbers from user-authored text, keeping the
      * identifier-free draft. Lifts the PII gate.
      */

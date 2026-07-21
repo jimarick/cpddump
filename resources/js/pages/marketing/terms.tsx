@@ -30,7 +30,7 @@ export default function Terms() {
                 <ul>
                     <li>
                         <strong>
-                            Never upload patient-identifiable information
+                            Never upload identifiable personal information about others
                         </strong>
                         , or information identifying colleagues or other third
                         parties. This is a condition of use.
@@ -88,7 +88,7 @@ export default function Terms() {
                 <p>
                     You can delete your account at any time. We may suspend
                     accounts that break these terms — in particular the
-                    prohibition on patient-identifiable data. These terms are
+                    prohibition on identifiable personal data. These terms are
                     governed by the law of England and Wales.
                 </p>
             </section>

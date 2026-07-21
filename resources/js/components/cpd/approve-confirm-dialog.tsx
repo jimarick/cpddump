@@ -68,7 +68,7 @@ export function ApproveConfirmDialog({
                             <AlertTriangle className="mt-0.5 size-4 shrink-0 text-brand" />
                             <span>
                                 <span className="font-bold">
-                                    Possible sensitive info:
+                                    Possible personal info:
                                 </span>{' '}
                                 {flags
                                     .map(
@@ -167,7 +167,7 @@ export function ApproveConfirmDialog({
                                     {processing && (
                                         <Loader2 className="size-4 animate-spin" />
                                     )}{' '}
-                                    Remove sensitive info &amp; {verb.toLowerCase()}
+                                    Remove personal info &amp; {verb.toLowerCase()}
                                 </Button>
                             )}
                             <Button

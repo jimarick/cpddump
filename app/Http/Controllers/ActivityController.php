@@ -77,7 +77,7 @@ class ActivityController extends Controller
     }
 
     /**
-     * Post-approval remedy for the user who notices patient information
+     * Post-approval remedy for the user who notices personal information
      * weeks later: purge stored files, scrub NHS numbers from the text,
      * keep the clean entry.
      */

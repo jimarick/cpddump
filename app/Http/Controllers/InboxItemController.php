@@ -43,7 +43,7 @@ class InboxItemController extends Controller
         if ($item->piiGateActive()) {
             if (! $request->boolean('pii_ack')) {
                 return back()->withErrors([
-                    'pii' => 'Possible sensitive information was found — remove it, or confirm you have checked it, before approving.',
+                    'pii' => 'Possible personal information was found — remove it, or confirm you have checked it, before approving.',
                 ]);
             }
 
@@ -56,7 +56,7 @@ class InboxItemController extends Controller
     }
 
     /**
-     * "Remove patient info": delete every copy of the source we still hold
+     * "Remove personal info": delete every copy of the source we still hold
      * — stored files (to stubs) and NHS numbers in user-authored text —
      * keeping the identifier-free draft.
      */
@@ -80,7 +80,7 @@ class InboxItemController extends Controller
         $item->update(['raw_payload' => $payload]);
         $item->recordPiiResolution('removed');
 
-        return back()->with('success', 'Patient information removed — the drafted entry is kept.');
+        return back()->with('success', 'Personal information removed — the drafted entry is kept.');
     }
 
     public function dismiss(Request $request, InboxItem $item): RedirectResponse

@@ -781,10 +781,10 @@ function PrivacyBanner() {
                 </div>
                 <div>
                     <div className="text-[19px] font-bold tracking-[-0.02em]">
-                        No patient data. Ever.
+                        No personal data. Ever.
                     </div>
                     <p className="mt-[5px] text-sm leading-[1.55] text-pretty text-stone-600">
-                        Nothing you upload should identify a patient, colleague
+                        Nothing you upload should identify another person
                         or anyone else. We scan for identifiers and warn you
                         before anything is stored. Uploads are encrypted, raw
                         email content is minimised, and nothing AI writes goes

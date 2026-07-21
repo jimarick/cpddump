@@ -38,7 +38,7 @@ const RETENTION_OPTIONS: {
     {
         value: 'always',
         label: 'Always keep my files',
-        hint: 'Files stay attached to activities without asking. Only keep files free of personal or sensitive information.',
+        hint: 'Files stay attached to activities without asking. Only keep files free of personal information.',
     },
     {
         value: 'never',
@@ -116,7 +116,7 @@ export default function EvidenceSettings({
                     <p className="mt-2 text-[12.5px] text-pretty text-stone-500">
                         Tip: add it to your contacts as "CPD Dump" so forwarding
                         is two taps. Never forward anything containing
-                        patient-identifiable information.
+                        personal information about others.
                     </p>
                     {dumpAddress && (
                         <div className="mt-4 border-t border-dashed border-stone-300 pt-3">

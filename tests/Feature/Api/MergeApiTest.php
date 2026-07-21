@@ -1,8 +1,11 @@
 <?php
 
 use App\Models\Activity;
+use App\Models\AppraisalPeriod;
+use App\Models\Attachment;
 use App\Models\InboxItem;
 use App\Services\ActivityMerger;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
 test('the companion app can preview, merge and split', function () {
@@ -90,6 +93,63 @@ test('the companion app can edit an activity, including a merged one', function 
     $this->putJson("/api/v1/activities/{$theirs->id}", [
         'title' => 'x', 'activity_type_slug' => 'course', 'cpd_points' => 1,
     ])->assertForbidden();
+});
+
+test('the companion app can remove personal information from an approved activity', function () {
+    Storage::fake('local');
+
+    $user = ukDoctor();
+    Sanctum::actingAs($user);
+
+    $activity = Activity::factory()->for($user)->create([
+        'appraisal_period_id' => $user->currentAppraisalPeriod()->id,
+        'details' => 'Case discussion, NHS number 943 476 5919.',
+        'reflection' => ['why_selected' => 'Contains 943 476 5919 by mistake.'],
+    ]);
+    $file = Attachment::factory()->for($user)->create([
+        'attachable_type' => $activity->getMorphClass(),
+        'attachable_id' => $activity->id,
+        'extracted_text' => 'something',
+    ]);
+
+    $updated = $this->postJson("/api/v1/activities/{$activity->id}/remove-pii")
+        ->assertOk()
+        ->json('activity');
+
+    expect($updated['details'])->not->toContain('943 476 5919')
+        ->and($updated['reflection']['why_selected'])->not->toContain('943 476 5919')
+        ->and($file->fresh()->isPurged())->toBeTrue()
+        ->and($file->fresh()->extracted_text)->toBeNull();
+
+    // Someone else's activity is untouchable.
+    $other = ukDoctor();
+    $theirs = Activity::factory()->for($other)->create([
+        'appraisal_period_id' => $other->currentAppraisalPeriod()->id,
+    ]);
+    $this->postJson("/api/v1/activities/{$theirs->id}/remove-pii")->assertForbidden();
+});
+
+test('stats can be asked for a specific appraisal period', function () {
+    $user = ukDoctor();
+    Sanctum::actingAs($user);
+
+    $old = AppraisalPeriod::factory()->for($user)->create([
+        'is_current' => false,
+        'starts_on' => now()->subYears(2),
+        'ends_on' => now()->subYear(),
+    ]);
+    Activity::factory()->for($user)->create(['appraisal_period_id' => $old->id, 'cpd_points' => 4]);
+    Activity::factory()->for($user)->create([
+        'appraisal_period_id' => $user->currentAppraisalPeriod()->id,
+        'cpd_points' => 1,
+    ]);
+
+    $current = $this->getJson('/api/v1/stats')->assertOk()->json();
+    expect($current['stats']['points'])->toBe(1);
+
+    $past = $this->getJson("/api/v1/stats?period={$old->id}")->assertOk()->json();
+    expect($past['stats']['points'])->toBe(4)
+        ->and($past['period']['id'])->toBe($old->id);
 });
 
 test('another user\'s merged entry cannot be split through the API', function () {
