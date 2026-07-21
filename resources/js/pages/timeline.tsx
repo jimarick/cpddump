@@ -1039,7 +1039,7 @@ function EditActivityDialog({
                         )}
 
                         {activity.source_notes && (
-                            <div className="inline-flex self-start rounded-full border-2 border-ink p-0.5 text-xs font-semibold">
+                            <div className="mx-auto inline-flex justify-self-center rounded-full border-2 border-ink p-0.5 text-xs font-semibold">
                                 {(['ai', 'notes'] as const).map((v) => (
                                     <button
                                         key={v}
@@ -1052,15 +1052,15 @@ function EditActivityDialog({
                                         }`}
                                     >
                                         {v === 'ai'
-                                            ? 'AI write-up'
-                                            : 'My notes'}
+                                            ? 'Final version'
+                                            : 'Original notes'}
                                     </button>
                                 ))}
                             </div>
                         )}
 
                         {viewTab === 'notes' && activity.source_notes ? (
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700">
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-700 italic">
                                 {activity.source_notes}
                             </p>
                         ) : (
@@ -1104,9 +1104,11 @@ function EditActivityDialog({
                             </>
                         )}
 
-                        <div className="border-t border-dashed border-stone-300 pt-4">
-                            <TakeawaysBlock activity={activity} />
-                        </div>
+                        {(viewTab === 'ai' || !activity.source_notes) && (
+                            <div className="border-t border-dashed border-stone-300 pt-4">
+                                <TakeawaysBlock activity={activity} />
+                            </div>
+                        )}
 
                         <div className="mt-2 flex items-center gap-2 border-t border-dashed border-stone-300 pt-4">
                             <Button
